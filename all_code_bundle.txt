@@ -29,10 +29,10 @@
 <body>
 
   <!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
+<!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
   <header class="app-nav">
     <div class="nav-container">
       <div class="nav-brand">
-        <span class="brand-icon">🏛️</span>
         <div>
           <span class="brand-title">OPPE Sustainability</span>
           <span class="brand-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</span>
@@ -40,24 +40,21 @@
       </div>
       <nav class="nav-tabs">
         <button type="button" class="tab-btn active" data-view="view-air">
-          <span>🌿</span> คุณภาพอากาศ
+          คุณภาพอากาศ
         </button>
         <button type="button" class="tab-btn" data-view="view-light">
-          <span>💡</span> ตรวจวัดแสงสว่าง (ISO)
+          ตรวจวัดแสงสว่าง (ISO)
         </button>
       </nav>
     </div>
   </header>
 
-  <!-- พื้นที่แสดงผลเนื้อหาหลัก -->
   <main class="main-wrapper">
-    <!-- View 1: หน้าคุณภาพอากาศ (AQI Monitoring) -->
     <section id="view-air" class="view-panel active">
       <div id="view-header"></div>
       <div id="view-aqi"></div>
     </section>
 
-    <!-- View 2: หน้าระบบตรวจวัดแสงสว่าง (Illuminance Executive Dashboard) -->
     <section id="view-light" class="view-panel">
       <div id="view-light-page"></div>
     </section>
@@ -66,12 +63,10 @@
   <!-- แถบเมนูด้านล่างสำหรับ Mobile Navigation Bar -->
   <nav class="mobile-nav">
     <button type="button" class="mobile-nav-item active" data-view="view-air">
-      <span class="icon">🌿</span>
       <span class="lbl">คุณภาพอากาศ</span>
     </button>
     <button type="button" class="mobile-nav-item" data-view="view-light">
-      <span class="icon">💡</span>
-      <span class="lbl">ตรวจวัดแสง</span>
+      <span class="lbl">ตรวจวัดแสง (ISO)</span>
     </button>
   </nav>
 
@@ -135,19 +130,21 @@
         btn.addEventListener('click', () => {
           const targetViewId = btn.getAttribute('data-view');
 
-          // สลับสถานะ Active ของปุ่มทั้งชุดบน PC และ Mobile
+          // 1. สลับสถานะปุ่ม
           navButtons.forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-view') === targetViewId);
           });
 
-          // สลับการแสดงผลหน้า View
+          // 2. แสดง Panel ที่เลือก
           panels.forEach(panel => {
             panel.classList.toggle('active', panel.id === targetViewId);
           });
 
-          // เมื่อสลับไปหน้าแสงสว่าง ให้เรียกฟังก์ชันวาดกราฟและตารางทันที
-          if (targetViewId === 'view-light' && window.initLightDashboard) {
-            window.initLightDashboard();
+          // 3. หน่วงเวลาเล็กน้อยเพื่อให้ DOM กางขนาดเสร็จก่อนวาดกราฟ
+          if (targetViewId === 'view-light' && typeof window.initLightDashboard === 'function') {
+            setTimeout(() => {
+              window.initLightDashboard();
+            }, 100);
           }
         });
       });
@@ -327,39 +324,34 @@
 <!-- components/light-page.html -->
 <div class="light-dashboard-container">
   
-  <!-- Header ของหน้าระบบตรวจวัดแสง -->
   <div class="dashboard-banner">
-    <div>
-      <span class="iso-pill">ISO 45001 : 2018 & ISO 14001 : 2015</span>
-      <h2>💡 ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
-      <p>สรุปผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
+    <div class="banner-title-group">
+      <span class="iso-pill">ISO 45001 : 2018 / ISO 14001 : 2015</span>
+      <h2>ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
+      <p>รายงานผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
     </div>
     <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec" 
        target="_blank" 
        rel="noopener" 
        class="btn-open-form">
-      <span>📝</span> เปิดฟอร์มตรวจวัดภาคสนาม
+      แบบบันทึกข้อมูลภาคสนาม
     </a>
   </div>
 
-  <!-- แผงสถิติภาพรวม (KPI Cards) -->
   <div class="stats-overview-grid">
     <div class="kpi-card">
-      <div class="kpi-icon">📍</div>
       <div class="kpi-data">
-        <span class="kpi-title">จุดตรวจวัดทั้งหมด</span>
+        <span class="kpi-title">จุดตรวจวัดสะสม</span>
         <span class="kpi-num" id="statTotal">--</span>
       </div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-icon pass-bg">✅</div>
+    <div class="kpi-card border-pass">
       <div class="kpi-data">
         <span class="kpi-title">ผ่านเกณฑ์มาตรฐาน</span>
         <span class="kpi-num text-pass" id="statPass">--</span>
       </div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-icon fail-bg">⚠️</div>
+    <div class="kpi-card border-fail">
       <div class="kpi-data">
         <span class="kpi-title">ต้องปรับปรุงแสงสว่าง</span>
         <span class="kpi-num text-fail" id="statFail">--</span>
@@ -367,22 +359,19 @@
     </div>
   </div>
 
-  <!-- โครงสร้าง Grid แสดงกราฟแท่งคู่กับตาราง -->
   <div class="dashboard-content-grid">
-    <!-- การ์ดกราฟแท่ง -->
     <div class="dash-card chart-card">
       <div class="dash-card-header">
-        <h3>📊 สรุปผลการประเมินแยกตามอาคาร</h3>
+        <h3>สรุปผลการประเมินแยกตามอาคาร</h3>
       </div>
       <div class="dash-chart-wrapper">
         <canvas id="buildingLightChart"></canvas>
       </div>
     </div>
 
-    <!-- การ์ดตารางประวัติการตรวจวัด -->
     <div class="dash-card table-card">
       <div class="dash-card-header">
-        <h3>📋 บันทึกผลการตรวจวัดล่าสุด</h3>
+        <h3>บันทึกผลการตรวจวัดล่าสุด</h3>
       </div>
       <div class="table-scroll-area">
         <table class="data-table">
@@ -390,14 +379,14 @@
             <tr>
               <th>อาคาร / ห้อง</th>
               <th>ลักษณะงาน</th>
-              <th>เกณฑ์</th>
-              <th>วัดได้</th>
+              <th>เกณฑ์ (Lux)</th>
+              <th>วัดได้ (Lux)</th>
               <th>สถานะ</th>
             </tr>
           </thead>
           <tbody id="lightTableBody">
             <tr>
-              <td colspan="5" class="loading-td">กำลังโหลดข้อมูลจาก Google Sheets...</td>
+              <td colspan="5" class="loading-td">กำลังโหลดข้อมูล...</td>
             </tr>
           </tbody>
         </table>
@@ -671,32 +660,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // js/light-data.js
 (function () {
-  const modal = document.getElementById('lightModal');
-  const btnOpen = document.getElementById('btnOpenLightModal');
-  const btnClose = document.getElementById('btnCloseLightModal');
-  const tbody = document.getElementById('lightTableBody');
-
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
   let buildingChartInstance = null;
+  let isFetched = false;
 
-  if (!modal || !btnOpen) return;
-
-  btnOpen.addEventListener('click', () => {
-    modal.classList.add('active');
-    setTimeout(() => {
-      fetchLightRecords();
-      renderBuildingChart();
-    }, 150);
-  });
-
-  if (btnClose) {
-    btnClose.addEventListener('click', () => modal.classList.remove('active'));
-  }
-  
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.classList.remove('active');
-  });
+  window.initLightDashboard = function () {
+    fetchLightRecords();
+    renderBuildingChart();
+  };
 
   async function renderBuildingChart() {
     const canvas = document.getElementById('buildingLightChart');
@@ -713,7 +685,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const failData = buildings.map(b => data[b].fail);
 
       const ctx = canvas.getContext('2d');
-      if (buildingChartInstance) buildingChartInstance.destroy();
+      if (buildingChartInstance) {
+        buildingChartInstance.destroy();
+      }
 
       buildingChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -727,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
               borderRadius: 4
             },
             {
-              label: 'ไม่ผ่านเกณฑ์',
+              label: 'ต้องปรับปรุง',
               data: failData,
               backgroundColor: '#DC2626',
               borderRadius: 4
@@ -738,34 +712,41 @@ document.addEventListener('DOMContentLoaded', () => {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            x: { stacked: true },
-            y: { stacked: true, beginAtZero: true, ticks: { precision: 0, stepSize: 1 } }
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: { font: { size: 11 } }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: { precision: 0, stepSize: 1, font: { size: 11 } },
+              grid: { color: '#f1f5f9' }
+            }
           },
           plugins: {
-            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
-            title: {
-              display: true,
-              text: 'สรุปผลตรวจวัดระดับแสงสว่างแยกตามอาคาร (ISO 45001)',
-              font: { size: 12, weight: 'bold' }
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 11 } }
             }
           }
         }
       });
     } catch (err) {
-      console.error("ไม่สามารถวาดกราฟได้:", err);
+      console.error("Error drawing light chart:", err);
     }
   }
 
   async function fetchLightRecords() {
+    const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">กำลังโหลดข้อมูลล่าสุด...</td></tr>';
 
     try {
       const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
       const list = await res.json();
 
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">ไม่พบข้อมูลบันทึกในระบบ</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลในระบบ</td></tr>';
         return;
       }
 
@@ -777,16 +758,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isPass) pass++; else fail++;
 
         const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 
-          ? `<span style="font-size:10px; color:#0288D1;">(${item.workerOrPoint})</span>` 
+          ? `<div class="sub-text">(${item.workerOrPoint})</div>` 
           : "";
 
         return `
           <tr>
             <td>
-              <strong>${item.building || "-"}</strong><br>
-              <span style="color:#64748b;">ห้อง ${item.room || "-"}</span>
+              <strong>${item.building || "-"}</strong>
+              <div class="sub-text">ห้อง ${item.room || "-"}</div>
             </td>
-            <td style="max-width: 120px; font-size: 11px;">
+            <td>
               <div>${item.task || "-"}</div>
               ${pointInfo}
             </td>
@@ -794,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td><strong>${item.measuredLux}</strong></td>
             <td>
               <span class="status-tag ${isPass ? 'pass' : 'fail'}">
-                ${isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+                ${isPass ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
               </span>
             </td>
           </tr>
@@ -806,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
 
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:15px;">โหลดตารางข้อมูลไม่สำเร็จ</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ</td></tr>';
     }
   }
 })();

@@ -1,114 +1,114 @@
 // js/carousel.js
-document.addEventListener('DOMContentLoaded', () => {
-  const track = document.getElementById('carouselTrack');
-  const container = document.getElementById('carouselContainer');
-  const dots = document.querySelectorAll('.dot');
-  
-  if (!track || !container) {
-    console.error("ไม่พบอิลิเมนต์ Carousel ใน DOM");
-    return;
-  }
+(function () {
+  window.initCarousel = function () {
+    const track = document.getElementById('carouselTrack');
+    const container = document.getElementById('carouselContainer');
+    const dots = document.querySelectorAll('.dot');
 
-  let currentIndex = 0;
-  const totalSlides = 2;
+    if (!track || !container) return;
 
-  function updateCarousel(index, smooth = true) {
-    track.style.transition = smooth ? 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
-    currentIndex = (index + totalSlides) % totalSlides;
-    track.style.transform = `translateX(-${currentIndex * 100}%)`;
-    
+    let currentIndex = 0;
+    const totalSlides = 2;
+
+    function updateCarousel(index, smooth = true) {
+      track.style.transition = smooth ? 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+      currentIndex = (index + totalSlides) % totalSlides;
+      track.style.transform = `translateX(-${currentIndex * 100}%)`;
+
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === currentIndex);
+      });
+    }
+
     dots.forEach((dot, i) => {
-      dot.classList.toggle('active', i === currentIndex);
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        updateCarousel(i);
+      });
     });
-  }
 
-  // กดที่จุด Dots เพื่อเปลี่ยนหน้า
-  dots.forEach((dot, i) => {
-    dot.addEventListener('click', (e) => {
-      e.stopPropagation();
-      updateCarousel(i);
-    });
-  });
+    let startX = 0;
+    let startY = 0;
+    let currentTranslate = 0;
+    let isDragging = false;
+    let isHorizontalSwipe = null;
 
-  // ตัวแปรจับพิกัด
-  let startX = 0;
-  let startY = 0;
-  let currentTranslate = 0;
-  let isDragging = false;
-  let isHorizontalSwipe = null; // เช็กว่าเป็นการปัดแนวนอนหรือแนวตั้ง
+    function onTouchStart(e) {
+      if (['INPUT', 'BUTTON', 'A'].includes(e.target.tagName)) return;
 
-  // 1. แตะหน้าจอ / คลิกเมาส์
-  function onTouchStart(e) {
-    // ยกเว้นเมื่อผู้ใช้แตะในช่องกรอกข้อมูล หรือกดปุ่ม
-    if (['INPUT', 'BUTTON', 'A'].includes(e.target.tagName)) return;
+      isDragging = true;
+      isHorizontalSwipe = null;
+      const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+      const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
 
-    isDragging = true;
-    isHorizontalSwipe = null;
-    const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
-    const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
+      startX = clientX;
+      startY = clientY;
+      track.style.transition = 'none';
+    }
 
-    startX = clientX;
-    startY = clientY;
-    track.style.transition = 'none';
-  }
+    function onTouchMove(e) {
+      if (!isDragging) return;
 
-  // 2. ลากนิ้ว
-  function onTouchMove(e) {
-    if (!isDragging) return;
+      const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+      const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
 
-    const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
-    const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
+      const diffX = clientX - startX;
+      const diffY = clientY - startY;
 
-    const diffX = clientX - startX;
-    const diffY = clientY - startY;
+      if (isHorizontalSwipe === null) {
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+          isHorizontalSwipe = true;
+        } else if (Math.abs(diffY) > 8) {
+          isHorizontalSwipe = false;
+          isDragging = false;
+          return;
+        }
+      }
 
-    // ตรวจสอบทิศทางในการขยับครั้งแรก (ถ้าเลื่อนขึ้นลง ให้ปล่อยจอเลื่อนตามปกติ ไม่บล็อกหน้าเว็บ)
-    if (isHorizontalSwipe === null) {
-      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
-        isHorizontalSwipe = true;
-      } else if (Math.abs(diffY) > 8) {
-        isHorizontalSwipe = false;
-        isDragging = false;
-        return;
+      if (isHorizontalSwipe) {
+        if (e.cancelable) e.preventDefault();
+        currentTranslate = -(currentIndex * container.offsetWidth) + diffX;
+        track.style.transform = `translateX(${currentTranslate}px)`;
       }
     }
 
-    if (isHorizontalSwipe) {
-      if (e.cancelable) e.preventDefault(); // ป้องกันหน้าเพจขยับขณะปัดการ์ด
-      currentTranslate = -(currentIndex * container.offsetWidth) + diffX;
-      track.style.transform = `translateX(${currentTranslate}px)`;
-    }
-  }
+    function onTouchEnd(e) {
+      if (!isDragging) return;
+      isDragging = false;
 
-  // 3. ปล่อยนิ้ว / ยกเมาส์
-  function onTouchEnd(e) {
-    if (!isDragging) return;
-    isDragging = false;
+      const endX = e.type.includes('mouse') ? e.pageX : (e.changedTouches ? e.changedTouches[0].clientX : startX);
+      const diffX = endX - startX;
 
-    const endX = e.type.includes('mouse') ? e.pageX : (e.changedTouches ? e.changedTouches[0].clientX : startX);
-    const diffX = endX - startX;
-
-    // ถ้าปัดเกิน 40px ให้เปลี่ยนหน้า
-    if (isHorizontalSwipe && Math.abs(diffX) > 40) {
-      if (diffX < 0) {
-        updateCarousel(currentIndex + 1); // ปัดซ้าย -> หน้าถัดไป
+      if (isHorizontalSwipe && Math.abs(diffX) > 40) {
+        if (diffX < 0) {
+          updateCarousel(currentIndex + 1);
+        } else {
+          updateCarousel(currentIndex - 1);
+        }
       } else {
-        updateCarousel(currentIndex - 1); // ปัดขวา -> หน้าก่อนหน้า
+        updateCarousel(currentIndex);
       }
-    } else {
-      updateCarousel(currentIndex); // ปัดไม่พอ -> ดีดกลับที่เดิม
+      isHorizontalSwipe = null;
     }
-    isHorizontalSwipe = null;
+
+    // Unbind เดิมก่อน Bind ใหม่ป้องกัน Event ซ้อน
+    container.removeEventListener('touchstart', onTouchStart);
+    container.removeEventListener('touchmove', onTouchMove);
+    container.removeEventListener('touchend', onTouchEnd);
+    container.removeEventListener('touchcancel', onTouchEnd);
+    container.removeEventListener('mousedown', onTouchStart);
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
+    container.addEventListener('touchcancel', onTouchEnd);
+    container.addEventListener('mousedown', onTouchStart);
+    window.addEventListener('mousemove', onTouchMove);
+    window.addEventListener('mouseup', onTouchEnd);
+  };
+
+  // เรียกทำงานทันทีหาก DOM ของหน้าพร้อมอยู่แล้ว
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.initCarousel();
   }
-
-  // ผูก Event ฝั่ง Touch
-  container.addEventListener('touchstart', onTouchStart, { passive: true });
-  container.addEventListener('touchmove', onTouchMove, { passive: false });
-  container.addEventListener('touchend', onTouchEnd);
-  container.addEventListener('touchcancel', onTouchEnd);
-
-  // ผูก Event ฝั่ง Mouse
-  container.addEventListener('mousedown', onTouchStart);
-  window.addEventListener('mousemove', onTouchMove);
-  window.addEventListener('mouseup', onTouchEnd);
-});
+})();

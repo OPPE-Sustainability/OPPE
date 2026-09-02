@@ -25,7 +25,6 @@
 <body>
 
   <!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
-<!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
   <header class="app-nav">
     <div class="nav-container">
       <div class="nav-brand">
@@ -66,7 +65,7 @@
     </button>
   </nav>
 
-  <!-- สคริปต์โหลดคอมโพเนนต์และควบคุมการสลับหน้า -->
+  <!-- สคริปต์โหลดคอมโพเนนต์และควบคุมการทำงาน -->
   <script>
     async function loadComponent(elementId, filePath) {
       try {
@@ -81,14 +80,14 @@
     }
 
     async function initApp() {
-      // 1. โหลดโครงสร้าง HTML ย่อยเข้ามาในแต่ละส่วน
+      // 1. โหลดคอมโพเนนต์ HTML ให้ครบถ้วนก่อน
       await Promise.all([
         loadComponent('view-header', 'components/header.html'),
         loadComponent('view-aqi', 'components/aqi-summary.html'),
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      // 2. โหลดสคริปต์ JavaScript ประจำโมดูลหลังจาก DOM ประกอบเสร็จ
+      // 2. โหลดไฟล์ JavaScript ลำดับตามโมดูล
       const scripts = [
         'js/carousel.js',
         'js/aqi-chart.js',
@@ -109,12 +108,17 @@
         });
       }
 
-      // 3. เริ่มต้นดึงข้อมูลสภาพอากาศ
+      // 3. เริ่มต้นระบบปัด Carousel ทันทีหลังจาก DOM โครงสร้างพร้อม
+      if (typeof window.initCarousel === 'function') {
+        window.initCarousel();
+      }
+
+      // 4. เริ่มต้นดึงข้อมูลสภาพอากาศและลงทะเบียนระบบแจ้งเตือน
       const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwhXVb3waX1ZJS0B-NRngCIVOeGuq5ZcBufwZLXaNnXAHl1s-1h0YgC7Mb65mUAEEgaJQ/exec";
       if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
 
-      // 4. ติดตั้งระบบสลับหน้า Tab
+      // 5. เปิดใช้งานระบบ Navigation สลับหน้า
       setupNavigation();
     }
 
@@ -126,17 +130,17 @@
         btn.addEventListener('click', () => {
           const targetViewId = btn.getAttribute('data-view');
 
-          // 1. สลับสถานะปุ่ม
+          // สลับสถานะปุ่มเมนู
           navButtons.forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-view') === targetViewId);
           });
 
-          // 2. แสดง Panel ที่เลือก
+          // สลับการแสดงหน้า View
           panels.forEach(panel => {
             panel.classList.toggle('active', panel.id === targetViewId);
           });
 
-          // 3. หน่วงเวลาเล็กน้อยเพื่อให้ DOM กางขนาดเสร็จก่อนวาดกราฟ
+          // หน่วงเวลาเล็กน้อยเพื่อให้เบราว์เซอร์จัดสเกลความกว้างก่อนวาดกราฟแท่ง
           if (targetViewId === 'view-light' && typeof window.initLightDashboard === 'function') {
             setTimeout(() => {
               window.initLightDashboard();
