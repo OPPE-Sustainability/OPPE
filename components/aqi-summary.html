@@ -1,0 +1,59 @@
+<!-- components/aqi-summary.html -->
+<!-- Real-time Status Card -->
+<div class="hero-card">
+  <div class="metric-item">
+    <span class="title">AQI ปัจจุบัน</span>
+    <span class="val" id="valAqi">--</span>
+    <div class="aqi-pill" id="lblStatus">กำลังโหลด...</div>
+  </div>
+  <div class="metric-item">
+    <span class="title">PM2.5</span>
+    <span class="val" id="valPm25">--</span>
+    <span class="unit">µg/m³</span>
+  </div>
+  <div class="metric-item">
+    <span class="title">PM10</span>
+    <span class="val" id="valPm10">--</span>
+    <span class="unit">µg/m³</span>
+  </div>
+</div>
+
+<!-- Carousel Section -->
+<div class="carousel-container" id="carouselContainer">
+  <div class="carousel-track" id="carouselTrack">
+    
+    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง -->
+    <div class="carousel-slide" id="slide1">
+      <div class="slide-header">
+        <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
+        <span class="swipe-hint">ปัดซ้ายเพื่อรับแจ้งเตือน ➔</span>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="aqiChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน -->
+    <div class="carousel-slide" id="slide2">
+      <div class="slide-header">
+        <span class="slide-title">🔔 รับการแจ้งเตือนฝุ่นรายวัน</span>
+        <span class="swipe-hint">ปัดเพื่อดูกราฟ ➔</span>
+      </div>
+      <div class="form-wrapper">
+        <p>รับการแจ้งเตือนค่าฝุ่น PM2.5 และ AQI เด้งเข้าหน้าจออัตโนมัติทุกเช้า</p>
+        <form id="subscribeForm" onsubmit="return false;">
+          <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+          <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
+        </form>
+        <div id="status-msg"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Indicator Dots -->
+  <div class="carousel-footer">
+    <div class="dot active" data-index="0"></div>
+    <div class="dot" data-index="1"></div>
+  </div>
+</div>

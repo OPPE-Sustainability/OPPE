@@ -1,0 +1,1120 @@
+
+
+===== FILE: index.html =====
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ระบบรายงานคุณภาพอากาศและ EHS ม.มหิดล</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <!-- จุดแทรกชิ้นส่วน UI แต่ละก้อน -->
+    <div id="view-header"></div>
+    <div id="view-aqi"></div>
+    <div id="view-ehs"></div>
+  </div>
+
+  <!-- จุดแทรก Modal ด้านนอก Container -->
+  <div id="view-light-modal"></div>
+
+  <!-- ตัวโหลดคอมโพเนนต์ -->
+  <script>
+    async function loadComponent(elementId, filePath) {
+      const res = await fetch(filePath);
+      const html = await res.text();
+      document.getElementById(elementId).innerHTML = html;
+    }
+
+    async function initApp() {
+      // 1. โหลดโครงสร้าง HTML ทั้งหมดให้เสร็จก่อน
+      await Promise.all([
+        loadComponent('view-header', 'components/header.html'),
+        loadComponent('view-aqi', 'components/aqi-summary.html'),
+        loadComponent('view-ehs', 'components/ehs-hub.html'),
+        loadComponent('view-light-modal', 'components/light-modal.html')
+      ]);
+
+      // 2. โหลด JavaScript เข้ามาควบคุมหลังจาก DOM ประกอบร่างครบแล้ว
+      const scripts = [
+        'js/carousel.js',
+        'js/aqi-chart.js',
+        'js/push-notify.js',
+        'js/light-data.js'
+      ];
+
+      for (const src of scripts) {
+        await new Promise((resolve) => {
+          const s = document.createElement('script');
+          s.src = src;
+          s.onload = resolve;
+          document.body.appendChild(s);
+        });
+      }
+
+      // 3. เริ่มต้นรันฟังก์ชันหลัก
+      const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwhXVb3waX1ZJS0B-NRngCIVOeGuq5ZcBufwZLXaNnXAHl1s-1h0YgC7Mb65mUAEEgaJQ/exec";
+      initPushNotification(GAS_WEBAPP_URL);
+      loadAirData(GAS_WEBAPP_URL);
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\aqi-summary.html =====
+
+<!-- components/aqi-summary.html -->
+<!-- Real-time Status Card -->
+<div class="hero-card">
+  <div class="metric-item">
+    <span class="title">AQI ปัจจุบัน</span>
+    <span class="val" id="valAqi">--</span>
+    <div class="aqi-pill" id="lblStatus">กำลังโหลด...</div>
+  </div>
+  <div class="metric-item">
+    <span class="title">PM2.5</span>
+    <span class="val" id="valPm25">--</span>
+    <span class="unit">µg/m³</span>
+  </div>
+  <div class="metric-item">
+    <span class="title">PM10</span>
+    <span class="val" id="valPm10">--</span>
+    <span class="unit">µg/m³</span>
+  </div>
+</div>
+
+<!-- Carousel Section -->
+<div class="carousel-container" id="carouselContainer">
+  <div class="carousel-track" id="carouselTrack">
+    
+    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง -->
+    <div class="carousel-slide" id="slide1">
+      <div class="slide-header">
+        <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
+        <span class="swipe-hint">ปัดซ้ายเพื่อรับแจ้งเตือน ➔</span>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="aqiChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน -->
+    <div class="carousel-slide" id="slide2">
+      <div class="slide-header">
+        <span class="slide-title">🔔 รับการแจ้งเตือนฝุ่นรายวัน</span>
+        <span class="swipe-hint">ปัดเพื่อดูกราฟ ➔</span>
+      </div>
+      <div class="form-wrapper">
+        <p>รับการแจ้งเตือนค่าฝุ่น PM2.5 และ AQI เด้งเข้าหน้าจออัตโนมัติทุกเช้า</p>
+        <form id="subscribeForm" onsubmit="return false;">
+          <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+          <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
+        </form>
+        <div id="status-msg"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Indicator Dots -->
+  <div class="carousel-footer">
+    <div class="dot active" data-index="0"></div>
+    <div class="dot" data-index="1"></div>
+  </div>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\ehs-hub.html =====
+
+<!-- components/ehs-hub.html -->
+<div class="ehs-hub">
+  <div class="hub-header">
+    <div class="hub-header-title">
+      <span class="hub-tag">ISO 45001 : 2018 & ISO 14001 : 2015</span>
+      <h3>ระบบตรวจประเมินความเข้มแสงสว่างและความปลอดภัย</h3>
+    </div>
+    <span class="hub-badge-org">กองกายภาพและสิ่งแวดล้อม</span>
+  </div>
+
+  <div class="quick-links-grid">
+    <!-- ลิงก์ตรงไปเปิดหน้าฟอร์มบันทึกแสง (ผูก URL ให้เรียบร้อย) -->
+    <a href="https://script.google.com/macros/s/AKfycbyaRVm9zl2qQNs5085bHw3m22g_u9T6FnH6UzIr44e_pQDB5xuV06iP6eoZKRIq8pZheQ/exec" 
+       target="_blank" 
+       rel="noopener" 
+       class="ehs-card">
+      <div class="card-icon form-icon">📝</div>
+      <div class="card-text">
+        <span class="card-title">ฟอร์มบันทึกข้อมูลแสง</span>
+        <span class="card-desc">กรอกข้อมูลภาคสนาม 9 รูปแบบ</span>
+      </div>
+      <span class="card-arrow">↗</span>
+    </a>
+
+    <!-- ปุ่มเปิดแผง Drawer แสดงผลการวัดแสงล่าสุด -->
+    <button type="button" class="ehs-card" id="btnOpenLightModal">
+      <div class="card-icon chart-icon">💡</div>
+      <div class="card-text">
+        <span class="card-title">ผลตรวจวัดล่าสุด</span>
+        <span class="card-desc">สถิติและสถานะความปลอดภัยรายห้อง</span>
+      </div>
+      <span class="card-arrow">➔</span>
+    </button>
+  </div>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\header.html =====
+
+<!-- components/header.html -->
+<div class="header-card">
+  <h1>🌿 Mahidol Air Quality Index</h1>
+  <p>ระบบตรวจวัดคุณภาพอากาศ มหาวิทยาลัยมหิดล ศาลายา</p>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-model.html =====
+
+<!-- components/light-modal.html -->
+<div class="modal-backdrop" id="lightModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3>💡 ผลการตรวจวัดระดับความเข้มของแสงสว่าง</h3>
+        <p class="modal-sub">ตามมาตรฐาน ISO 45001:2018 และกฎกระทรวงแรงงาน</p>
+      </div>
+      <button type="button" class="btn-close" id="btnCloseLightModal" aria-label="ปิดหน้าต่าง">&times;</button>
+    </div>
+
+    <!-- แผงสถิติภาพรวม 3 ช่อง -->
+    <div class="light-stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">จุดตรวจทั้งหมด</span>
+        <span class="stat-val" id="statTotal">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">ผ่านเกณฑ์</span>
+        <span class="stat-val pass" id="statPass">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">ต้องปรับปรุง</span>
+        <span class="stat-val fail" id="statFail">--</span>
+      </div>
+    </div>
+
+    <!-- กล่องสำหรับวาดกราฟแท่ง (กำหนดความสูงคงที่) -->
+    <div style="position: relative; width: 100%; height: 230px; margin: 10px 0 16px 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-sizing: border-box;">
+      <canvas id="buildingLightChart"></canvas>
+    </div>
+
+    <!-- ตารางข้อมูล -->
+    <div class="table-container">
+      <table class="light-table">
+        <thead>
+          <tr>
+            <th>อาคาร / ห้อง</th>
+            <th>ลักษณะงาน / จุดตรวจ</th>
+            <th>เกณฑ์ (Lux)</th>
+            <th>วัดได้ (Lux)</th>
+            <th>สถานะ</th>
+          </tr>
+        </thead>
+        <tbody id="lightTableBody">
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 20px; color: #888;">กำลังโหลดข้อมูล...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\aqi-chart.js =====
+
+let aqiChartInstance = null;
+
+function formatChartTime(item) {
+  try {
+    if (!item) return '';
+    const raw = item.Date_Time_AQI || item.Date_Time_AQI_Unix;
+    if (!raw) return '';
+
+    if (typeof raw === 'string' && raw.includes(' ')) {
+      const parts = raw.split(' ');
+      if (parts[1]) return parts[1].substring(0, 5);
+    }
+
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    }
+  } catch (e) {
+    console.error('Time parse error:', e);
+  }
+  return '';
+}
+
+function renderAqiChart(historyData) {
+  const canvas = document.getElementById('aqiChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  if (aqiChartInstance) {
+    aqiChartInstance.destroy();
+  }
+
+  const labels = historyData.map(item => formatChartTime(item));
+  const aqiPoints = historyData.map(item => Number(item.AQI) || 0);
+  const pm25Points = historyData.map(item => Number(item.PM_25) || 0);
+
+  aqiChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'AQI',
+          data: aqiPoints,
+          borderColor: '#0288D1',
+          backgroundColor: 'rgba(2, 136, 209, 0.1)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 2.5
+        },
+        {
+          label: 'PM2.5 (µg/m³)',
+          data: pm25Points,
+          borderColor: '#FFA000',
+          borderDash: [4, 4],
+          fill: false,
+          tension: 0.35,
+          pointRadius: 2.5
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: { 
+        legend: { 
+          position: 'bottom',
+          labels: { boxWidth: 12, font: { size: 11 } }
+        } 
+      },
+      scales: { 
+        y: { 
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.05)' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+async function loadAirData(gasUrl) {
+  try {
+    const res = await fetch(gasUrl);
+    const data = await res.json();
+
+    if (!data || data.length === 0 || data.error) {
+      console.warn("ยังไม่มีข้อมูลสภาพอากาศในชีต หรือเกิดข้อผิดพลาด");
+      return;
+    }
+
+    const latest = data[data.length - 1];
+
+    const aqiVal = Math.round(Number(latest.AQI));
+    const pm25Val = Number(latest.PM_25).toFixed(1);
+    const pm10Val = Number(latest.PM_10).toFixed(1);
+
+    document.getElementById('valAqi').textContent = aqiVal;
+    document.getElementById('valPm25').textContent = pm25Val;
+    document.getElementById('valPm10').textContent = pm10Val;
+
+    const aqiPill = document.getElementById('lblStatus');
+    if (aqiVal <= 25) {
+      aqiPill.textContent = "อากาศดีมาก";
+      aqiPill.style.background = "#E8F5E9";
+      aqiPill.style.color = "#2E7D32";
+    } else if (aqiVal <= 50) {
+      aqiPill.textContent = "อากาศดี";
+      aqiPill.style.background = "#E8F5E9";
+      aqiPill.style.color = "#2E7D32";
+    } else if (aqiVal <= 100) {
+      aqiPill.textContent = "ปานกลาง";
+      aqiPill.style.background = "#FFFDE7";
+      aqiPill.style.color = "#F57F17";
+    } else if (aqiVal <= 200) {
+      aqiPill.textContent = "เริ่มมีผลกระทบ";
+      aqiPill.style.background = "#FFF3E0";
+      aqiPill.style.color = "#E65100";
+    } else {
+      aqiPill.textContent = "มีผลกระทบต่อสุขภาพ";
+      aqiPill.style.background = "#FFEBEE";
+      aqiPill.style.color = "#C62828";
+    }
+
+    renderAqiChart(data);
+
+  } catch (error) {
+    console.error("ดึงข้อมูลจาก Google Sheets ล้มเหลว:", error);
+    document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
+  }
+}
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\carousel.js =====
+
+// js/carousel.js
+document.addEventListener('DOMContentLoaded', () => {
+  const track = document.getElementById('carouselTrack');
+  const container = document.getElementById('carouselContainer');
+  const dots = document.querySelectorAll('.dot');
+  
+  if (!track || !container) {
+    console.error("ไม่พบอิลิเมนต์ Carousel ใน DOM");
+    return;
+  }
+
+  let currentIndex = 0;
+  const totalSlides = 2;
+
+  function updateCarousel(index, smooth = true) {
+    track.style.transition = smooth ? 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+    currentIndex = (index + totalSlides) % totalSlides;
+    track.style.transform = `translateX(-${currentIndex * 100}%)`;
+    
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === currentIndex);
+    });
+  }
+
+  // กดที่จุด Dots เพื่อเปลี่ยนหน้า
+  dots.forEach((dot, i) => {
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      updateCarousel(i);
+    });
+  });
+
+  // ตัวแปรจับพิกัด
+  let startX = 0;
+  let startY = 0;
+  let currentTranslate = 0;
+  let isDragging = false;
+  let isHorizontalSwipe = null; // เช็กว่าเป็นการปัดแนวนอนหรือแนวตั้ง
+
+  // 1. แตะหน้าจอ / คลิกเมาส์
+  function onTouchStart(e) {
+    // ยกเว้นเมื่อผู้ใช้แตะในช่องกรอกข้อมูล หรือกดปุ่ม
+    if (['INPUT', 'BUTTON', 'A'].includes(e.target.tagName)) return;
+
+    isDragging = true;
+    isHorizontalSwipe = null;
+    const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
+
+    startX = clientX;
+    startY = clientY;
+    track.style.transition = 'none';
+  }
+
+  // 2. ลากนิ้ว
+  function onTouchMove(e) {
+    if (!isDragging) return;
+
+    const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
+
+    const diffX = clientX - startX;
+    const diffY = clientY - startY;
+
+    // ตรวจสอบทิศทางในการขยับครั้งแรก (ถ้าเลื่อนขึ้นลง ให้ปล่อยจอเลื่อนตามปกติ ไม่บล็อกหน้าเว็บ)
+    if (isHorizontalSwipe === null) {
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+        isHorizontalSwipe = true;
+      } else if (Math.abs(diffY) > 8) {
+        isHorizontalSwipe = false;
+        isDragging = false;
+        return;
+      }
+    }
+
+    if (isHorizontalSwipe) {
+      if (e.cancelable) e.preventDefault(); // ป้องกันหน้าเพจขยับขณะปัดการ์ด
+      currentTranslate = -(currentIndex * container.offsetWidth) + diffX;
+      track.style.transform = `translateX(${currentTranslate}px)`;
+    }
+  }
+
+  // 3. ปล่อยนิ้ว / ยกเมาส์
+  function onTouchEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const endX = e.type.includes('mouse') ? e.pageX : (e.changedTouches ? e.changedTouches[0].clientX : startX);
+    const diffX = endX - startX;
+
+    // ถ้าปัดเกิน 40px ให้เปลี่ยนหน้า
+    if (isHorizontalSwipe && Math.abs(diffX) > 40) {
+      if (diffX < 0) {
+        updateCarousel(currentIndex + 1); // ปัดซ้าย -> หน้าถัดไป
+      } else {
+        updateCarousel(currentIndex - 1); // ปัดขวา -> หน้าก่อนหน้า
+      }
+    } else {
+      updateCarousel(currentIndex); // ปัดไม่พอ -> ดีดกลับที่เดิม
+    }
+    isHorizontalSwipe = null;
+  }
+
+  // ผูก Event ฝั่ง Touch
+  container.addEventListener('touchstart', onTouchStart, { passive: true });
+  container.addEventListener('touchmove', onTouchMove, { passive: false });
+  container.addEventListener('touchend', onTouchEnd);
+  container.addEventListener('touchcancel', onTouchEnd);
+
+  // ผูก Event ฝั่ง Mouse
+  container.addEventListener('mousedown', onTouchStart);
+  window.addEventListener('mousemove', onTouchMove);
+  window.addEventListener('mouseup', onTouchEnd);
+});
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\light-data.js =====
+
+// js/light-data.js
+(function () {
+  const modal = document.getElementById('lightModal');
+  const btnOpen = document.getElementById('btnOpenLightModal');
+  const btnClose = document.getElementById('btnCloseLightModal');
+  const tbody = document.getElementById('lightTableBody');
+
+  // 👇 วาง URL ตรงนี้
+  const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
+
+  let buildingChart = null;
+
+  if (!modal || !btnOpen) return;
+
+  btnOpen.addEventListener('click', () => {
+    modal.classList.add('active');
+    fetchLightRecords();
+    renderBuildingChart(); // 👈 สั่งวาดกราฟแท่งเมื่อเปิด Modal
+  });
+
+  if (btnClose) {
+    btnClose.addEventListener('click', () => modal.classList.remove('active'));
+  }
+  
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.remove('active');
+  });
+
+  // ฟังก์ชันวาดกราฟแท่งเปรียบเทียบตามอาคาร
+  async function renderBuildingChart() {
+    const canvas = document.getElementById('buildingLightChart');
+    if (!canvas) return;
+
+    try {
+      const res = await fetch(`${LIGHT_API_URL}?action=getBuildingStats`);
+      const data = await res.json();
+
+      const buildings = Object.keys(data);
+      if (buildings.length === 0) return;
+
+      const passCounts = buildings.map(b => data[b].pass);
+      const failCounts = buildings.map(b => data[b].fail);
+
+      const ctx = canvas.getContext('2d');
+      if (buildingChart) buildingChart.destroy();
+
+      buildingChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: buildings,
+          datasets: [
+            {
+              label: 'ผ่านเกณฑ์',
+              data: passCounts,
+              backgroundColor: '#16A34A',
+              borderRadius: 6
+            },
+            {
+              label: 'ไม่ผ่านเกณฑ์',
+              data: failCounts,
+              backgroundColor: '#DC2626',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+          },
+          plugins: {
+            legend: { position: 'top' },
+            title: {
+              display: true,
+              text: 'สรุปผลตรวจวัดแสงแยกรายอาคาร (ผ่าน / ไม่ผ่าน)'
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.error("Error loading building chart:", err);
+    }
+  }
+
+  // ฟังก์ชันดึงตารางข้อมูลรายจุด
+  async function fetchLightRecords() {
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">กำลังดึงข้อมูลล่าสุดจาก Google Sheets...</td></tr>';
+
+    try {
+      const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
+      const list = await res.json();
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">ยังไม่มีข้อมูลในฐานข้อมูล</td></tr>';
+        return;
+      }
+
+      let pass = 0;
+      let fail = 0;
+
+      tbody.innerHTML = list.map(item => {
+        const isPass = item.evaluation === "ผ่าน" || Number(item.measuredLux) >= Number(item.standardLux);
+        if (isPass) pass++; else fail++;
+
+        const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 
+          ? `<span style="font-size:10px; color:#0288D1;">(${item.workerOrPoint})</span>` 
+          : "";
+
+        return `
+          <tr>
+            <td>
+              <strong>${item.building || "-"}</strong><br>
+              <span style="color:#64748b;">ห้อง ${item.room || "-"}</span>
+            </td>
+            <td style="max-width: 120px; font-size: 10.5px;">
+              <div>${item.task || "-"}</div>
+              ${pointInfo}
+            </td>
+            <td>${item.standardLux}</td>
+            <td><strong>${item.measuredLux}</strong></td>
+            <td>
+              <span class="tag-status ${isPass ? 'pass' : 'fail'}">
+                ${isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = list.length;
+      if (document.getElementById('statPass')) document.getElementById('statPass').textContent = pass;
+      if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
+
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:20px;">โหลดข้อมูลไม่สำเร็จ</td></tr>';
+    }
+  }
+})();
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\push-notify.js =====
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBYh9A6rnlE-fk59R__ZxZT6AMfMwreIJc",
+  authDomain: "pwa-aqi-alert.firebaseapp.com",
+  projectId: "pwa-aqi-alert",
+  storageBucket: "pwa-aqi-alert.firebasestorage.app",
+  messagingSenderId: "351293220998",
+  appId: "1:351293220998:web:631e82ed1049c986d60907"
+};
+const VAPID_KEY = "BOnPd9wbT5Qnh3NvqkIv4r1NXQhbTFPE8JKejT1Hwv3j7s0rzEwGiigr5BtopQ_aNcP77NTQmmv6C-5oZddc3fc";
+
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
+
+function initPushNotification(gasUrl) {
+  const subscribeForm = document.getElementById('subscribeForm');
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const statusMsg = document.getElementById('status-msg');
+  const userEmailInput = document.getElementById('userEmail');
+
+  // ดักจับการส่งฟอร์มลงทะเบียน
+  subscribeForm.addEventListener('submit', async () => {
+    const email = userEmailInput.value.trim();
+    if (!email) return;
+
+    subscribeBtn.disabled = true;
+    statusMsg.className = '';
+    statusMsg.textContent = 'กำลังลงทะเบียน...';
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        statusMsg.className = 'error';
+        statusMsg.textContent = 'กรุณาเปิดสิทธิ์แจ้งเตือนในระบบของอุปกรณ์';
+        subscribeBtn.disabled = false;
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
+      await navigator.serviceWorker.ready;
+
+      const currentToken = await messaging.getToken({
+        vapidKey: VAPID_KEY,
+        serviceWorkerRegistration: registration
+      });
+
+      if (currentToken) {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ token: currentToken, email: email })
+        });
+
+        statusMsg.className = 'success';
+        statusMsg.textContent = '✅ ลงทะเบียนสำเร็จ!';
+        subscribeBtn.textContent = 'เปิดแจ้งเตือนแล้ว';
+        userEmailInput.disabled = true;
+      }
+    } catch (err) {
+      statusMsg.className = 'error';
+      statusMsg.textContent = 'ข้อผิดพลาด: ' + err.message;
+      subscribeBtn.disabled = false;
+    }
+  });
+
+  // [ใส่คืนจุดที่ตกหล่น 1]: ดักจับข้อความขณะเปิดหน้าเว็บอยู่ (Foreground Push)
+  messaging.onMessage((payload) => {
+    const title = payload.notification?.title || payload.data?.title || "🌿 รายงานคุณภาพอากาศ มหิดล";
+    const body = payload.notification?.body || payload.data?.body || "";
+
+    if (Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body: body,
+          icon: 'https://cosin789.github.io/PWA_AQI_ALERT/Icon_PWA.png',
+          badge: 'https://cosin789.github.io/PWA_AQI_ALERT/icon-192.png',
+          tag: 'mahidol-aqi-daily',
+          renotify: true
+        });
+      });
+    }
+  });
+}
+
+// [ใส่คืนจุดที่ตกหล่น 2]: ฟังก์ชันล้าง Token และขอใหม่กรณีเกิดปัญหา
+async function fixAndResubscribe(gasUrl) {
+  const statusMsg = document.getElementById('status-msg');
+  const userEmailInput = document.getElementById('userEmail');
+  
+  if (statusMsg) {
+    statusMsg.className = '';
+    statusMsg.textContent = 'กำลังซ่อมแซมและเชื่อมต่อระบบใหม่...';
+  }
+
+  try {
+    await messaging.deleteToken();
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (let registration of registrations) {
+      await registration.unregister();
+    }
+
+    const newReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
+    await navigator.serviceWorker.ready;
+
+    const freshToken = await messaging.getToken({
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: newReg
+    });
+
+    if (freshToken) {
+      await fetch(gasUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          token: freshToken,
+          email: userEmailInput ? userEmailInput.value.trim() : "Re-subscribed User"
+        })
+      });
+
+      if (statusMsg) {
+        statusMsg.className = 'success';
+        statusMsg.textContent = '✅ ซ่อมแซมระบบสำเร็จ! เครื่องพร้อมรับการแจ้งเตือนแล้ว';
+      }
+    }
+  } catch (err) {
+    if (statusMsg) {
+      statusMsg.className = 'error';
+      statusMsg.textContent = 'กรุณาแตะไอคอนรูปกุญแจ/ตั้งค่าข้าง URL เพื่อกดอนุญาตแจ้งเตือน';
+    }
+  }
+}
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\css\style.css =====
+
+:root {
+  --primary: #0288D1;
+  --primary-dark: #01579B;
+  --bg: #F0F4F8;
+  --card-bg: #FFFFFF;
+  --text-main: #1A202C;
+  --text-muted: #718096;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  max-width: 680px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Header */
+.header-card {
+  background: linear-gradient(135deg, #0288D1 0%, #00ACC1 100%);
+  color: white;
+  border-radius: 18px;
+  padding: 18px;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(2, 136, 209, 0.2);
+}
+.header-card h1 { font-size: 19px; font-weight: 700; }
+.header-card p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+
+/* Live Summary Card */
+.hero-card {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  text-align: center;
+}
+.metric-item { display: flex; flex-direction: column; align-items: center; }
+.metric-item .title { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.metric-item .val { font-size: 26px; font-weight: 800; color: var(--primary); margin: 2px 0; }
+.metric-item .unit { font-size: 10px; color: var(--text-muted); }
+.aqi-pill {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Standard Infinite Carousel */
+/* 1. คอนเทนเนอร์ต้องยอมรับการลากแนวนอน */
+.carousel-container {
+  position: relative;
+  background: var(--card-bg);
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom; /* ยอมให้หน้าเว็บเลื่อนขึ้นลงได้ แต่จับแนวนอนได้ */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 2. ป้องกันไม่ให้ Canvas ของกราฟมาแย่ง Touch ขณะปัด */
+.chart-wrapper {
+  position: relative;
+  height: 210px;
+  width: 100%;
+  touch-action: pan-y pinch-zoom;
+}
+
+.carousel-container:active {
+  cursor: grabbing;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  width: 100%;
+  will-change: transform;
+}
+
+.carousel-slide {
+  min-width: 100%;
+  width: 100%;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.slide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.slide-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
+.swipe-hint { font-size: 11px; color: var(--text-muted); }
+
+.chart-wrapper { position: relative; height: 210px; width: 100%; }
+
+/* Form inside Slide */
+.form-wrapper {
+  text-align: center;
+  max-width: 360px;
+  margin: 0 auto;
+  width: 100%;
+}
+.form-wrapper p { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+.email-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #E2E8F0;
+  font-size: 14px;
+  margin-bottom: 10px;
+  outline: none;
+}
+.email-input:focus { border-color: var(--primary); }
+.btn-sub {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  width: 100%;
+}
+.btn-sub:disabled { background: #CBD5E1; cursor: not-allowed; }
+
+/* Navigation Dots */
+.carousel-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 16px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #CBD5E1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.dot.active {
+  width: 22px;
+  border-radius: 4px;
+  background: var(--primary);
+}
+
+#status-msg { margin-top: 10px; font-size: 12px; font-weight: 600; }
+.success { color: #16A34A; }
+.error { color: #DC2626; }
+
+/* EHS Hub */
+.ehs-hub {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hub-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.iso-badge {
+  background: #E0F2FE;
+  color: #0369A1;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* Quick Action Grid */
+.quick-links-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.link-card {
+  display: flex;
+  align-items: center;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+.link-card:active {
+  background: #E2E8F0;
+  transform: scale(0.99);
+}
+.card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-right: 12px;
+}
+.doc-icon { background: #EEF2FF; }
+.light-icon { background: #FEF3C7; }
+.card-info { flex: 1; }
+.card-title { font-size: 13px; font-weight: 700; display: block; }
+.card-sub { font-size: 11px; color: var(--text-muted); display: block; }
+.arrow-icon { color: var(--text-muted); font-size: 14px; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.modal-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-box {
+  background: var(--card-bg);
+  width: 100%;
+  max-width: 680px;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transform: translateY(100%);
+  transition: transform 0.3s ease-out;
+}
+.modal-backdrop.active .modal-box {
+  transform: translateY(0);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.modal-header h3 { font-size: 16px; font-weight: 700; }
+.iso-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+/* Light Summary */
+.light-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+.summary-item {
+  background: #F8FAFC;
+  padding: 8px;
+  border-radius: 8px;
+}
+.summary-item .lbl { font-size: 10px; color: var(--text-muted); display: block; }
+.summary-item .val { font-size: 18px; font-weight: 800; }
+.summary-item .val.pass { color: #16A34A; }
+.summary-item .val.fail { color: #DC2626; }
+
+/* Data Table */
+.table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.data-table th, .data-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #E2E8F0;
+}
+.data-table th { background: #F1F5F9; font-weight: 700; }
+.status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.status-tag.pass { background: #DCFCE7; color: #15803D; }
+.status-tag.fail { background: #FEE2E2; color: #B91C1C; }

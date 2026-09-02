@@ -1,0 +1,53 @@
+<!-- components/light-modal.html -->
+<div class="modal-backdrop" id="lightModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3>💡 ผลการตรวจวัดระดับความเข้มของแสงสว่าง</h3>
+        <p class="iso-sub">มาตรฐานความปลอดภัย ISO 45001:2018 & กฎกระทรวงฯ</p>
+      </div>
+      <button type="button" class="btn-close" id="btnCloseLightModal" aria-label="ปิดหน้าต่าง">&times;</button>
+    </div>
+
+    <!-- แผงสถิติภาพรวม 3 ช่อง -->
+    <div class="light-summary-row">
+      <div class="summary-item">
+        <span class="lbl">จุดตรวจทั้งหมด</span>
+        <span class="val" id="statTotal">--</span>
+      </div>
+      <div class="summary-item">
+        <span class="lbl">ผ่านเกณฑ์</span>
+        <span class="val pass" id="statPass">--</span>
+      </div>
+      <div class="summary-item">
+        <span class="lbl">ต้องปรับปรุง</span>
+        <span class="val fail" id="statFail">--</span>
+      </div>
+    </div>
+
+    <!-- กล่องสำหรับวาดกราฟแท่งเปรียบเทียบรายอาคาร -->
+    <div style="position: relative; width: 100%; height: 230px; margin: 6px 0 12px 0; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-sizing: border-box;">
+      <canvas id="buildingLightChart"></canvas>
+    </div>
+
+    <!-- ตารางแสดงรายการผลการวัดจากชีต Database -->
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>อาคาร / ห้อง</th>
+            <th>ลักษณะงาน / จุดตรวจ</th>
+            <th>เกณฑ์</th>
+            <th>วัดได้</th>
+            <th>ผลประเมิน</th>
+          </tr>
+        </thead>
+        <tbody id="lightTableBody">
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 16px; color: #888;">กำลังโหลดข้อมูล...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
