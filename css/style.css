@@ -338,3 +338,118 @@ body {
 }
 .status-tag.pass { background: #DCFCE7; color: #15803D; }
 .status-tag.fail { background: #FEE2E2; color: #B91C1C; }
+
+/* ==========================================
+   Desktop / PC Responsive Dashboard Upgrade
+========================================== */
+@media (min-width: 1024px) {
+  body {
+    padding: 32px 24px;
+    background-color: #E2E8F0; /* พื้นหลังให้ดูมีมิติขึ้น */
+  }
+
+  /* ขยายขอบเขตคอนเทนเนอร์ให้เต็มตาแบบ Dashboard */
+  .container {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr; /* แบ่งซ้าย (สภาพอากาศ) และ ขวา (EHS Hub) */
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* Header พาดเต็มความกว้างด้านบน */
+  #view-header {
+    grid-column: 1 / -1;
+  }
+
+  .header-card {
+    padding: 24px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+  }
+
+  .header-card h1 {
+    font-size: 24px;
+  }
+
+  .header-card p {
+    font-size: 14px;
+    margin-top: 4px;
+  }
+
+  /* ปรับการ์ดสรุปค่าฝุ่นและกราฟ */
+  #view-aqi {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .chart-wrapper {
+    height: 280px; /* เพิ่มความสูงกราฟบน PC ให้อ่านค่าง่ายขึ้น */
+  }
+
+  /* ปรับ EHS Hub ด้านขวา */
+  #view-ehs {
+    height: 100%;
+  }
+
+  .ehs-hub {
+    height: 100%;
+    padding: 24px;
+  }
+
+  .quick-links-grid {
+    grid-template-columns: 1fr; /* วางปุ่มในคอลัมน์ขวา */
+    gap: 14px;
+    margin-top: 12px;
+  }
+
+  .ehs-card {
+    padding: 16px;
+  }
+
+  .card-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .card-title {
+    font-size: 14px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+  }
+
+  /* ปรับ Modal บน PC ให้ลอยอยู่กึ่งกลางจอ (Center Dialog) ไม่ติดพื้น */
+  .modal-backdrop {
+    align-items: center; /* กึ่งกลางแนวตั้ง */
+    padding: 20px;
+  }
+
+  .modal-box {
+    width: 100%;
+    max-width: 820px; /* กว้างขึ้นสำหรับตารางและกราฟ */
+    border-radius: 20px;
+    padding: 28px;
+    max-height: 90vh;
+    transform: scale(0.95);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .modal-backdrop.active .modal-box {
+    transform: scale(1);
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+  }
+
+  .data-table th, .data-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+}
