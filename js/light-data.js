@@ -5,12 +5,9 @@
   let buildingChartInstance = null;
   let isFetched = false;
 
-  // เปิดให้เรียกจากภายนอกเมื่อสลับแท็บมาที่หน้าตรวจวัดแสง
   window.initLightDashboard = function () {
-    if (isFetched) return;
     fetchLightRecords();
     renderBuildingChart();
-    isFetched = true;
   };
 
   async function renderBuildingChart() {
@@ -58,22 +55,19 @@
             x: {
               stacked: true,
               grid: { display: false },
-              ticks: { font: { size: 11, family: 'inherit' } }
+              ticks: { font: { size: 11 } }
             },
             y: {
               stacked: true,
               beginAtZero: true,
-              ticks: { precision: 0, stepSize: 1, font: { size: 11, family: 'inherit' } },
+              ticks: { precision: 0, stepSize: 1, font: { size: 11 } },
               grid: { color: '#f1f5f9' }
             }
           },
           plugins: {
             legend: {
               position: 'top',
-              labels: { boxWidth: 12, font: { size: 11, family: 'inherit' } }
-            },
-            title: {
-              display: false
+              labels: { boxWidth: 12, font: { size: 11 } }
             }
           }
         }
@@ -92,7 +86,7 @@
       const list = await res.json();
 
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตรวจวัดในฐานข้อมูล</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลในระบบ</td></tr>';
         return;
       }
 
@@ -133,7 +127,7 @@
       if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
 
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ</td></tr>';
     }
   }
 })();

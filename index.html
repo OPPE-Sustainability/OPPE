@@ -25,10 +25,10 @@
 <body>
 
   <!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
+<!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
   <header class="app-nav">
     <div class="nav-container">
       <div class="nav-brand">
-        <span class="brand-icon">🏛️</span>
         <div>
           <span class="brand-title">OPPE Sustainability</span>
           <span class="brand-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</span>
@@ -36,24 +36,21 @@
       </div>
       <nav class="nav-tabs">
         <button type="button" class="tab-btn active" data-view="view-air">
-          <span>🌿</span> คุณภาพอากาศ
+          คุณภาพอากาศ
         </button>
         <button type="button" class="tab-btn" data-view="view-light">
-          <span>💡</span> ตรวจวัดแสงสว่าง (ISO)
+          ตรวจวัดแสงสว่าง (ISO)
         </button>
       </nav>
     </div>
   </header>
 
-  <!-- พื้นที่แสดงผลเนื้อหาหลัก -->
   <main class="main-wrapper">
-    <!-- View 1: หน้าคุณภาพอากาศ (AQI Monitoring) -->
     <section id="view-air" class="view-panel active">
       <div id="view-header"></div>
       <div id="view-aqi"></div>
     </section>
 
-    <!-- View 2: หน้าระบบตรวจวัดแสงสว่าง (Illuminance Executive Dashboard) -->
     <section id="view-light" class="view-panel">
       <div id="view-light-page"></div>
     </section>
@@ -62,12 +59,10 @@
   <!-- แถบเมนูด้านล่างสำหรับ Mobile Navigation Bar -->
   <nav class="mobile-nav">
     <button type="button" class="mobile-nav-item active" data-view="view-air">
-      <span class="icon">🌿</span>
       <span class="lbl">คุณภาพอากาศ</span>
     </button>
     <button type="button" class="mobile-nav-item" data-view="view-light">
-      <span class="icon">💡</span>
-      <span class="lbl">ตรวจวัดแสง</span>
+      <span class="lbl">ตรวจวัดแสง (ISO)</span>
     </button>
   </nav>
 
@@ -131,19 +126,21 @@
         btn.addEventListener('click', () => {
           const targetViewId = btn.getAttribute('data-view');
 
-          // สลับสถานะ Active ของปุ่มทั้งชุดบน PC และ Mobile
+          // 1. สลับสถานะปุ่ม
           navButtons.forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-view') === targetViewId);
           });
 
-          // สลับการแสดงผลหน้า View
+          // 2. แสดง Panel ที่เลือก
           panels.forEach(panel => {
             panel.classList.toggle('active', panel.id === targetViewId);
           });
 
-          // เมื่อสลับไปหน้าแสงสว่าง ให้เรียกฟังก์ชันวาดกราฟและตารางทันที
-          if (targetViewId === 'view-light' && window.initLightDashboard) {
-            window.initLightDashboard();
+          // 3. หน่วงเวลาเล็กน้อยเพื่อให้ DOM กางขนาดเสร็จก่อนวาดกราฟ
+          if (targetViewId === 'view-light' && typeof window.initLightDashboard === 'function') {
+            setTimeout(() => {
+              window.initLightDashboard();
+            }, 100);
           }
         });
       });
