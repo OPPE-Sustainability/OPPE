@@ -1,9 +1,9 @@
 {
-  "id": "/PWA_AQI_ALERT/",
-  "name": "รายงานคุณภาพอากาศ",
+  "id": "/OPPE/",
+  "name": "รายงานคุณภาพอากาศ ม.มหิดล",
   "short_name": "AirAlert",
-  "start_url": "/PWA_AQI_ALERT/index.html",
-  "scope": "/PWA_AQI_ALERT/",
+  "start_url": "/OPPE/index.html",
+  "scope": "/OPPE/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",

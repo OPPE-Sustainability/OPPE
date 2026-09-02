@@ -13,18 +13,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// รับข้อความ Background จาก Firebase และใส่ tag ป้องกันการเด้งซ้อน
-// ใน firebase-messaging-sw.js
 messaging.onBackgroundMessage((payload) => {
   const title = payload.notification?.title || payload.data?.title || "🌿 รายงานคุณภาพอากาศ มหิดล";
   const options = {
     body: payload.notification?.body || payload.data?.body || "อัปเดตข้อมูลคุณภาพอากาศล่าสุด",
-    icon: 'https://cosin789.github.io/PWA_AQI_ALERT/Icon_PWA.png',
-    badge: 'https://cosin789.github.io/PWA_AQI_ALERT/icon-192.png',
-    tag: 'mahidol-aqi-daily', // 👈 ปรับให้ตรงกัน
+    icon: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
+    badge: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
+    tag: 'mahidol-aqi-daily',
     renotify: true,
     data: {
-      url: payload.data?.url || 'https://cosin789.github.io/PWA_AQI_ALERT/'
+      url: payload.data?.url || 'https://oppe-sustainability.github.io/OPPE/'
     }
   };
 
@@ -33,7 +31,7 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || 'https://cosin789.github.io/PWA_AQI_ALERT/';
+  const targetUrl = event.notification.data?.url || 'https://oppe-sustainability.github.io/OPPE/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
