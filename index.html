@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ระบบรายงานและแจ้งเตือนคุณภาพอากาศ ม.มหิดล ศาลายา</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0288D1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AirAlert">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- โหลดสไตล์ชีตแยก (External CSS) -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Title Card -->
+    <div class="header-card">
+      <h1>🌿 Mahidol Air Quality Index</h1>
+      <p>ระบบตรวจวัดคุณภาพอากาศ มหาวิทยาลัยมหิดล ศาลายา</p>
+    </div>
+
+    <!-- Real-time Status Card -->
+    <div class="hero-card">
+      <div class="metric-item">
+        <span class="title">AQI ปัจจุบัน</span>
+        <span class="val" id="valAqi">--</span>
+        <div class="aqi-pill" id="lblStatus">กำลังโหลด...</div>
+      </div>
+      <div class="metric-item">
+        <span class="title">PM2.5</span>
+        <span class="val" id="valPm25">--</span>
+        <span class="unit">µg/m³</span>
+      </div>
+      <div class="metric-item">
+        <span class="title">PM10</span>
+        <span class="val" id="valPm10">--</span>
+        <span class="unit">µg/m³</span>
+      </div>
+    </div>
+
+    <!-- Infinite Carousel Section -->
+    <div class="carousel-container" id="carouselContainer">
+      <div class="carousel-track" id="carouselTrack">
+        
+        <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง -->
+        <div class="carousel-slide" id="slide1">
+          <div class="slide-header">
+            <span class="slide-title">📈 แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
+            <span class="swipe-hint">ปัดซ้ายเพื่อรับแจ้งเตือน ➔</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="aqiChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือน -->
+        <div class="carousel-slide" id="slide2">
+          <div class="slide-header">
+            <span class="slide-title">🔔 รับการแจ้งเตือนฝุ่นรายวัน</span>
+            <span class="swipe-hint">ปัดเพื่อดูกราฟ ➔</span>
+          </div>
+          <div class="form-wrapper">
+            <p>รับการแจ้งเตือนค่าฝุ่น PM2.5 และ AQI เด้งเข้าหน้าจออัตโนมัติทุกเช้า</p>
+            <form id="subscribeForm" onsubmit="return false;">
+              <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+              <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
+            </form>
+            <div id="status-msg"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Indicator Dots -->
+      <div class="carousel-footer">
+        <div class="dot active" data-index="0"></div>
+        <div class="dot" data-index="1"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- โหลดสคริปต์แยกโมดูล (External JS) -->
+  <script src="js/carousel.js"></script>
+  <script src="js/aqi-chart.js"></script>
+  <script src="js/push-notify.js"></script>
+
+  <script>
+    const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwM7_Rrf7whspBgEQYLpi5cuc73ocKuLfg5eUe-SFrT9VJeeuPbb5GGGcsGpVkMVD1EWA/exec";
+
+    initPushNotification(GAS_WEBAPP_URL);
+    loadAirData(GAS_WEBAPP_URL);
+  </script>
+</body>
+</html>
