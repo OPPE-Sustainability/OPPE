@@ -67,28 +67,45 @@ body {
 }
 
 /* Standard Infinite Carousel */
+/* 1. คอนเทนเนอร์ต้องยอมรับการลากแนวนอน */
 .carousel-container {
   position: relative;
   background: var(--card-bg);
   border-radius: 20px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.05);
   overflow: hidden;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom; /* ยอมให้หน้าเว็บเลื่อนขึ้นลงได้ แต่จับแนวนอนได้ */
   user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 2. ป้องกันไม่ให้ Canvas ของกราฟมาแย่ง Touch ขณะปัด */
+.chart-wrapper {
+  position: relative;
+  height: 210px;
+  width: 100%;
+  touch-action: pan-y pinch-zoom;
+}
+
+.carousel-container:active {
+  cursor: grabbing;
 }
 
 .carousel-track {
   display: flex;
-  transition: transform 0.4s ease-out;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
   width: 100%;
+  will-change: transform;
 }
 
 .carousel-slide {
   min-width: 100%;
+  width: 100%;
   padding: 22px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .slide-header {
