@@ -1,0 +1,74 @@
+<!-- components/light-page.html -->
+<div class="light-dashboard-container">
+  
+  <div class="dashboard-banner">
+    <div class="banner-title-group">
+      <span class="iso-pill">ISO 45001 : 2018 / ISO 14001 : 2015</span>
+      <h2>ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
+      <p>รายงานผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
+    </div>
+    <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec" 
+       target="_blank" 
+       rel="noopener" 
+       class="btn-open-form">
+      แบบบันทึกข้อมูลภาคสนาม
+    </a>
+  </div>
+
+  <div class="stats-overview-grid">
+    <div class="kpi-card">
+      <div class="kpi-data">
+        <span class="kpi-title">จุดตรวจวัดสะสม</span>
+        <span class="kpi-num" id="statTotal">--</span>
+      </div>
+    </div>
+    <div class="kpi-card border-pass">
+      <div class="kpi-data">
+        <span class="kpi-title">ผ่านเกณฑ์มาตรฐาน</span>
+        <span class="kpi-num text-pass" id="statPass">--</span>
+      </div>
+    </div>
+    <div class="kpi-card border-fail">
+      <div class="kpi-data">
+        <span class="kpi-title">ต้องปรับปรุงแสงสว่าง</span>
+        <span class="kpi-num text-fail" id="statFail">--</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-content-grid">
+    <div class="dash-card chart-card">
+      <div class="dash-card-header">
+        <h3>สรุปผลการประเมินแยกตามอาคาร</h3>
+      </div>
+      <div class="dash-chart-wrapper">
+        <canvas id="buildingLightChart"></canvas>
+      </div>
+    </div>
+
+    <div class="dash-card table-card">
+      <div class="dash-card-header">
+        <h3>บันทึกผลการตรวจวัดล่าสุด</h3>
+      </div>
+      <div class="table-scroll-area">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>อาคาร / ห้อง</th>
+              <th>ลักษณะงาน</th>
+              <th>เกณฑ์ (Lux)</th>
+              <th>วัดได้ (Lux)</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="lightTableBody">
+            <tr>
+              <td colspan="5" class="loading-td">กำลังโหลดข้อมูล...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>

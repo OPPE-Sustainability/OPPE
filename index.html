@@ -6,45 +6,94 @@
   <title>ระบบรายงานคุณภาพอากาศและ EHS ม.มหิดล</title>
   
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#0288D1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AirAlert">
+  <link rel="apple-touch-icon" href="icon-192.png">
 
+  <!-- โหลดสไตล์ชีตแยกตามโมดูล (SoC CSS) -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/aqi-view.css">
+  <link rel="stylesheet" href="css/light-view.css">
+
+  <!-- ไลบรารีภายนอก -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
-  <div class="container">
-    <!-- จุดแทรกชิ้นส่วน UI แต่ละก้อน -->
-    <div id="view-header"></div>
-    <div id="view-aqi"></div>
-    <div id="view-ehs"></div>
-  </div>
+  <!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
+  <header class="app-nav">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <span class="brand-icon">🏛️</span>
+        <div>
+          <span class="brand-title">OPPE Sustainability</span>
+          <span class="brand-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</span>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button type="button" class="tab-btn active" data-view="view-air">
+          <span>🌿</span> คุณภาพอากาศ
+        </button>
+        <button type="button" class="tab-btn" data-view="view-light">
+          <span>💡</span> ตรวจวัดแสงสว่าง (ISO)
+        </button>
+      </nav>
+    </div>
+  </header>
 
-  <!-- จุดแทรก Modal ด้านนอก Container -->
-  <div id="view-light-modal"></div>
+  <!-- พื้นที่แสดงผลเนื้อหาหลัก -->
+  <main class="main-wrapper">
+    <!-- View 1: หน้าคุณภาพอากาศ (AQI Monitoring) -->
+    <section id="view-air" class="view-panel active">
+      <div id="view-header"></div>
+      <div id="view-aqi"></div>
+    </section>
 
-  <!-- ตัวโหลดคอมโพเนนต์ -->
+    <!-- View 2: หน้าระบบตรวจวัดแสงสว่าง (Illuminance Executive Dashboard) -->
+    <section id="view-light" class="view-panel">
+      <div id="view-light-page"></div>
+    </section>
+  </main>
+
+  <!-- แถบเมนูด้านล่างสำหรับ Mobile Navigation Bar -->
+  <nav class="mobile-nav">
+    <button type="button" class="mobile-nav-item active" data-view="view-air">
+      <span class="icon">🌿</span>
+      <span class="lbl">คุณภาพอากาศ</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-view="view-light">
+      <span class="icon">💡</span>
+      <span class="lbl">ตรวจวัดแสง</span>
+    </button>
+  </nav>
+
+  <!-- สคริปต์โหลดคอมโพเนนต์และควบคุมการสลับหน้า -->
   <script>
     async function loadComponent(elementId, filePath) {
       try {
         const res = await fetch(filePath);
         if (!res.ok) throw new Error(`HTTP ${res.status} on ${filePath}`);
         const html = await res.text();
-        document.getElementById(elementId).innerHTML = html;
+        const el = document.getElementById(elementId);
+        if (el) el.innerHTML = html;
       } catch (e) {
         console.error("Load component error:", e);
       }
     }
 
     async function initApp() {
+      // 1. โหลดโครงสร้าง HTML ย่อยเข้ามาในแต่ละส่วน
       await Promise.all([
         loadComponent('view-header', 'components/header.html'),
         loadComponent('view-aqi', 'components/aqi-summary.html'),
-        loadComponent('view-ehs', 'components/ehs-hub.html'),
-        loadComponent('view-light-modal', 'components/light-modal.html')
+        loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
+      // 2. โหลดสคริปต์ JavaScript ประจำโมดูลหลังจาก DOM ประกอบเสร็จ
       const scripts = [
         'js/carousel.js',
         'js/aqi-chart.js',
@@ -58,16 +107,46 @@
           s.src = src;
           s.onload = resolve;
           s.onerror = () => {
-            console.error(`Failed to load ${src}`);
+            console.error(`Failed to load script: ${src}`);
             resolve();
           };
           document.body.appendChild(s);
         });
       }
 
+      // 3. เริ่มต้นดึงข้อมูลสภาพอากาศ
       const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwhXVb3waX1ZJS0B-NRngCIVOeGuq5ZcBufwZLXaNnXAHl1s-1h0YgC7Mb65mUAEEgaJQ/exec";
       if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
+
+      // 4. ติดตั้งระบบสลับหน้า Tab
+      setupNavigation();
+    }
+
+    function setupNavigation() {
+      const navButtons = document.querySelectorAll('.tab-btn, .mobile-nav-item');
+      const panels = document.querySelectorAll('.view-panel');
+
+      navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetViewId = btn.getAttribute('data-view');
+
+          // สลับสถานะ Active ของปุ่มทั้งชุดบน PC และ Mobile
+          navButtons.forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-view') === targetViewId);
+          });
+
+          // สลับการแสดงผลหน้า View
+          panels.forEach(panel => {
+            panel.classList.toggle('active', panel.id === targetViewId);
+          });
+
+          // เมื่อสลับไปหน้าแสงสว่าง ให้เรียกฟังก์ชันวาดกราฟและตารางทันที
+          if (targetViewId === 'view-light' && window.initLightDashboard) {
+            window.initLightDashboard();
+          }
+        });
+      });
     }
 
     window.addEventListener('DOMContentLoaded', initApp);

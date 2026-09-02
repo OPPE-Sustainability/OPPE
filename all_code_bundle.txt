@@ -10,42 +10,94 @@
   <title>ระบบรายงานคุณภาพอากาศและ EHS ม.มหิดล</title>
   
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#0288D1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AirAlert">
+  <link rel="apple-touch-icon" href="icon-192.png">
 
+  <!-- โหลดสไตล์ชีตแยกตามโมดูล (SoC CSS) -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/aqi-view.css">
+  <link rel="stylesheet" href="css/light-view.css">
+
+  <!-- ไลบรารีภายนอก -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
-  <div class="container">
-    <!-- จุดแทรกชิ้นส่วน UI แต่ละก้อน -->
-    <div id="view-header"></div>
-    <div id="view-aqi"></div>
-    <div id="view-ehs"></div>
-  </div>
+  <!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
+  <header class="app-nav">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <span class="brand-icon">🏛️</span>
+        <div>
+          <span class="brand-title">OPPE Sustainability</span>
+          <span class="brand-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</span>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button type="button" class="tab-btn active" data-view="view-air">
+          <span>🌿</span> คุณภาพอากาศ
+        </button>
+        <button type="button" class="tab-btn" data-view="view-light">
+          <span>💡</span> ตรวจวัดแสงสว่าง (ISO)
+        </button>
+      </nav>
+    </div>
+  </header>
 
-  <!-- จุดแทรก Modal ด้านนอก Container -->
-  <div id="view-light-modal"></div>
+  <!-- พื้นที่แสดงผลเนื้อหาหลัก -->
+  <main class="main-wrapper">
+    <!-- View 1: หน้าคุณภาพอากาศ (AQI Monitoring) -->
+    <section id="view-air" class="view-panel active">
+      <div id="view-header"></div>
+      <div id="view-aqi"></div>
+    </section>
 
-  <!-- ตัวโหลดคอมโพเนนต์ -->
+    <!-- View 2: หน้าระบบตรวจวัดแสงสว่าง (Illuminance Executive Dashboard) -->
+    <section id="view-light" class="view-panel">
+      <div id="view-light-page"></div>
+    </section>
+  </main>
+
+  <!-- แถบเมนูด้านล่างสำหรับ Mobile Navigation Bar -->
+  <nav class="mobile-nav">
+    <button type="button" class="mobile-nav-item active" data-view="view-air">
+      <span class="icon">🌿</span>
+      <span class="lbl">คุณภาพอากาศ</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-view="view-light">
+      <span class="icon">💡</span>
+      <span class="lbl">ตรวจวัดแสง</span>
+    </button>
+  </nav>
+
+  <!-- สคริปต์โหลดคอมโพเนนต์และควบคุมการสลับหน้า -->
   <script>
     async function loadComponent(elementId, filePath) {
-      const res = await fetch(filePath);
-      const html = await res.text();
-      document.getElementById(elementId).innerHTML = html;
+      try {
+        const res = await fetch(filePath);
+        if (!res.ok) throw new Error(`HTTP ${res.status} on ${filePath}`);
+        const html = await res.text();
+        const el = document.getElementById(elementId);
+        if (el) el.innerHTML = html;
+      } catch (e) {
+        console.error("Load component error:", e);
+      }
     }
 
     async function initApp() {
-      // 1. โหลดโครงสร้าง HTML ทั้งหมดให้เสร็จก่อน
+      // 1. โหลดโครงสร้าง HTML ย่อยเข้ามาในแต่ละส่วน
       await Promise.all([
         loadComponent('view-header', 'components/header.html'),
         loadComponent('view-aqi', 'components/aqi-summary.html'),
-        loadComponent('view-ehs', 'components/ehs-hub.html'),
-        loadComponent('view-light-modal', 'components/light-modal.html')
+        loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      // 2. โหลด JavaScript เข้ามาควบคุมหลังจาก DOM ประกอบร่างครบแล้ว
+      // 2. โหลดสคริปต์ JavaScript ประจำโมดูลหลังจาก DOM ประกอบเสร็จ
       const scripts = [
         'js/carousel.js',
         'js/aqi-chart.js',
@@ -58,14 +110,47 @@
           const s = document.createElement('script');
           s.src = src;
           s.onload = resolve;
+          s.onerror = () => {
+            console.error(`Failed to load script: ${src}`);
+            resolve();
+          };
           document.body.appendChild(s);
         });
       }
 
-      // 3. เริ่มต้นรันฟังก์ชันหลัก
+      // 3. เริ่มต้นดึงข้อมูลสภาพอากาศ
       const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwhXVb3waX1ZJS0B-NRngCIVOeGuq5ZcBufwZLXaNnXAHl1s-1h0YgC7Mb65mUAEEgaJQ/exec";
-      initPushNotification(GAS_WEBAPP_URL);
-      loadAirData(GAS_WEBAPP_URL);
+      if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
+      if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
+
+      // 4. ติดตั้งระบบสลับหน้า Tab
+      setupNavigation();
+    }
+
+    function setupNavigation() {
+      const navButtons = document.querySelectorAll('.tab-btn, .mobile-nav-item');
+      const panels = document.querySelectorAll('.view-panel');
+
+      navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetViewId = btn.getAttribute('data-view');
+
+          // สลับสถานะ Active ของปุ่มทั้งชุดบน PC และ Mobile
+          navButtons.forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-view') === targetViewId);
+          });
+
+          // สลับการแสดงผลหน้า View
+          panels.forEach(panel => {
+            panel.classList.toggle('active', panel.id === targetViewId);
+          });
+
+          // เมื่อสลับไปหน้าแสงสว่าง ให้เรียกฟังก์ชันวาดกราฟและตารางทันที
+          if (targetViewId === 'view-light' && window.initLightDashboard) {
+            window.initLightDashboard();
+          }
+        });
+      });
     }
 
     window.addEventListener('DOMContentLoaded', initApp);
@@ -181,7 +266,7 @@
   <p>ระบบตรวจวัดคุณภาพอากาศ มหาวิทยาลัยมหิดล ศาลายา</p>
 </div>
 
-===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-model.html =====
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-modal.html =====
 
 <!-- components/light-modal.html -->
 <div class="modal-backdrop" id="lightModal">
@@ -189,52 +274,137 @@
     <div class="modal-header">
       <div>
         <h3>💡 ผลการตรวจวัดระดับความเข้มของแสงสว่าง</h3>
-        <p class="modal-sub">ตามมาตรฐาน ISO 45001:2018 และกฎกระทรวงแรงงาน</p>
+        <p class="iso-sub">มาตรฐานความปลอดภัย ISO 45001:2018 & กฎกระทรวงฯ</p>
       </div>
       <button type="button" class="btn-close" id="btnCloseLightModal" aria-label="ปิดหน้าต่าง">&times;</button>
     </div>
 
     <!-- แผงสถิติภาพรวม 3 ช่อง -->
-    <div class="light-stats-grid">
-      <div class="stat-card">
-        <span class="stat-label">จุดตรวจทั้งหมด</span>
-        <span class="stat-val" id="statTotal">--</span>
+    <div class="light-summary-row">
+      <div class="summary-item">
+        <span class="lbl">จุดตรวจทั้งหมด</span>
+        <span class="val" id="statTotal">--</span>
       </div>
-      <div class="stat-card">
-        <span class="stat-label">ผ่านเกณฑ์</span>
-        <span class="stat-val pass" id="statPass">--</span>
+      <div class="summary-item">
+        <span class="lbl">ผ่านเกณฑ์</span>
+        <span class="val pass" id="statPass">--</span>
       </div>
-      <div class="stat-card">
-        <span class="stat-label">ต้องปรับปรุง</span>
-        <span class="stat-val fail" id="statFail">--</span>
+      <div class="summary-item">
+        <span class="lbl">ต้องปรับปรุง</span>
+        <span class="val fail" id="statFail">--</span>
       </div>
     </div>
 
-    <!-- กล่องสำหรับวาดกราฟแท่ง (กำหนดความสูงคงที่) -->
-    <div style="position: relative; width: 100%; height: 230px; margin: 10px 0 16px 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-sizing: border-box;">
+    <!-- กล่องสำหรับวาดกราฟแท่งเปรียบเทียบรายอาคาร -->
+    <div style="position: relative; width: 100%; height: 230px; margin: 6px 0 12px 0; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-sizing: border-box;">
       <canvas id="buildingLightChart"></canvas>
     </div>
 
-    <!-- ตารางข้อมูล -->
-    <div class="table-container">
-      <table class="light-table">
+    <!-- ตารางแสดงรายการผลการวัดจากชีต Database -->
+    <div class="table-wrapper">
+      <table class="data-table">
         <thead>
           <tr>
             <th>อาคาร / ห้อง</th>
             <th>ลักษณะงาน / จุดตรวจ</th>
-            <th>เกณฑ์ (Lux)</th>
-            <th>วัดได้ (Lux)</th>
-            <th>สถานะ</th>
+            <th>เกณฑ์</th>
+            <th>วัดได้</th>
+            <th>ผลประเมิน</th>
           </tr>
         </thead>
         <tbody id="lightTableBody">
           <tr>
-            <td colspan="5" style="text-align: center; padding: 20px; color: #888;">กำลังโหลดข้อมูล...</td>
+            <td colspan="5" style="text-align: center; padding: 16px; color: #888;">กำลังโหลดข้อมูล...</td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-page.html =====
+
+<!-- components/light-page.html -->
+<div class="light-dashboard-container">
+  
+  <!-- Header ของหน้าระบบตรวจวัดแสง -->
+  <div class="dashboard-banner">
+    <div>
+      <span class="iso-pill">ISO 45001 : 2018 & ISO 14001 : 2015</span>
+      <h2>💡 ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
+      <p>สรุปผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
+    </div>
+    <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec" 
+       target="_blank" 
+       rel="noopener" 
+       class="btn-open-form">
+      <span>📝</span> เปิดฟอร์มตรวจวัดภาคสนาม
+    </a>
+  </div>
+
+  <!-- แผงสถิติภาพรวม (KPI Cards) -->
+  <div class="stats-overview-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon">📍</div>
+      <div class="kpi-data">
+        <span class="kpi-title">จุดตรวจวัดทั้งหมด</span>
+        <span class="kpi-num" id="statTotal">--</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon pass-bg">✅</div>
+      <div class="kpi-data">
+        <span class="kpi-title">ผ่านเกณฑ์มาตรฐาน</span>
+        <span class="kpi-num text-pass" id="statPass">--</span>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon fail-bg">⚠️</div>
+      <div class="kpi-data">
+        <span class="kpi-title">ต้องปรับปรุงแสงสว่าง</span>
+        <span class="kpi-num text-fail" id="statFail">--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- โครงสร้าง Grid แสดงกราฟแท่งคู่กับตาราง -->
+  <div class="dashboard-content-grid">
+    <!-- การ์ดกราฟแท่ง -->
+    <div class="dash-card chart-card">
+      <div class="dash-card-header">
+        <h3>📊 สรุปผลการประเมินแยกตามอาคาร</h3>
+      </div>
+      <div class="dash-chart-wrapper">
+        <canvas id="buildingLightChart"></canvas>
+      </div>
+    </div>
+
+    <!-- การ์ดตารางประวัติการตรวจวัด -->
+    <div class="dash-card table-card">
+      <div class="dash-card-header">
+        <h3>📋 บันทึกผลการตรวจวัดล่าสุด</h3>
+      </div>
+      <div class="table-scroll-area">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>อาคาร / ห้อง</th>
+              <th>ลักษณะงาน</th>
+              <th>เกณฑ์</th>
+              <th>วัดได้</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="lightTableBody">
+            <tr>
+              <td colspan="5" class="loading-td">กำลังโหลดข้อมูลจาก Google Sheets...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 ===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\aqi-chart.js =====
@@ -506,17 +676,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnClose = document.getElementById('btnCloseLightModal');
   const tbody = document.getElementById('lightTableBody');
 
-  // 👇 วาง URL ตรงนี้
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
-  let buildingChart = null;
+  let buildingChartInstance = null;
 
   if (!modal || !btnOpen) return;
 
   btnOpen.addEventListener('click', () => {
     modal.classList.add('active');
-    fetchLightRecords();
-    renderBuildingChart(); // 👈 สั่งวาดกราฟแท่งเมื่อเปิด Modal
+    setTimeout(() => {
+      fetchLightRecords();
+      renderBuildingChart();
+    }, 150);
   });
 
   if (btnClose) {
@@ -527,7 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === modal) modal.classList.remove('active');
   });
 
-  // ฟังก์ชันวาดกราฟแท่งเปรียบเทียบตามอาคาร
   async function renderBuildingChart() {
     const canvas = document.getElementById('buildingLightChart');
     if (!canvas) return;
@@ -539,28 +709,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const buildings = Object.keys(data);
       if (buildings.length === 0) return;
 
-      const passCounts = buildings.map(b => data[b].pass);
-      const failCounts = buildings.map(b => data[b].fail);
+      const passData = buildings.map(b => data[b].pass);
+      const failData = buildings.map(b => data[b].fail);
 
       const ctx = canvas.getContext('2d');
-      if (buildingChart) buildingChart.destroy();
+      if (buildingChartInstance) buildingChartInstance.destroy();
 
-      buildingChart = new Chart(ctx, {
+      buildingChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: buildings,
           datasets: [
             {
               label: 'ผ่านเกณฑ์',
-              data: passCounts,
+              data: passData,
               backgroundColor: '#16A34A',
-              borderRadius: 6
+              borderRadius: 4
             },
             {
               label: 'ไม่ผ่านเกณฑ์',
-              data: failCounts,
+              data: failData,
               backgroundColor: '#DC2626',
-              borderRadius: 6
+              borderRadius: 4
             }
           ]
         },
@@ -569,33 +739,33 @@ document.addEventListener('DOMContentLoaded', () => {
           maintainAspectRatio: false,
           scales: {
             x: { stacked: true },
-            y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+            y: { stacked: true, beginAtZero: true, ticks: { precision: 0, stepSize: 1 } }
           },
           plugins: {
-            legend: { position: 'top' },
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
             title: {
               display: true,
-              text: 'สรุปผลตรวจวัดแสงแยกรายอาคาร (ผ่าน / ไม่ผ่าน)'
+              text: 'สรุปผลตรวจวัดระดับแสงสว่างแยกตามอาคาร (ISO 45001)',
+              font: { size: 12, weight: 'bold' }
             }
           }
         }
       });
     } catch (err) {
-      console.error("Error loading building chart:", err);
+      console.error("ไม่สามารถวาดกราฟได้:", err);
     }
   }
 
-  // ฟังก์ชันดึงตารางข้อมูลรายจุด
   async function fetchLightRecords() {
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">กำลังดึงข้อมูลล่าสุดจาก Google Sheets...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">กำลังโหลดข้อมูลล่าสุด...</td></tr>';
 
     try {
       const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
       const list = await res.json();
 
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">ยังไม่มีข้อมูลในฐานข้อมูล</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">ไม่พบข้อมูลบันทึกในระบบ</td></tr>';
         return;
       }
 
@@ -616,14 +786,14 @@ document.addEventListener('DOMContentLoaded', () => {
               <strong>${item.building || "-"}</strong><br>
               <span style="color:#64748b;">ห้อง ${item.room || "-"}</span>
             </td>
-            <td style="max-width: 120px; font-size: 10.5px;">
+            <td style="max-width: 120px; font-size: 11px;">
               <div>${item.task || "-"}</div>
               ${pointInfo}
             </td>
             <td>${item.standardLux}</td>
             <td><strong>${item.measuredLux}</strong></td>
             <td>
-              <span class="tag-status ${isPass ? 'pass' : 'fail'}">
+              <span class="status-tag ${isPass ? 'pass' : 'fail'}">
                 ${isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
               </span>
             </td>
@@ -636,7 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
 
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:20px;">โหลดข้อมูลไม่สำเร็จ</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:15px;">โหลดตารางข้อมูลไม่สำเร็จ</td></tr>';
     }
   }
 })();
@@ -775,346 +945,3 @@ async function fixAndResubscribe(gasUrl) {
     }
   }
 }
-
-===== FILE: D:\ART\REALTIME_SERVICE\OPPE\css\style.css =====
-
-:root {
-  --primary: #0288D1;
-  --primary-dark: #01579B;
-  --bg: #F0F4F8;
-  --card-bg: #FFFFFF;
-  --text-main: #1A202C;
-  --text-muted: #718096;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg);
-  color: var(--text-main);
-  padding: 16px;
-  display: flex;
-  justify-content: center;
-}
-
-.container {
-  max-width: 680px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* Header */
-.header-card {
-  background: linear-gradient(135deg, #0288D1 0%, #00ACC1 100%);
-  color: white;
-  border-radius: 18px;
-  padding: 18px;
-  text-align: center;
-  box-shadow: 0 4px 14px rgba(2, 136, 209, 0.2);
-}
-.header-card h1 { font-size: 19px; font-weight: 700; }
-.header-card p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
-
-/* Live Summary Card */
-.hero-card {
-  background: var(--card-bg);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  text-align: center;
-}
-.metric-item { display: flex; flex-direction: column; align-items: center; }
-.metric-item .title { font-size: 12px; color: var(--text-muted); font-weight: 600; }
-.metric-item .val { font-size: 26px; font-weight: 800; color: var(--primary); margin: 2px 0; }
-.metric-item .unit { font-size: 10px; color: var(--text-muted); }
-.aqi-pill {
-  background: #E8F5E9;
-  color: #2E7D32;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-/* Standard Infinite Carousel */
-/* 1. คอนเทนเนอร์ต้องยอมรับการลากแนวนอน */
-.carousel-container {
-  position: relative;
-  background: var(--card-bg);
-  border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
-  overflow: hidden;
-  touch-action: pan-y pinch-zoom; /* ยอมให้หน้าเว็บเลื่อนขึ้นลงได้ แต่จับแนวนอนได้ */
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* 2. ป้องกันไม่ให้ Canvas ของกราฟมาแย่ง Touch ขณะปัด */
-.chart-wrapper {
-  position: relative;
-  height: 210px;
-  width: 100%;
-  touch-action: pan-y pinch-zoom;
-}
-
-.carousel-container:active {
-  cursor: grabbing;
-}
-
-.carousel-track {
-  display: flex;
-  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-  width: 100%;
-  will-change: transform;
-}
-
-.carousel-slide {
-  min-width: 100%;
-  width: 100%;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-sizing: border-box;
-}
-
-.slide-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.slide-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
-.swipe-hint { font-size: 11px; color: var(--text-muted); }
-
-.chart-wrapper { position: relative; height: 210px; width: 100%; }
-
-/* Form inside Slide */
-.form-wrapper {
-  text-align: center;
-  max-width: 360px;
-  margin: 0 auto;
-  width: 100%;
-}
-.form-wrapper p { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
-.email-input {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1.5px solid #E2E8F0;
-  font-size: 14px;
-  margin-bottom: 10px;
-  outline: none;
-}
-.email-input:focus { border-color: var(--primary); }
-.btn-sub {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 12px 18px;
-  font-size: 14px;
-  font-weight: 700;
-  border-radius: 10px;
-  cursor: pointer;
-  width: 100%;
-}
-.btn-sub:disabled { background: #CBD5E1; cursor: not-allowed; }
-
-/* Navigation Dots */
-.carousel-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  padding-bottom: 16px;
-}
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #CBD5E1;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.dot.active {
-  width: 22px;
-  border-radius: 4px;
-  background: var(--primary);
-}
-
-#status-msg { margin-top: 10px; font-size: 12px; font-weight: 600; }
-.success { color: #16A34A; }
-.error { color: #DC2626; }
-
-/* EHS Hub */
-.ehs-hub {
-  background: var(--card-bg);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.hub-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.hub-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-.iso-badge {
-  background: #E0F2FE;
-  color: #0369A1;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-/* Quick Action Grid */
-.quick-links-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-.link-card {
-  display: flex;
-  align-items: center;
-  background: #F8FAFC;
-  border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  padding: 12px 14px;
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition: all 0.2s ease;
-}
-.link-card:active {
-  background: #E2E8F0;
-  transform: scale(0.99);
-}
-.card-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  margin-right: 12px;
-}
-.doc-icon { background: #EEF2FF; }
-.light-icon { background: #FEF3C7; }
-.card-info { flex: 1; }
-.card-title { font-size: 13px; font-weight: 700; display: block; }
-.card-sub { font-size: 11px; color: var(--text-muted); display: block; }
-.arrow-icon { color: var(--text-muted); font-size: 14px; }
-
-/* Modal */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 1000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-.modal-backdrop.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-.modal-box {
-  background: var(--card-bg);
-  width: 100%;
-  max-width: 680px;
-  border-radius: 20px 20px 0 0;
-  padding: 20px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  transform: translateY(100%);
-  transition: transform 0.3s ease-out;
-}
-.modal-backdrop.active .modal-box {
-  transform: translateY(0);
-}
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.modal-header h3 { font-size: 16px; font-weight: 700; }
-.iso-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0 4px;
-}
-
-/* Light Summary */
-.light-summary-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  text-align: center;
-}
-.summary-item {
-  background: #F8FAFC;
-  padding: 8px;
-  border-radius: 8px;
-}
-.summary-item .lbl { font-size: 10px; color: var(--text-muted); display: block; }
-.summary-item .val { font-size: 18px; font-weight: 800; }
-.summary-item .val.pass { color: #16A34A; }
-.summary-item .val.fail { color: #DC2626; }
-
-/* Data Table */
-.table-wrapper {
-  overflow-x: auto;
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
-}
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-.data-table th, .data-table td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid #E2E8F0;
-}
-.data-table th { background: #F1F5F9; font-weight: 700; }
-.status-tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 700;
-}
-.status-tag.pass { background: #DCFCE7; color: #15803D; }
-.status-tag.fail { background: #FEE2E2; color: #B91C1C; }

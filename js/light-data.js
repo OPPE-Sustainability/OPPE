@@ -1,31 +1,17 @@
 // js/light-data.js
 (function () {
-  const modal = document.getElementById('lightModal');
-  const btnOpen = document.getElementById('btnOpenLightModal');
-  const btnClose = document.getElementById('btnCloseLightModal');
-  const tbody = document.getElementById('lightTableBody');
-
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
   let buildingChartInstance = null;
+  let isFetched = false;
 
-  if (!modal || !btnOpen) return;
-
-  btnOpen.addEventListener('click', () => {
-    modal.classList.add('active');
-    setTimeout(() => {
-      fetchLightRecords();
-      renderBuildingChart();
-    }, 150);
-  });
-
-  if (btnClose) {
-    btnClose.addEventListener('click', () => modal.classList.remove('active'));
-  }
-  
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.classList.remove('active');
-  });
+  // เปิดให้เรียกจากภายนอกเมื่อสลับแท็บมาที่หน้าตรวจวัดแสง
+  window.initLightDashboard = function () {
+    if (isFetched) return;
+    fetchLightRecords();
+    renderBuildingChart();
+    isFetched = true;
+  };
 
   async function renderBuildingChart() {
     const canvas = document.getElementById('buildingLightChart');
@@ -42,7 +28,9 @@
       const failData = buildings.map(b => data[b].fail);
 
       const ctx = canvas.getContext('2d');
-      if (buildingChartInstance) buildingChartInstance.destroy();
+      if (buildingChartInstance) {
+        buildingChartInstance.destroy();
+      }
 
       buildingChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -56,7 +44,7 @@
               borderRadius: 4
             },
             {
-              label: 'ไม่ผ่านเกณฑ์',
+              label: 'ต้องปรับปรุง',
               data: failData,
               backgroundColor: '#DC2626',
               borderRadius: 4
@@ -67,34 +55,44 @@
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            x: { stacked: true },
-            y: { stacked: true, beginAtZero: true, ticks: { precision: 0, stepSize: 1 } }
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: { font: { size: 11, family: 'inherit' } }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: { precision: 0, stepSize: 1, font: { size: 11, family: 'inherit' } },
+              grid: { color: '#f1f5f9' }
+            }
           },
           plugins: {
-            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 11, family: 'inherit' } }
+            },
             title: {
-              display: true,
-              text: 'สรุปผลตรวจวัดระดับแสงสว่างแยกตามอาคาร (ISO 45001)',
-              font: { size: 12, weight: 'bold' }
+              display: false
             }
           }
         }
       });
     } catch (err) {
-      console.error("ไม่สามารถวาดกราฟได้:", err);
+      console.error("Error drawing light chart:", err);
     }
   }
 
   async function fetchLightRecords() {
+    const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">กำลังโหลดข้อมูลล่าสุด...</td></tr>';
 
     try {
       const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
       const list = await res.json();
 
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">ไม่พบข้อมูลบันทึกในระบบ</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตรวจวัดในฐานข้อมูล</td></tr>';
         return;
       }
 
@@ -106,16 +104,16 @@
         if (isPass) pass++; else fail++;
 
         const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 
-          ? `<span style="font-size:10px; color:#0288D1;">(${item.workerOrPoint})</span>` 
+          ? `<div class="sub-text">(${item.workerOrPoint})</div>` 
           : "";
 
         return `
           <tr>
             <td>
-              <strong>${item.building || "-"}</strong><br>
-              <span style="color:#64748b;">ห้อง ${item.room || "-"}</span>
+              <strong>${item.building || "-"}</strong>
+              <div class="sub-text">ห้อง ${item.room || "-"}</div>
             </td>
-            <td style="max-width: 120px; font-size: 11px;">
+            <td>
               <div>${item.task || "-"}</div>
               ${pointInfo}
             </td>
@@ -123,7 +121,7 @@
             <td><strong>${item.measuredLux}</strong></td>
             <td>
               <span class="status-tag ${isPass ? 'pass' : 'fail'}">
-                ${isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+                ${isPass ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
               </span>
             </td>
           </tr>
@@ -135,7 +133,7 @@
       if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
 
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:15px;">โหลดตารางข้อมูลไม่สำเร็จ</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
     }
   }
 })();
