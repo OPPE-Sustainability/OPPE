@@ -54,15 +54,13 @@
     <div class="dash-card table-card">
       <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3>บันทึกผลการตรวจวัดล่าสุด</h3>
-        <!-- เพิ่มปุ่ม Export PDF -->
-        <button id="btnExportLightPdf" class="btn-export-pdf" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background-color: #1F5A44; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
+        <!-- ปุ่มเปิดหน้าสร้างและบันทึก PDF ทันที รองรับทุกเบราว์เซอร์ -->
+        <a href="https://script.google.com/macros/s/AKfycbzBdiPTR6c2wmPFRv6PqRhVXuhndSyhcePMaV_EfWngcUDKvl_kYtRNYeajkGOaOi-0Zw/exec" 
+          target="_blank" 
+          rel="noopener"
+          style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background-color: #1F5A44; color: #fff; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 600;">
           ดาวน์โหลด PDF
-        </button>
+        </a>
       </div>
       <div class="table-scroll-area">
         <table class="data-table" id="lightDataTable">
