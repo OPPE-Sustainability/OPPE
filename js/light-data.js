@@ -3,102 +3,87 @@
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
   let buildingChartInstance = null;
+  let rawLightRecords = []; // ตัวแปรเก็บข้อมูลสำหรับ Export
 
   window.initLightDashboard = function () {
     fetchLightRecords();
     renderBuildingChart();
-    bindExportPdfButton();
   };
 
-  function bindExportPdfButton() {
-    const btn = document.getElementById('btnExportLightPdf');
+  // ดักจับการกดปุ่ม Export Excel (.csv)
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('#btnExportLightExcel');
     if (!btn) return;
 
-    btn.onclick = function () {
-      const tableBody = document.getElementById('lightTableBody');
-      if (!tableBody || tableBody.innerHTML.includes('กำลังโหลด') || tableBody.innerHTML.includes('ไม่สำเร็จ')) {
-        alert('กรุณารอข้อมูลโหลดให้เสร็จสิ้นก่อนกด Export');
-        return;
-      }
+    e.preventDefault();
 
-      const total = document.getElementById('statTotal') ? document.getElementById('statTotal').textContent : '-';
-      const pass = document.getElementById('statPass') ? document.getElementById('statPass').textContent : '-';
-      const fail = document.getElementById('statFail') ? document.getElementById('statFail').textContent : '-';
-      const now = new Date().toLocaleString('th-TH');
+    if (!rawLightRecords || rawLightRecords.length === 0) {
+      alert('ยังไม่มีข้อมูลสำหรับ Export หรือข้อมูลกำลังโหลดอยู่');
+      return;
+    }
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="th">
-        <head>
-          <meta charset="utf-8">
-          <title>รายงานผลการตรวจวัดระดับความเข้มแสงสว่าง</title>
-          <style>
-            @page { size: A4 portrait; margin: 12mm 10mm; }
-            * { box-sizing: border-box; font-family: 'Sarabun', -apple-system, Tahoma, sans-serif; }
-            body { margin: 0; padding: 20px; color: #1e293b; }
-            .header { border-bottom: 2px solid #1F5A44; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end; }
-            .title h2 { margin: 0 0 4px 0; color: #1F5A44; font-size: 18px; }
-            .title p { margin: 0; color: #64748b; font-size: 13px; }
-            .meta { font-size: 12px; color: #64748b; text-align: right; }
-            .stat-row { display: flex; gap: 10px; margin-bottom: 16px; }
-            .stat-box { flex: 1; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; text-align: center; }
-            .stat-box .num { font-size: 16px; font-weight: bold; margin-top: 3px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-            th { background-color: #1F5A44; color: #fff; border: 1px solid #1F5A44; padding: 8px; text-align: center; }
-            td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: middle; }
-            tr:nth-child(even) { background-color: #f8fafc; }
-            .sub-text { font-size: 11px; color: #64748b; }
-            .status-tag.pass { color: #15803d; font-weight: bold; }
-            .status-tag.fail { color: #b91c1c; font-weight: bold; }
-            .action-bar { margin-bottom: 15px; background: #f1f5f9; padding: 10px 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
-            .btn-print { background: #1F5A44; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
-            @media print { .action-bar { display: none !important; } body { padding: 0; } }
-          </style>
-        </head>
-        <body>
-          <div class="action-bar">
-            <div><strong>💡 บันทึกผลการตรวจวัดแสงสว่าง</strong></div>
-            <button class="btn-print" onclick="window.print()">🖨️ บันทึกเป็น PDF / พิมพ์</button>
-          </div>
-          <div class="header">
-            <div class="title">
-              <h2>รายงานผลการตรวจวัดระดับความเข้มแสงสว่าง (ISO 45001 : 2018)</h2>
-              <p>กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล ศาลายา</p>
-            </div>
-            <div class="meta">ออกเอกสารเมื่อ: ${now} น.</div>
-          </div>
-          <div class="stat-row">
-            <div class="stat-box">จุดตรวจทั้งหมด<div class="num">${total} จุด</div></div>
-            <div class="stat-box" style="background:#f0fdf4;">ผ่านเกณฑ์<div class="num" style="color:#15803d;">${pass} จุด</div></div>
-            <div class="stat-box" style="background:#fef2f2;">ต้องปรับปรุง<div class="num" style="color:#b91c1c;">${fail} จุด</div></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 25%;">อาคาร / ห้อง</th>
-                <th style="width: 35%;">ลักษณะงาน</th>
-                <th style="width: 12%;">เกณฑ์ (Lux)</th>
-                <th style="width: 14%;">วัดได้ (Lux)</th>
-                <th style="width: 14%;">สถานะ</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableBody.innerHTML}
-            </tbody>
-          </table>
-          <script>
-            window.addEventListener('load', function() {
-              setTimeout(function() { window.print(); }, 400);
-            });
-          <\/script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    };
+    exportToExcel(rawLightRecords);
+  });
+
+  // ฟังก์ชันสร้างและสั่งดาวน์โหลดไฟล์ Excel (.csv) รองรับภาษาไทย 100%
+  function exportToExcel(dataList) {
+    // กำหนดหัวตารางตามโครงสร้างแบบฟอร์มรายงานของกรมสวัสดิการฯ
+    const headers = [
+      "ลำดับ",
+      "วัน/เดือน/ปี ที่ตรวจวัด",
+      "เวลาตรวจวัด",
+      "แผนก/ส่วนงาน",
+      "อาคาร",
+      "ห้อง/พื้นที่ตรวจวัด",
+      "ลักษณะงาน/ลักษณะพื้นที่",
+      "ชื่อ-นามสกุลลูกจ้าง (SEG) / จุดตรวจ",
+      "เครื่องมือตรวจวัด (ยี่ห้อ/S/N)",
+      "ค่ามาตรฐานตามเกณฑ์ (Lux)",
+      "ค่าเฉลี่ยที่วัดได้ (Lux)",
+      "ผลการประเมิน",
+      "ข้อเสนอแนะและวิธีการปรับปรุงแก้ไข"
+    ];
+
+    const rows = dataList.map((item, index) => {
+      const isPass = item.evaluation === "ผ่าน" || 
+                     (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
+                     Number(item.measuredLux) >= Number(item.standardLux);
+
+      // จัดการ Escape เครื่องหมายคำพูดสำหรับ CSV
+      const clean = (val) => `"${(val || "-").toString().replace(/"/g, '""')}"`;
+
+      return [
+        index + 1,
+        clean(item.date),
+        clean(item.time || item.timestamp ? (item.time || item.timestamp.toString().substring(11, 16)) : "-"),
+        clean(item.department),
+        clean(item.building),
+        clean(item.room),
+        clean(item.task),
+        clean(item.workerOrPoint),
+        clean(item.equipment ? `${item.equipment} (${item.serialNo || '-'})` : "-"),
+        item.standardLux || 0,
+        item.measuredLux || 0,
+        isPass ? "ผ่านเกณฑ์" : "ไม่ผ่านเกณฑ์",
+        clean(item.recommendation || "-")
+      ].join(",");
+    });
+
+    // ใส่ BOM (\uFEFF) นำหน้าเพื่อให้ Excel เปิดไฟล์ UTF-8 ภาษาไทยได้ถูกต้อง
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    const today = new Date().toISOString().slice(0, 10);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `แบบรายงานผลการตรวจวัดแสงสว่าง_${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
-
+// ----------------------------------------
   async function renderBuildingChart() {
     const canvas = document.getElementById('buildingLightChart');
     if (!canvas) return;
@@ -174,6 +159,8 @@
       const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
       const list = await res.json();
 
+      rawLightRecords = list || []; // บันทึกข้อมูลลงแคชสำหรับ Export
+
       if (!list || list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลในระบบ</td></tr>';
         return;
@@ -183,7 +170,9 @@
       let fail = 0;
 
       tbody.innerHTML = list.map(item => {
-        const isPass = item.evaluation === "ผ่าน" || (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || Number(item.measuredLux) >= Number(item.standardLux);
+        const isPass = item.evaluation === "ผ่าน" || 
+                       (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
+                       Number(item.measuredLux) >= Number(item.standardLux);
         if (isPass) pass++; else fail++;
 
         const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 

@@ -1,0 +1,1067 @@
+
+
+===== FILE: index.html =====
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OPPE Sustainability Dashboard</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1F5A44">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+  <!-- โหลดฟอนต์ Plus Jakarta Sans และ JetBrains Mono ตามสเปกดีไซน์ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/aqi-view.css">
+  <link rel="stylesheet" href="css/light-view.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+</head>
+<body>
+
+  <!-- ปุ่ม FAB เปิดเมนูมุมขวาล่าง -->
+  <button id="menuToggle" class="fab-menu" aria-label="เปิดเมนูนำทาง">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="7" x2="20" y2="7"></line>
+      <line x1="4" y1="12" x2="20" y2="12"></line>
+      <line x1="4" y1="17" x2="20" y2="17"></line>
+    </svg>
+  </button>
+
+  <!-- ม่านหลังและ Sidebar Menu Drawer -->
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <aside id="sidebarMenu" class="sidebar">
+    <div class="sidebar-header">
+      <span class="brand-badge">EHS & Sustainability</span>
+      <h2>OPPE Portal</h2>
+      <p>กองกายภาพและสิ่งแวดล้อม ม.มหิดล</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="tab-btn active" data-index="0" data-view="view-air">
+        <span class="btn-dot"></span> คุณภาพอากาศและสภาพแวดล้อม
+      </button>
+      <button class="tab-btn" data-index="1" data-view="view-light">
+        <span class="btn-dot"></span> ตรวจวัดแสงสว่าง (ISO 45001)
+      </button>
+    </nav>
+  </aside>
+
+  <!-- พื้นที่สไลด์แนวตั้ง (Vertical Slide Carousel) -->
+  <main class="main-viewport">
+    <div class="vertical-track" id="verticalTrack">
+      
+      <!-- View 1: ข้อมูลคุณภาพอากาศ -->
+      <section id="view-air" class="view-panel">
+        <div class="panel-content">
+          <div id="view-header"></div>
+          <div id="view-aqi"></div>
+        </div>
+      </section>
+
+      <!-- View 2: ระบบตรวจวัดแสงสว่าง -->
+      <section id="view-light" class="view-panel">
+        <div class="panel-content">
+          <div id="view-light-page"></div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    async function loadComponent(elementId, filePath) {
+      try {
+        const res = await fetch(filePath);
+        if (!res.ok) throw new Error(`HTTP error on ${filePath}`);
+        document.getElementById(elementId).innerHTML = await res.text();
+      } catch (e) {
+        console.error("Load error:", e);
+      }
+    }
+
+    async function initApp() {
+      await Promise.all([
+        loadComponent('view-header', 'components/header.html'),
+        loadComponent('view-aqi', 'components/aqi-summary.html'),
+        loadComponent('view-light-page', 'components/light-page.html')
+      ]);
+
+      const scripts = ['js/carousel.js', 'js/aqi-chart.js', 'js/push-notify.js', 'js/light-data.js'];
+      for (const src of scripts) {
+        await new Promise((resolve) => {
+          const s = document.createElement('script');
+          s.src = src;
+          s.onload = resolve;
+          document.body.appendChild(s);
+        });
+      }
+
+      if (typeof window.initCarousel === 'function') window.initCarousel();
+
+      const GAS_WEBAPP_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
+      if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
+      if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
+
+      setupVerticalNavigation();
+    }
+
+    function setupVerticalNavigation() {
+      const navButtons = document.querySelectorAll('.tab-btn');
+      const verticalTrack = document.getElementById('verticalTrack');
+      const menuToggle = document.getElementById('menuToggle');
+      const sidebarMenu = document.getElementById('sidebarMenu');
+      const overlay = document.getElementById('sidebarOverlay');
+
+      function toggleMenu() {
+        sidebarMenu.classList.toggle('open');
+        overlay.classList.toggle('active');
+      }
+
+      menuToggle.addEventListener('click', toggleMenu);
+      overlay.addEventListener('click', toggleMenu);
+
+      navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = btn.getAttribute('data-index');
+          const targetViewId = btn.getAttribute('data-view');
+
+          verticalTrack.style.transform = `translateY(-${index * 100}dvh)`;
+
+          navButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          toggleMenu();
+
+          if (targetViewId === 'view-light' && typeof window.initLightDashboard === 'function') {
+            setTimeout(() => { window.initLightDashboard(); }, 600);
+          }
+        });
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\aqi-summary.html =====
+
+<!-- components/aqi-summary.html -->
+<!-- Real-time Status Card -->
+<div class="hero-card">
+  <div class="metric-item">
+    <span class="title">AQI ปัจจุบัน</span>
+    <span class="val" id="valAqi">--</span>
+    <div class="aqi-pill" id="lblStatus">กำลังโหลด...</div>
+  </div>
+  <div class="metric-item">
+    <span class="title">PM2.5</span>
+    <span class="val" id="valPm25">--</span>
+    <span class="unit">µg/m³</span>
+  </div>
+  <div class="metric-item">
+    <span class="title">PM10</span>
+    <span class="val" id="valPm10">--</span>
+    <span class="unit">µg/m³</span>
+  </div>
+</div>
+
+<!-- Carousel Section แบบแยกการ์ดอิสระ -->
+<div class="carousel-viewport" id="carouselContainer">
+  <div class="carousel-track" id="carouselTrack">
+    
+    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง (การ์ดเฉพาะส่วนกราฟ) -->
+    <div class="carousel-slide" id="slide1">
+      <div class="slide-card">
+        <div class="slide-header">
+          <div>
+            <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
+            <span class="slide-sub">สถานีตรวจวัด มหาวิทยาลัยมหิดล ศาลายา</span>
+          </div>
+          <span class="swipe-hint">ปัดเพื่อรับแจ้งเตือน →</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="aqiChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน (การ์ดเฉพาะส่วนฟอร์ม) -->
+    <div class="carousel-slide" id="slide2">
+      <div class="slide-card">
+        <div class="slide-header">
+          <div>
+            <span class="slide-title">รับการแจ้งเตือนค่าฝุ่นรายวัน</span>
+            <span class="slide-sub">สรุปสถานการณ์ PM2.5 และ AQI เข้ามือถือทุกเช้า</span>
+          </div>
+          <span class="swipe-hint">← ปัดเพื่อดูกราฟ</span>
+        </div>
+
+        <div class="form-wrapper">
+          <div class="guide-grid">
+            <!-- ฝั่ง Android -->
+            <div class="guide-card android">
+              <div class="guide-title">
+                <span class="os-tag">Android</span>
+                <span>แอป Chrome</span>
+              </div>
+              <ol class="guide-steps">
+                <li>เปิดเว็บผ่านแอป <strong>Chrome</strong></li>
+                <li>กรอกอีเมลด้านล่าง แล้วกดปุ่ม <strong>"เปิดรับการแจ้งเตือน"</strong></li>
+                <li>เมื่อมีป๊อปอัปขึ้นมา ให้กด <strong>"อนุญาต" (Allow)</strong></li>
+              </ol>
+            </div>
+
+            <!-- ฝั่ง iOS -->
+            <div class="guide-card ios">
+              <div class="guide-title">
+                <span class="os-tag">iOS / iPhone</span>
+                <span>Safari (iOS 16.4+)</span>
+              </div>
+              <ol class="guide-steps">
+                <li>เปิดเว็บด้วยแอป <strong>Safari</strong></li>
+                <li>กดปุ่มแชร์ แล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong></li>
+                <li>เปิดแอปจากไอคอนบนหน้าจอโฮม แล้วกดปุ่มเปิดรับแจ้งเตือน</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- ฟอร์มกรอกอีเมล -->
+          <form id="subscribeForm" onsubmit="return false;">
+            <div class="input-action-group">
+              <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+              <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
+            </div>
+          </form>
+          <div id="status-msg"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Indicator Dots ลอยด้านล่าง -->
+  <div class="carousel-footer">
+    <div class="dot active" data-index="0"></div>
+    <div class="dot" data-index="1"></div>
+  </div>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\ehs-hub.html =====
+
+<!-- components/ehs-hub.html -->
+<div class="ehs-hub">
+  <div class="hub-header">
+    <div class="hub-header-title">
+      <span class="hub-tag">ISO 45001 : 2018 & ISO 14001 : 2015</span>
+      <h3>ระบบตรวจประเมินความเข้มแสงสว่างและความปลอดภัย</h3>
+    </div>
+    <span class="hub-badge-org">กองกายภาพและสิ่งแวดล้อม</span>
+  </div>
+
+  <div class="quick-links-grid">
+    <!-- ลิงก์ตรงไปเปิดหน้าฟอร์มบันทึกแสง (ผูก URL ให้เรียบร้อย) -->
+    <a href="https://script.google.com/macros/s/AKfycbyaRVm9zl2qQNs5085bHw3m22g_u9T6FnH6UzIr44e_pQDB5xuV06iP6eoZKRIq8pZheQ/exec" 
+       target="_blank" 
+       rel="noopener" 
+       class="ehs-card">
+      <div class="card-icon form-icon">📝</div>
+      <div class="card-text">
+        <span class="card-title">ฟอร์มบันทึกข้อมูลแสง</span>
+        <span class="card-desc">กรอกข้อมูลภาคสนาม 9 รูปแบบ</span>
+      </div>
+      <span class="card-arrow">↗</span>
+    </a>
+
+    <!-- ปุ่มเปิดแผง Drawer แสดงผลการวัดแสงล่าสุด -->
+    <button type="button" class="ehs-card" id="btnOpenLightModal">
+      <div class="card-icon chart-icon">💡</div>
+      <div class="card-text">
+        <span class="card-title">ผลตรวจวัดล่าสุด</span>
+        <span class="card-desc">สถิติและสถานะความปลอดภัยรายห้อง</span>
+      </div>
+      <span class="card-arrow">➔</span>
+    </button>
+  </div>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\header.html =====
+
+<!-- components/header.html -->
+<div class="header-card">
+  <h1>🌿 Mahidol Air Quality Index</h1>
+  <p>ระบบตรวจวัดคุณภาพอากาศ มหาวิทยาลัยมหิดล ศาลายา</p>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-modal.html =====
+
+<!-- components/light-modal.html -->
+<div class="modal-backdrop" id="lightModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3>💡 ผลการตรวจวัดระดับความเข้มของแสงสว่าง</h3>
+        <p class="iso-sub">มาตรฐานความปลอดภัย ISO 45001:2018 & กฎกระทรวงฯ</p>
+      </div>
+      <button type="button" class="btn-close" id="btnCloseLightModal" aria-label="ปิดหน้าต่าง">&times;</button>
+    </div>
+
+    <!-- แผงสถิติภาพรวม 3 ช่อง -->
+    <div class="light-summary-row">
+      <div class="summary-item">
+        <span class="lbl">จุดตรวจทั้งหมด</span>
+        <span class="val" id="statTotal">--</span>
+      </div>
+      <div class="summary-item">
+        <span class="lbl">ผ่านเกณฑ์</span>
+        <span class="val pass" id="statPass">--</span>
+      </div>
+      <div class="summary-item">
+        <span class="lbl">ต้องปรับปรุง</span>
+        <span class="val fail" id="statFail">--</span>
+      </div>
+    </div>
+
+    <!-- กล่องสำหรับวาดกราฟแท่งเปรียบเทียบรายอาคาร -->
+    <div style="position: relative; width: 100%; height: 230px; margin: 6px 0 12px 0; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-sizing: border-box;">
+      <canvas id="buildingLightChart"></canvas>
+    </div>
+
+    <!-- ตารางแสดงรายการผลการวัดจากชีต Database -->
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>อาคาร / ห้อง</th>
+            <th>ลักษณะงาน / จุดตรวจ</th>
+            <th>เกณฑ์</th>
+            <th>วัดได้</th>
+            <th>ผลประเมิน</th>
+          </tr>
+        </thead>
+        <tbody id="lightTableBody">
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 16px; color: #888;">กำลังโหลดข้อมูล...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-page.html =====
+
+<!-- components/light-page.html -->
+<div class="light-dashboard-container">
+  
+  <div class="dashboard-banner">
+    <div class="banner-title-group">
+      <span class="iso-pill">ISO 45001 : 2018 / ISO 14001 : 2015</span>
+      <h2>ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
+      <p>รายงานผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
+    </div>
+    <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec" 
+       target="_blank" 
+       rel="noopener" 
+       class="btn-open-form">
+      แบบบันทึกข้อมูลภาคสนาม
+    </a>
+  </div>
+
+<!-- แผงสถิติภาพรวม รวมอยู่ในการ์ดเดียวแบ่ง 3 คอลัมน์ -->
+  <div class="light-summary-card">
+    <div class="summary-metric">
+      <span class="metric-title">จุดตรวจสะสม</span>
+      <span class="metric-num" id="statTotal">--</span>
+      <span class="metric-sub">จุดตรวจทั้งหมด</span>
+    </div>
+    
+    <div class="metric-divider"></div>
+
+    <div class="summary-metric">
+      <span class="metric-title">ผ่านเกณฑ์</span>
+      <span class="metric-num text-pass" id="statPass">--</span>
+      <span class="status-pill pass">ปลอดภัย</span>
+    </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="summary-metric">
+      <span class="metric-title">ต้องปรับปรุง</span>
+      <span class="metric-num text-fail" id="statFail">--</span>
+      <span class="status-pill fail">ปรับปรุง</span>
+    </div>
+  </div>
+  <div class="dashboard-content-grid">
+    <div class="dash-card chart-card">
+      <div class="dash-card-header">
+        <h3>สรุปผลการประเมินแยกตามอาคาร</h3>
+      </div>
+      <div class="dash-chart-wrapper">
+        <canvas id="buildingLightChart"></canvas>
+      </div>
+    </div>
+
+    <div class="dash-card table-card">
+      <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <h3>บันทึกผลการตรวจวัดล่าสุด</h3>
+        <div style="display: flex; gap: 8px;">
+          <!-- ปุ่ม ก: ดาวน์โหลดเป็น Excel (.csv) สำหรับนำข้อมูลไปประมวลผลต่อ -->
+          <button id="btnExportLightExcel" type="button" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background-color: #0f766e; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+            📊 Export Excel (.csv)
+          </button>
+
+          <!-- ปุ่ม ข: พิมพ์/บันทึก PDF เป็นแบบฟอร์มทางการ EHS (เปิดแท็บรายงานพร้อมสั่งพิมพ์) -->
+        <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec?action=exportPdf" 
+           target="_blank" 
+           rel="noopener"
+           class="btn-export-pdf"
+           style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background-color: #1F5A44; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 600; transition: opacity 0.2s;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export PDF
+        </a>
+        </div>
+      </div>
+      <div class="table-scroll-area">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>อาคาร / ห้อง</th>
+              <th>ลักษณะงาน</th>
+              <th>เกณฑ์ (Lux)</th>
+              <th>วัดได้ (Lux)</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="lightTableBody">
+            <tr>
+              <td colspan="5" class="loading-td">กำลังโหลดข้อมูล...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\aqi-chart.js =====
+
+let aqiChartInstance = null;
+
+function formatChartTime(item) {
+  try {
+    if (!item) return '';
+    const raw = item.Date_Time_AQI || item.Date_Time_AQI_Unix;
+    if (!raw) return '';
+
+    if (typeof raw === 'string' && raw.includes(' ')) {
+      const parts = raw.split(' ');
+      if (parts[1]) return parts[1].substring(0, 5);
+    }
+
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    }
+  } catch (e) {
+    console.error('Time parse error:', e);
+  }
+  return '';
+}
+
+function renderAqiChart(historyData) {
+  const canvas = document.getElementById('aqiChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  if (aqiChartInstance) {
+    aqiChartInstance.destroy();
+  }
+
+  const labels = historyData.map(item => formatChartTime(item));
+  const aqiPoints = historyData.map(item => Number(item.AQI) || 0);
+  const pm25Points = historyData.map(item => Number(item.PM_25) || 0);
+
+  aqiChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'AQI',
+          data: aqiPoints,
+          borderColor: '#1F5A44',                     /* Hijau Songkok */
+          backgroundColor: 'rgba(31, 90, 68, 0.08)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 2.5
+        },
+        {
+          label: 'PM2.5 (µg/m³)',
+          data: pm25Points,
+          borderColor: '#F2A93B',                     /* Kuning Maghrib */
+          borderDash: [4, 4],
+          fill: false,
+          tension: 0.35,
+          pointRadius: 2.5
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: { 
+        legend: { 
+          position: 'bottom',
+          labels: { boxWidth: 12, font: { size: 11 } }
+        } 
+      },
+      scales: { 
+        y: { 
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.05)' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+async function loadAirData(gasUrl) {
+  try {
+    const res = await fetch(gasUrl);
+    const data = await res.json();
+
+    if (!data || data.length === 0 || data.error) {
+      console.warn("ยังไม่มีข้อมูลสภาพอากาศในชีต หรือเกิดข้อผิดพลาด");
+      return;
+    }
+
+    const latest = data[data.length - 1];
+
+    const aqiVal = Math.round(Number(latest.AQI));
+    const pm25Val = Number(latest.PM_25).toFixed(1);
+    const pm10Val = Number(latest.PM_10).toFixed(1);
+
+    document.getElementById('valAqi').textContent = aqiVal;
+    document.getElementById('valPm25').textContent = pm25Val;
+    document.getElementById('valPm10').textContent = pm10Val;
+
+    const aqiPill = document.getElementById('lblStatus');
+    if (aqiVal <= 25) {
+      aqiPill.textContent = "อากาศดีมาก";
+      aqiPill.style.background = "#E8F5E9";
+      aqiPill.style.color = "#2E7D32";
+    } else if (aqiVal <= 50) {
+      aqiPill.textContent = "อากาศดี";
+      aqiPill.style.background = "#E8F5E9";
+      aqiPill.style.color = "#2E7D32";
+    } else if (aqiVal <= 100) {
+      aqiPill.textContent = "ปานกลาง";
+      aqiPill.style.background = "#FFFDE7";
+      aqiPill.style.color = "#F57F17";
+    } else if (aqiVal <= 200) {
+      aqiPill.textContent = "เริ่มมีผลกระทบ";
+      aqiPill.style.background = "#FFF3E0";
+      aqiPill.style.color = "#E65100";
+    } else {
+      aqiPill.textContent = "มีผลกระทบต่อสุขภาพ";
+      aqiPill.style.background = "#FFEBEE";
+      aqiPill.style.color = "#C62828";
+    }
+
+    renderAqiChart(data);
+
+  } catch (error) {
+    console.error("ดึงข้อมูลจาก Google Sheets ล้มเหลว:", error);
+    document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
+  }
+}
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\carousel.js =====
+
+// js/carousel.js
+(function () {
+  window.initCarousel = function () {
+    const track = document.getElementById('carouselTrack');
+    const container = document.getElementById('carouselContainer');
+    const dots = document.querySelectorAll('.dot');
+
+    if (!track || !container) return;
+
+    let currentIndex = 0;
+    const totalSlides = 2;
+
+    function updateCarousel(index, smooth = true) {
+      track.style.transition = smooth ? 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+      currentIndex = (index + totalSlides) % totalSlides;
+      track.style.transform = `translateX(-${currentIndex * 100}%)`;
+
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === currentIndex);
+      });
+    }
+
+    dots.forEach((dot, i) => {
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        updateCarousel(i);
+      });
+    });
+
+    let startX = 0;
+    let startY = 0;
+    let currentTranslate = 0;
+    let isDragging = false;
+    let isHorizontalSwipe = null;
+
+    function onTouchStart(e) {
+      if (['INPUT', 'BUTTON', 'A'].includes(e.target.tagName)) return;
+
+      isDragging = true;
+      isHorizontalSwipe = null;
+      const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+      const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
+
+      startX = clientX;
+      startY = clientY;
+      track.style.transition = 'none';
+    }
+
+    function onTouchMove(e) {
+      if (!isDragging) return;
+
+      const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+      const clientY = e.type.includes('mouse') ? e.pageY : e.touches[0].clientY;
+
+      const diffX = clientX - startX;
+      const diffY = clientY - startY;
+
+      if (isHorizontalSwipe === null) {
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+          isHorizontalSwipe = true;
+        } else if (Math.abs(diffY) > 8) {
+          isHorizontalSwipe = false;
+          isDragging = false;
+          return;
+        }
+      }
+
+      if (isHorizontalSwipe) {
+        if (e.cancelable) e.preventDefault();
+        currentTranslate = -(currentIndex * container.offsetWidth) + diffX;
+        track.style.transform = `translateX(${currentTranslate}px)`;
+      }
+    }
+
+    function onTouchEnd(e) {
+      if (!isDragging) return;
+      isDragging = false;
+
+      const endX = e.type.includes('mouse') ? e.pageX : (e.changedTouches ? e.changedTouches[0].clientX : startX);
+      const diffX = endX - startX;
+
+      if (isHorizontalSwipe && Math.abs(diffX) > 40) {
+        if (diffX < 0) {
+          updateCarousel(currentIndex + 1);
+        } else {
+          updateCarousel(currentIndex - 1);
+        }
+      } else {
+        updateCarousel(currentIndex);
+      }
+      isHorizontalSwipe = null;
+    }
+
+    // Unbind เดิมก่อน Bind ใหม่ป้องกัน Event ซ้อน
+    container.removeEventListener('touchstart', onTouchStart);
+    container.removeEventListener('touchmove', onTouchMove);
+    container.removeEventListener('touchend', onTouchEnd);
+    container.removeEventListener('touchcancel', onTouchEnd);
+    container.removeEventListener('mousedown', onTouchStart);
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
+    container.addEventListener('touchcancel', onTouchEnd);
+    container.addEventListener('mousedown', onTouchStart);
+    window.addEventListener('mousemove', onTouchMove);
+    window.addEventListener('mouseup', onTouchEnd);
+  };
+
+  // เรียกทำงานทันทีหาก DOM ของหน้าพร้อมอยู่แล้ว
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    window.initCarousel();
+  }
+})();
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\light-data.js =====
+
+// js/light-data.js
+(function () {
+  const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
+
+  let buildingChartInstance = null;
+  let rawLightRecords = []; // ตัวแปรเก็บข้อมูลสำหรับ Export
+
+  window.initLightDashboard = function () {
+    fetchLightRecords();
+    renderBuildingChart();
+  };
+
+  // ดักจับการกดปุ่ม Export Excel (.csv)
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('#btnExportLightExcel');
+    if (!btn) return;
+
+    e.preventDefault();
+
+    if (!rawLightRecords || rawLightRecords.length === 0) {
+      alert('ยังไม่มีข้อมูลสำหรับ Export หรือข้อมูลกำลังโหลดอยู่');
+      return;
+    }
+
+    exportToExcel(rawLightRecords);
+  });
+
+  // ฟังก์ชันสร้างและสั่งดาวน์โหลดไฟล์ Excel (.csv) รองรับภาษาไทย 100%
+  function exportToExcel(dataList) {
+    // กำหนดหัวตารางตามโครงสร้างแบบฟอร์มรายงานของกรมสวัสดิการฯ
+    const headers = [
+      "ลำดับ",
+      "วัน/เดือน/ปี ที่ตรวจวัด",
+      "เวลาตรวจวัด",
+      "แผนก/ส่วนงาน",
+      "อาคาร",
+      "ห้อง/พื้นที่ตรวจวัด",
+      "ลักษณะงาน/ลักษณะพื้นที่",
+      "ชื่อ-นามสกุลลูกจ้าง (SEG) / จุดตรวจ",
+      "เครื่องมือตรวจวัด (ยี่ห้อ/S/N)",
+      "ค่ามาตรฐานตามเกณฑ์ (Lux)",
+      "ค่าเฉลี่ยที่วัดได้ (Lux)",
+      "ผลการประเมิน",
+      "ข้อเสนอแนะและวิธีการปรับปรุงแก้ไข"
+    ];
+
+    const rows = dataList.map((item, index) => {
+      const isPass = item.evaluation === "ผ่าน" || 
+                     (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
+                     Number(item.measuredLux) >= Number(item.standardLux);
+
+      // จัดการ Escape เครื่องหมายคำพูดสำหรับ CSV
+      const clean = (val) => `"${(val || "-").toString().replace(/"/g, '""')}"`;
+
+      return [
+        index + 1,
+        clean(item.date),
+        clean(item.time || item.timestamp ? (item.time || item.timestamp.toString().substring(11, 16)) : "-"),
+        clean(item.department),
+        clean(item.building),
+        clean(item.room),
+        clean(item.task),
+        clean(item.workerOrPoint),
+        clean(item.equipment ? `${item.equipment} (${item.serialNo || '-'})` : "-"),
+        item.standardLux || 0,
+        item.measuredLux || 0,
+        isPass ? "ผ่านเกณฑ์" : "ไม่ผ่านเกณฑ์",
+        clean(item.recommendation || "-")
+      ].join(",");
+    });
+
+    // ใส่ BOM (\uFEFF) นำหน้าเพื่อให้ Excel เปิดไฟล์ UTF-8 ภาษาไทยได้ถูกต้อง
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    const today = new Date().toISOString().slice(0, 10);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `แบบรายงานผลการตรวจวัดแสงสว่าง_${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+// ----------------------------------------
+  async function renderBuildingChart() {
+    const canvas = document.getElementById('buildingLightChart');
+    if (!canvas) return;
+
+    try {
+      const res = await fetch(`${LIGHT_API_URL}?action=getBuildingStats`);
+      const data = await res.json();
+
+      const buildings = Object.keys(data);
+      if (buildings.length === 0) return;
+
+      const passData = buildings.map(b => data[b].pass);
+      const failData = buildings.map(b => data[b].fail);
+
+      const ctx = canvas.getContext('2d');
+      if (buildingChartInstance) {
+        buildingChartInstance.destroy();
+      }
+
+      buildingChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: buildings,
+          datasets: [
+            {
+              label: 'ผ่านเกณฑ์',
+              data: passData,
+              backgroundColor: '#16A34A',
+              borderRadius: 4
+            },
+            {
+              label: 'ต้องปรับปรุง',
+              data: failData,
+              backgroundColor: '#DC2626',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: { font: { size: 11 } }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: { precision: 0, stepSize: 1, font: { size: 11 } },
+              grid: { color: '#f1f5f9' }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 11 } }
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.error("Error drawing light chart:", err);
+    }
+  }
+
+  async function fetchLightRecords() {
+    const tbody = document.getElementById('lightTableBody');
+    if (!tbody) return;
+
+    try {
+      const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
+      const list = await res.json();
+
+      rawLightRecords = list || []; // บันทึกข้อมูลลงแคชสำหรับ Export
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลในระบบ</td></tr>';
+        return;
+      }
+
+      let pass = 0;
+      let fail = 0;
+
+      tbody.innerHTML = list.map(item => {
+        const isPass = item.evaluation === "ผ่าน" || 
+                       (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
+                       Number(item.measuredLux) >= Number(item.standardLux);
+        if (isPass) pass++; else fail++;
+
+        const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 
+          ? `<div class="sub-text">(${item.workerOrPoint})</div>` 
+          : "";
+
+        return `
+          <tr>
+            <td>
+              <strong>${item.building || "-"}</strong>
+              <div class="sub-text">ห้อง ${item.room || "-"}</div>
+            </td>
+            <td>
+              <div>${item.task || "-"}</div>
+              ${pointInfo}
+            </td>
+            <td>${item.standardLux}</td>
+            <td><strong>${item.measuredLux}</strong></td>
+            <td>
+              <span class="status-tag ${isPass ? 'pass' : 'fail'}">
+                ${isPass ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = list.length;
+      if (document.getElementById('statPass')) document.getElementById('statPass').textContent = pass;
+      if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
+
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ</td></tr>';
+    }
+  }
+})();
+
+===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\push-notify.js =====
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBYh9A6rnlE-fk59R__ZxZT6AMfMwreIJc",
+  authDomain: "pwa-aqi-alert.firebaseapp.com",
+  projectId: "pwa-aqi-alert",
+  storageBucket: "pwa-aqi-alert.firebasestorage.app",
+  messagingSenderId: "351293220998",
+  appId: "1:351293220998:web:631e82ed1049c986d60907"
+};
+const VAPID_KEY = "BOnPd9wbT5Qnh3NvqkIv4r1NXQhbTFPE8JKejT1Hwv3j7s0rzEwGiigr5BtopQ_aNcP77NTQmmv6C-5oZddc3fc";
+
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
+
+function initPushNotification(gasUrl) {
+  const subscribeForm = document.getElementById('subscribeForm');
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const statusMsg = document.getElementById('status-msg');
+  const userEmailInput = document.getElementById('userEmail');
+
+  // ดักจับการส่งฟอร์มลงทะเบียน
+  subscribeForm.addEventListener('submit', async () => {
+    const email = userEmailInput.value.trim();
+    if (!email) return;
+
+    subscribeBtn.disabled = true;
+    statusMsg.className = '';
+    statusMsg.textContent = 'กำลังลงทะเบียน...';
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        statusMsg.className = 'error';
+        statusMsg.textContent = 'กรุณาเปิดสิทธิ์แจ้งเตือนในระบบของอุปกรณ์';
+        subscribeBtn.disabled = false;
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
+      await navigator.serviceWorker.ready;
+
+      const currentToken = await messaging.getToken({
+        vapidKey: VAPID_KEY,
+        serviceWorkerRegistration: registration
+      });
+
+      if (currentToken) {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ token: currentToken, email: email })
+        });
+
+        statusMsg.className = 'success';
+        statusMsg.textContent = '✅ ลงทะเบียนสำเร็จ!';
+        subscribeBtn.textContent = 'เปิดแจ้งเตือนแล้ว';
+        userEmailInput.disabled = true;
+      }
+    } catch (err) {
+      statusMsg.className = 'error';
+      statusMsg.textContent = 'ข้อผิดพลาด: ' + err.message;
+      subscribeBtn.disabled = false;
+    }
+  });
+
+  // [ใส่คืนจุดที่ตกหล่น 1]: ดักจับข้อความขณะเปิดหน้าเว็บอยู่ (Foreground Push)
+  messaging.onMessage((payload) => {
+    const title = payload.notification?.title || payload.data?.title || "🌿 รายงานคุณภาพอากาศ มหิดล";
+    const body = payload.notification?.body || payload.data?.body || "";
+
+    if (Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body: body,
+          icon: 'https://cosin789.github.io/PWA_AQI_ALERT/Icon_PWA.png',
+          badge: 'https://cosin789.github.io/PWA_AQI_ALERT/icon-192.png',
+          tag: 'mahidol-aqi-daily',
+          renotify: true
+        });
+      });
+    }
+  });
+}
+
+// [ใส่คืนจุดที่ตกหล่น 2]: ฟังก์ชันล้าง Token และขอใหม่กรณีเกิดปัญหา
+async function fixAndResubscribe(gasUrl) {
+  const statusMsg = document.getElementById('status-msg');
+  const userEmailInput = document.getElementById('userEmail');
+  
+  if (statusMsg) {
+    statusMsg.className = '';
+    statusMsg.textContent = 'กำลังซ่อมแซมและเชื่อมต่อระบบใหม่...';
+  }
+
+  try {
+    await messaging.deleteToken();
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (let registration of registrations) {
+      await registration.unregister();
+    }
+
+    const newReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
+    await navigator.serviceWorker.ready;
+
+    const freshToken = await messaging.getToken({
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: newReg
+    });
+
+    if (freshToken) {
+      await fetch(gasUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          token: freshToken,
+          email: userEmailInput ? userEmailInput.value.trim() : "Re-subscribed User"
+        })
+      });
+
+      if (statusMsg) {
+        statusMsg.className = 'success';
+        statusMsg.textContent = '✅ ซ่อมแซมระบบสำเร็จ! เครื่องพร้อมรับการแจ้งเตือนแล้ว';
+      }
+    }
+  } catch (err) {
+    if (statusMsg) {
+      statusMsg.className = 'error';
+      statusMsg.textContent = 'กรุณาแตะไอคอนรูปกุญแจ/ตั้งค่าข้าง URL เพื่อกดอนุญาตแจ้งเตือน';
+    }
+  }
+}

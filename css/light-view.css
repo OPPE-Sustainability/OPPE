@@ -246,3 +246,76 @@
   color: var(--text-secondary);
 }
 
+/* ==========================================
+   CSS จัดหน้ากระดาษ A4 สำหรับ Export PDF / Print
+   ========================================== */
+@media print {
+  /* ซ่อนเมนู, ปุ่มกด, แถบด้านข้าง, และกราฟ */
+  #menuToggle,
+  #sidebarMenu,
+  #sidebarOverlay,
+  #btnExportLightPdf,
+  .btn-open-form,
+  .chart-card,
+  .fab-menu {
+    display: none !important;
+  }
+
+  /* ปลดการล็อกความสูงของ Carousel เพื่อให้พิมพ์ได้ทุกหน้า */
+  html, body, .main-viewport, .vertical-track, .view-panel, .panel-content {
+    height: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* จัดกรอบรายงานให้เต็มหน้า */
+  .light-dashboard-container {
+    padding: 10px !important;
+    width: 100% !important;
+  }
+
+  .table-scroll-area {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* แต่งตารางให้คมชัดสำหรับพิมพ์ */
+  .data-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10.5pt !important;
+  }
+
+  .data-table th, .data-table td {
+    border: 1px solid #94a3b8 !important;
+    padding: 6px 8px !important;
+    color: #0f172a !important;
+  }
+
+  .data-table th {
+    background-color: #1F5A44 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .status-tag.pass {
+    color: #15803d !important;
+    font-weight: bold !important;
+  }
+
+  .status-tag.fail {
+    color: #b91c1c !important;
+    font-weight: bold !important;
+  }
+
+  .light-summary-card {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    margin-bottom: 16px !important;
+    page-break-inside: avoid;
+  }
+}
