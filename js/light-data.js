@@ -3,22 +3,167 @@
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
   let buildingChartInstance = null;
-  let cachedLightRecords = []; // เก็บข้อมูลรายการตรวจวัดสำหรับ export
 
   window.initLightDashboard = function () {
     fetchLightRecords();
     renderBuildingChart();
-    bindExportButton();
+    bindExportPdfButton();
   };
 
-  // ผูก Event ให้ปุ่ม Export PDF
-  function bindExportButton() {
+  function bindExportPdfButton() {
     const btn = document.getElementById('btnExportLightPdf');
     if (!btn) return;
-    
-    btn.onclick = () => {
-      exportLightDataToPDF(cachedLightRecords);
+
+    btn.onclick = function () {
+      const tableBody = document.getElementById('lightTableBody');
+      if (!tableBody || tableBody.innerHTML.includes('กำลังโหลด') || tableBody.innerHTML.includes('ไม่สำเร็จ')) {
+        alert('กรุณารอข้อมูลโหลดให้เสร็จสิ้นก่อนกด Export');
+        return;
+      }
+
+      const total = document.getElementById('statTotal') ? document.getElementById('statTotal').textContent : '-';
+      const pass = document.getElementById('statPass') ? document.getElementById('statPass').textContent : '-';
+      const fail = document.getElementById('statFail') ? document.getElementById('statFail').textContent : '-';
+      const now = new Date().toLocaleString('th-TH');
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="th">
+        <head>
+          <meta charset="utf-8">
+          <title>รายงานผลการตรวจวัดระดับความเข้มแสงสว่าง</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm 10mm; }
+            * { box-sizing: border-box; font-family: 'Sarabun', -apple-system, Tahoma, sans-serif; }
+            body { margin: 0; padding: 20px; color: #1e293b; }
+            .header { border-bottom: 2px solid #1F5A44; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .title h2 { margin: 0 0 4px 0; color: #1F5A44; font-size: 18px; }
+            .title p { margin: 0; color: #64748b; font-size: 13px; }
+            .meta { font-size: 12px; color: #64748b; text-align: right; }
+            .stat-row { display: flex; gap: 10px; margin-bottom: 16px; }
+            .stat-box { flex: 1; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; text-align: center; }
+            .stat-box .num { font-size: 16px; font-weight: bold; margin-top: 3px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+            th { background-color: #1F5A44; color: #fff; border: 1px solid #1F5A44; padding: 8px; text-align: center; }
+            td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: middle; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .sub-text { font-size: 11px; color: #64748b; }
+            .status-tag.pass { color: #15803d; font-weight: bold; }
+            .status-tag.fail { color: #b91c1c; font-weight: bold; }
+            .action-bar { margin-bottom: 15px; background: #f1f5f9; padding: 10px 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+            .btn-print { background: #1F5A44; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+            @media print { .action-bar { display: none !important; } body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="action-bar">
+            <div><strong>💡 บันทึกผลการตรวจวัดแสงสว่าง</strong></div>
+            <button class="btn-print" onclick="window.print()">🖨️ บันทึกเป็น PDF / พิมพ์</button>
+          </div>
+          <div class="header">
+            <div class="title">
+              <h2>รายงานผลการตรวจวัดระดับความเข้มแสงสว่าง (ISO 45001 : 2018)</h2>
+              <p>กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล ศาลายา</p>
+            </div>
+            <div class="meta">ออกเอกสารเมื่อ: ${now} น.</div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-box">จุดตรวจทั้งหมด<div class="num">${total} จุด</div></div>
+            <div class="stat-box" style="background:#f0fdf4;">ผ่านเกณฑ์<div class="num" style="color:#15803d;">${pass} จุด</div></div>
+            <div class="stat-box" style="background:#fef2f2;">ต้องปรับปรุง<div class="num" style="color:#b91c1c;">${fail} จุด</div></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 25%;">อาคาร / ห้อง</th>
+                <th style="width: 35%;">ลักษณะงาน</th>
+                <th style="width: 12%;">เกณฑ์ (Lux)</th>
+                <th style="width: 14%;">วัดได้ (Lux)</th>
+                <th style="width: 14%;">สถานะ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableBody.innerHTML}
+            </tbody>
+          </table>
+          <script>
+            window.addEventListener('load', function() {
+              setTimeout(function() { window.print(); }, 400);
+            });
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     };
+  }
+
+  async function renderBuildingChart() {
+    const canvas = document.getElementById('buildingLightChart');
+    if (!canvas) return;
+
+    try {
+      const res = await fetch(`${LIGHT_API_URL}?action=getBuildingStats`);
+      const data = await res.json();
+
+      const buildings = Object.keys(data);
+      if (buildings.length === 0) return;
+
+      const passData = buildings.map(b => data[b].pass);
+      const failData = buildings.map(b => data[b].fail);
+
+      const ctx = canvas.getContext('2d');
+      if (buildingChartInstance) {
+        buildingChartInstance.destroy();
+      }
+
+      buildingChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: buildings,
+          datasets: [
+            {
+              label: 'ผ่านเกณฑ์',
+              data: passData,
+              backgroundColor: '#16A34A',
+              borderRadius: 4
+            },
+            {
+              label: 'ต้องปรับปรุง',
+              data: failData,
+              backgroundColor: '#DC2626',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: { font: { size: 11 } }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: { precision: 0, stepSize: 1, font: { size: 11 } },
+              grid: { color: '#f1f5f9' }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 11 } }
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.error("Error drawing light chart:", err);
+    }
   }
 
   async function fetchLightRecords() {
@@ -28,7 +173,6 @@
     try {
       const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
       const list = await res.json();
-      cachedLightRecords = list || []; // เก็บแคชไว้ใช้งานตอน Export
 
       if (!list || list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลในระบบ</td></tr>';
@@ -39,7 +183,7 @@
       let fail = 0;
 
       tbody.innerHTML = list.map(item => {
-        const isPass = item.evaluation === "ผ่าน" || Number(item.measuredLux) >= Number(item.standardLux);
+        const isPass = item.evaluation === "ผ่าน" || (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || Number(item.measuredLux) >= Number(item.standardLux);
         if (isPass) pass++; else fail++;
 
         const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 
@@ -75,140 +219,4 @@
       tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ</td></tr>';
     }
   }
-
-  // ฟังก์ชันสร้างและดาวน์โหลดไฟล์ PDF
-  function exportLightDataToPDF(dataList) {
-    if (!dataList || dataList.length === 0) {
-      alert("ไม่พบข้อมูลที่จะ Export หรือข้อมูลกำลังโหลดอยู่");
-      return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    // กำหนดฟอนต์ภาษาไทย (ถ้าโหลด THSarabunNew ไว้)
-    const fontName = doc.getFontList()['THSarabunNew'] ? 'THSarabunNew' : 'helvetica';
-    doc.setFont(fontName, 'bold');
-
-    // ส่วนหัวเอกสาร (Header)
-    doc.setFontSize(18);
-    doc.setTextColor(31, 90, 68); // โทนเขียวหลัก (#1F5A44)
-    doc.text("รายงานผลการตรวจวัดระดับความเข้มแสงสว่าง (ISO 45001 : 2018)", 14, 18);
-
-    doc.setFont(fontName, 'normal');
-    doc.setFontSize(12);
-    doc.setTextColor(80, 80, 80);
-    doc.text("กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล ศาลายา", 14, 25);
-    
-    const today = new Date().toLocaleDateString('th-TH', {
-      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-    doc.text(`วันที่ออกเอกสาร: ${today} น.`, 14, 31);
-
-    // เตรียมแถวข้อมูลสำหรับตาราง AutoTable
-    const tableRows = dataList.map((item, index) => {
-      const isPass = item.evaluation === "ผ่าน" || Number(item.measuredLux) >= Number(item.standardLux);
-      const buildingRoom = `${item.building || '-'} (${item.room || '-'})`;
-      const task = item.workerOrPoint && item.workerOrPoint !== '-' 
-        ? `${item.task || '-'} [${item.workerOrPoint}]` 
-        : (item.task || '-');
-
-      return [
-        index + 1,
-        buildingRoom,
-        task,
-        item.standardLux || '-',
-        item.measuredLux || '-',
-        isPass ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'
-      ];
-    });
-
-    // สร้างตารางด้วย AutoTable
-    doc.autoTable({
-      startY: 36,
-      head: [['ลำดับ', 'อาคาร / ห้อง', 'ลักษณะงาน / จุดตรวจ', 'เกณฑ์ (Lux)', 'วัดได้ (Lux)', 'ผลการประเมิน']],
-      body: tableRows,
-      theme: 'grid',
-      styles: {
-        font: fontName,
-        fontSize: 10.5,
-        cellPadding: 2.5,
-        valign: 'middle'
-      },
-      headStyles: {
-        fillColor: [31, 90, 68], // #1F5A44
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      columnStyles: {
-        0: { halign: 'center', cellWidth: 14 },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 55 },
-        3: { halign: 'center', cellWidth: 24 },
-        4: { halign: 'center', cellWidth: 24 },
-        5: { halign: 'center', cellWidth: 28 }
-      },
-      didParseCell: function (data) {
-        // ไฮไลต์สีข้อความในคอลัมน์สถานะ (ผ่านเกณฑ์ = เขียว, ไม่ผ่าน = แดง)
-        if (data.section === 'body' && data.column.index === 5) {
-          if (data.cell.raw === 'ผ่านเกณฑ์') {
-            data.cell.styles.textColor = [22, 163, 74];
-            data.cell.styles.fontStyle = 'bold';
-          } else {
-            data.cell.styles.textColor = [220, 38, 38];
-            data.cell.styles.fontStyle = 'bold';
-          }
-        }
-      }
-    });
-
-    // ดาวน์โหลดไฟล์ PDF
-    const filename = `Light_Measurement_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
-    doc.save(filename);
-  }
-
-  // ฟังก์ชัน renderBuildingChart() คงเดิมตามไฟล์เดิม ...
-  async function renderBuildingChart() {
-    const canvas = document.getElementById('buildingLightChart');
-    if (!canvas) return;
-    try {
-      const res = await fetch(`${LIGHT_API_URL}?action=getBuildingStats`);
-      const data = await res.json();
-      const buildings = Object.keys(data);
-      if (buildings.length === 0) return;
-
-      const passData = buildings.map(b => data[b].pass);
-      const failData = buildings.map(b => data[b].fail);
-
-      const ctx = canvas.getContext('2d');
-      if (buildingChartInstance) buildingChartInstance.destroy();
-
-      buildingChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: buildings,
-          datasets: [
-            { label: 'ผ่านเกณฑ์', data: passData, backgroundColor: '#16A34A', borderRadius: 4 },
-            { label: 'ต้องปรับปรุง', data: failData, backgroundColor: '#DC2626', borderRadius: 4 }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { stacked: true, grid: { display: false } },
-            y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' } }
-          }
-        }
-      });
-    } catch (err) {
-      console.error("Error drawing light chart:", err);
-    }
-  }
-
 })();
