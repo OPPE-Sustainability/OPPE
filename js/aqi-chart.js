@@ -44,8 +44,8 @@ function renderAqiChart(historyData) {
         {
           label: 'AQI',
           data: aqiPoints,
-          borderColor: '#0288D1',
-          backgroundColor: 'rgba(2, 136, 209, 0.1)',
+          borderColor: '#1F5A44',                     /* Hijau Songkok */
+          backgroundColor: 'rgba(31, 90, 68, 0.08)',
           fill: true,
           tension: 0.35,
           pointRadius: 2.5
@@ -53,7 +53,7 @@ function renderAqiChart(historyData) {
         {
           label: 'PM2.5 (µg/m³)',
           data: pm25Points,
-          borderColor: '#FFA000',
+          borderColor: '#F2A93B',                     /* Kuning Maghrib */
           borderDash: [4, 4],
           fill: false,
           tension: 0.35,

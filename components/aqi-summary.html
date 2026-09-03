@@ -40,7 +40,44 @@
         <span class="swipe-hint">ปัดเพื่อดูกราฟ ➔</span>
       </div>
       <div class="form-wrapper">
-        <p>รับการแจ้งเตือนค่าฝุ่น PM2.5 และ AQI เด้งเข้าหน้าจออัตโนมัติทุกเช้า</p>
+        <!-- หัวเรื่องหลักให้โดดเด่น -->
+        <div class="form-headline">
+          <h3>รับการแจ้งเตือนค่าฝุ่น PM2.5 และ AQI</h3>
+          <p>รายงานสรุปสถานการณ์มลพิษทางอากาศส่งตรงถึงอุปกรณ์ของคุณทุกเช้า</p>
+        </div>
+
+        <!-- กล่องแนะนำขั้นตอนการติดตั้ง แยกซ้าย-ขวา -->
+        <div class="guide-grid">
+          <!-- ฝั่งซ้าย: Android -->
+          <div class="guide-card android">
+            <div class="guide-title">
+              <span class="os-tag">Android</span>
+              <span>ผ่านแอป Chrome</span>
+            </div>
+            <ol class="guide-steps">
+              <li>เปิดหน้าเว็บผ่านแอป <strong>Google Chrome</strong></li>
+              <li>ปัดการ์ดแสดงสภาพอากาศไปทางซ้ายเพื่อเข้าสู่หน้าฟอร์ม</li>
+              <li>กรอกอีเมลของคุณ แล้วกดปุ่ม <strong>"เปิดรับการแจ้งเตือน"</strong></li>
+              <li>เมื่อมีป๊อปอัปขึ้นมา ให้กด <strong>"อนุญาต" (Allow)</strong></li>
+            </ol>
+          </div>
+
+          <!-- ฝั่งขวา: iOS -->
+          <div class="guide-card ios">
+            <div class="guide-title">
+              <span class="os-tag">iOS / iPhone</span>
+              <span>Safari (iOS 16.4+)</span>
+            </div>
+            <ol class="guide-steps">
+              <li>เปิดหน้าเว็บด้วยแอป <strong>Safari</strong> เท่านั้น</li>
+              <li>กดปุ่มแชร์ แล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)</strong></li>
+              <li>เปิดแอปจาก <strong>ไอคอนบนหน้าจอโฮม</strong></li>
+              <li>กรอกอีเมล กด <strong>"เปิดรับการแจ้งเตือน"</strong> แล้วแตะ <strong>"อนุญาต"</strong></li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- ฟอร์มลงทะเบียน -->
         <form id="subscribeForm" onsubmit="return false;">
           <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
           <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>

@@ -1,40 +1,46 @@
-/* ==========================================
-   AQI View & Air Quality Monitoring Styles
-========================================== */
+/* css/aqi-view.css */
 
 /* 1. Header Card */
 .header-card {
-  background: linear-gradient(135deg, #0288D1 0%, #00ACC1 100%);
-  color: white;
-  border-radius: 18px;
-  padding: 18px;
+  background: linear-gradient(135deg, var(--primary) 0%, #297458 100%);
+  color: #FFFFFF;
+  border-radius: var(--radius-card);
+  padding: 24px 28px;
   text-align: center;
-  box-shadow: 0 4px 14px rgba(2, 136, 209, 0.2);
-  margin-bottom: 14px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-warm);
 }
 
 .header-card h1 {
-  font-size: 19px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .header-card p {
-  font-size: 12px;
+  font-size: 13px;
   opacity: 0.9;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
-/* 2. Live Summary Metric Card */
+/* 2. Hero Summary Metric Card */
 .hero-card {
-  background: var(--card-bg, #ffffff);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  background: var(--surface-card);
+  border-radius: var(--radius-card);
+  padding: 24px;
   display: flex;
   justify-content: space-around;
   align-items: center;
   text-align: center;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-warm);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hero-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
 }
 
 .metric-item {
@@ -45,42 +51,53 @@
 
 .metric-item .title {
   font-size: 12px;
-  color: var(--text-muted, #718096);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
 .metric-item .val {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--primary, #0288D1);
-  margin: 2px 0;
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 4px 0;
+  letter-spacing: -1px;
 }
 
 .metric-item .unit {
-  font-size: 10px;
-  color: var(--text-muted, #718096);
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
+/* Status Pill */
 .aqi-pill {
-  background: #E8F5E9;
-  color: #2E7D32;
-  padding: 4px 12px;
-  border-radius: 20px;
+  background: rgba(47, 158, 100, 0.12);
+  color: var(--status-success);
+  padding: 4px 14px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 700;
+  margin-top: 2px;
 }
 
 /* 3. Carousel Component */
 .carousel-container {
   position: relative;
-  background: var(--card-bg, #ffffff);
-  border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  background: var(--surface-card);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-warm);
   overflow: hidden;
   touch-action: pan-y pinch-zoom;
   user-select: none;
-  -webkit-user-select: none;
   cursor: grab;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.carousel-container:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
 }
 
 .carousel-container:active {
@@ -97,10 +114,7 @@
 .carousel-slide {
   min-width: 100%;
   width: 100%;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  padding: 24px;
   box-sizing: border-box;
 }
 
@@ -108,124 +122,211 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #F4EDE2;
 }
 
 .slide-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--text-main, #1A202C);
+  color: var(--text-primary);
 }
 
 .swipe-hint {
-  font-size: 11px;
-  color: var(--text-muted, #718096);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-warm);
 }
 
 .chart-wrapper {
   position: relative;
-  height: 220px;
+  height: 240px;
   width: 100%;
-  touch-action: pan-y pinch-zoom;
 }
 
 /* 4. Form Inside Slide 2 */
+/* 4. Form Inside Slide 2 */
 .form-wrapper {
-  text-align: center;
-  max-width: 360px;
+  text-align: left;
+  max-width: 640px; /* ขยายความกว้างให้รองรับการ์ดคู่ 2 ฝั่ง */
   margin: 0 auto;
   width: 100%;
 }
 
-.form-wrapper p {
-  font-size: 13px;
-  color: var(--text-muted, #718096);
-  margin-bottom: 14px;
+/* ปรับหัวเรื่องหลักให้เด่นชัด */
+.form-headline {
+  text-align: center;
+  margin-bottom: 16px;
 }
 
+.form-headline h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: -0.3px;
+}
+
+.form-headline p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* เลย์เอาต์ตารางคู่แบบซ้าย-ขวา */
+.guide-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 580px) {
+  .guide-grid {
+    grid-template-columns: 1fr 1fr; /* แบ่งครึ่งซ้าย-ขวา */
+  }
+}
+
+/* สไตล์กล่องข้อความสอนการใช้งาน */
+.guide-card {
+  background: #FAF5EC;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-button);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.guide-card.android {
+  border-left: 4px solid var(--accent-gold);
+}
+
+.guide-card.ios {
+  border-left: 4px solid var(--accent-warm);
+}
+
+.guide-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.os-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-card);
+  color: var(--primary);
+  border: 1px solid var(--border-card);
+}
+
+.guide-steps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.guide-steps li {
+  margin-bottom: 4px;
+}
+
+.guide-steps li strong {
+  color: var(--text-primary);
+}
+
+/* ส่วนช่องกรอกอีเมลและปุ่มกดยังคงตามเดิม */
 .email-input {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1.5px solid #E2E8F0;
-  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-button);
+  border: 1.5px solid var(--border-card);
+  background: #FCFAF7;
+  font-size: 13px;
+  font-family: var(--font-main);
+  color: var(--text-primary);
   margin-bottom: 10px;
   outline: none;
-  box-sizing: border-box;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .email-input:focus {
-  border-color: var(--primary, #0288D1);
+  border-color: var(--primary);
+  background: #FFFFFF;
 }
 
 .btn-sub {
-  background: var(--primary, #0288D1);
-  color: white;
+  background: var(--accent-warm);
+  color: #FFFFFF;
   border: none;
-  padding: 12px 18px;
-  font-size: 14px;
+  padding: 12px 20px;
+  font-size: 13px;
   font-weight: 700;
-  border-radius: 10px;
+  font-family: var(--font-main);
+  border-radius: var(--radius-button);
   cursor: pointer;
   width: 100%;
-  transition: background 0.2s;
+  box-shadow: 0 4px 14px rgba(255, 122, 89, 0.3);
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .btn-sub:hover {
-  background: #0277bd;
+  background: var(--accent-warm-hover);
+  transform: translateY(-1px);
 }
 
 .btn-sub:disabled {
-  background: #CBD5E1;
+  background: #D9D2C7;
+  box-shadow: none;
   cursor: not-allowed;
 }
-
-/* 5. Carousel Footer Indicators */
+/* 5. Carousel Indicators */
 .carousel-footer {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding-bottom: 16px;
 }
 
 .dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: #CBD5E1;
+  border-radius: var(--radius-pill);
+  background: #D9D2C7;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .dot.active {
-  width: 22px;
-  border-radius: 4px;
-  background: var(--primary, #0288D1);
+  width: 24px;
+  background: var(--primary);
 }
 
 #status-msg {
   margin-top: 10px;
   font-size: 12px;
   font-weight: 600;
+  text-align: center;
 }
 
-.status-msg-success {
-  color: #16A34A;
-}
+.status-msg-success { color: var(--status-success); }
+.status-msg-error { color: var(--status-danger); }
 
-.status-msg-error {
-  color: #DC2626;
-}
-
-/* 6. Desktop / Large Screen Optimization */
 @media (min-width: 960px) {
   #view-air {
-    max-width: 720px;
+    max-width: 760px;
     margin: 0 auto;
   }
-
   .chart-wrapper {
-    height: 280px;
+    height: 290px;
   }
 }

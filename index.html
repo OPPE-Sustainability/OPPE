@@ -3,148 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ระบบรายงานคุณภาพอากาศและ EHS ม.มหิดล</title>
+  <title>OPPE Sustainability Dashboard</title>
   
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0288D1">
+  <meta name="theme-color" content="#1F5A44">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="AirAlert">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  
+  <!-- โหลดฟอนต์ Plus Jakarta Sans และ JetBrains Mono ตามสเปกดีไซน์ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- โหลดสไตล์ชีตแยกตามโมดูล (SoC CSS) -->
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/aqi-view.css">
   <link rel="stylesheet" href="css/light-view.css">
 
-  <!-- ไลบรารีภายนอก -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
-  <!-- แถบเมนูด้านบนสำหรับ PC / Desktop Navigation -->
-  <header class="app-nav">
-    <div class="nav-container">
-      <div class="nav-brand">
-        <div>
-          <span class="brand-title">OPPE Sustainability</span>
-          <span class="brand-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</span>
-        </div>
-      </div>
-      <nav class="nav-tabs">
-        <button type="button" class="tab-btn active" data-view="view-air">
-          คุณภาพอากาศ
-        </button>
-        <button type="button" class="tab-btn" data-view="view-light">
-          ตรวจวัดแสงสว่าง (ISO)
-        </button>
-      </nav>
+  <!-- ปุ่ม FAB เปิดเมนูมุมขวาล่าง -->
+  <button id="menuToggle" class="fab-menu" aria-label="เปิดเมนูนำทาง">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="7" x2="20" y2="7"></line>
+      <line x1="4" y1="12" x2="20" y2="12"></line>
+      <line x1="4" y1="17" x2="20" y2="17"></line>
+    </svg>
+  </button>
+
+  <!-- ม่านหลังและ Sidebar Menu Drawer -->
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <aside id="sidebarMenu" class="sidebar">
+    <div class="sidebar-header">
+      <span class="brand-badge">EHS & Sustainability</span>
+      <h2>OPPE Portal</h2>
+      <p>กองกายภาพและสิ่งแวดล้อม ม.มหิดล</p>
     </div>
-  </header>
+    <nav class="sidebar-nav">
+      <button class="tab-btn active" data-index="0" data-view="view-air">
+        <span class="btn-dot"></span> คุณภาพอากาศและสภาพแวดล้อม
+      </button>
+      <button class="tab-btn" data-index="1" data-view="view-light">
+        <span class="btn-dot"></span> ตรวจวัดแสงสว่าง (ISO 45001)
+      </button>
+    </nav>
+  </aside>
 
-  <main class="main-wrapper">
-    <section id="view-air" class="view-panel active">
-      <div id="view-header"></div>
-      <div id="view-aqi"></div>
-    </section>
+  <!-- พื้นที่สไลด์แนวตั้ง (Vertical Slide Carousel) -->
+  <main class="main-viewport">
+    <div class="vertical-track" id="verticalTrack">
+      
+      <!-- View 1: ข้อมูลคุณภาพอากาศ -->
+      <section id="view-air" class="view-panel">
+        <div class="panel-content">
+          <div id="view-header"></div>
+          <div id="view-aqi"></div>
+        </div>
+      </section>
 
-    <section id="view-light" class="view-panel">
-      <div id="view-light-page"></div>
-    </section>
+      <!-- View 2: ระบบตรวจวัดแสงสว่าง -->
+      <section id="view-light" class="view-panel">
+        <div class="panel-content">
+          <div id="view-light-page"></div>
+        </div>
+      </section>
+
+    </div>
   </main>
 
-  <!-- แถบเมนูด้านล่างสำหรับ Mobile Navigation Bar -->
-  <nav class="mobile-nav">
-    <button type="button" class="mobile-nav-item active" data-view="view-air">
-      <span class="lbl">คุณภาพอากาศ</span>
-    </button>
-    <button type="button" class="mobile-nav-item" data-view="view-light">
-      <span class="lbl">ตรวจวัดแสง (ISO)</span>
-    </button>
-  </nav>
-
-  <!-- สคริปต์โหลดคอมโพเนนต์และควบคุมการทำงาน -->
   <script>
     async function loadComponent(elementId, filePath) {
       try {
         const res = await fetch(filePath);
-        if (!res.ok) throw new Error(`HTTP ${res.status} on ${filePath}`);
-        const html = await res.text();
-        const el = document.getElementById(elementId);
-        if (el) el.innerHTML = html;
+        if (!res.ok) throw new Error(`HTTP error on ${filePath}`);
+        document.getElementById(elementId).innerHTML = await res.text();
       } catch (e) {
-        console.error("Load component error:", e);
+        console.error("Load error:", e);
       }
     }
 
     async function initApp() {
-      // 1. โหลดคอมโพเนนต์ HTML ให้ครบถ้วนก่อน
       await Promise.all([
         loadComponent('view-header', 'components/header.html'),
         loadComponent('view-aqi', 'components/aqi-summary.html'),
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      // 2. โหลดไฟล์ JavaScript ลำดับตามโมดูล
-      const scripts = [
-        'js/carousel.js',
-        'js/aqi-chart.js',
-        'js/push-notify.js',
-        'js/light-data.js'
-      ];
-
+      const scripts = ['js/carousel.js', 'js/aqi-chart.js', 'js/push-notify.js', 'js/light-data.js'];
       for (const src of scripts) {
         await new Promise((resolve) => {
           const s = document.createElement('script');
           s.src = src;
           s.onload = resolve;
-          s.onerror = () => {
-            console.error(`Failed to load script: ${src}`);
-            resolve();
-          };
           document.body.appendChild(s);
         });
       }
 
-      // 3. เริ่มต้นระบบปัด Carousel ทันทีหลังจาก DOM โครงสร้างพร้อม
-      if (typeof window.initCarousel === 'function') {
-        window.initCarousel();
-      }
+      if (typeof window.initCarousel === 'function') window.initCarousel();
 
-      // 4. เริ่มต้นดึงข้อมูลสภาพอากาศและลงทะเบียนระบบแจ้งเตือน
       const GAS_WEBAPP_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
       if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
 
-      // 5. เปิดใช้งานระบบ Navigation สลับหน้า
-      setupNavigation();
+      setupVerticalNavigation();
     }
 
-    function setupNavigation() {
-      const navButtons = document.querySelectorAll('.tab-btn, .mobile-nav-item');
-      const panels = document.querySelectorAll('.view-panel');
+    function setupVerticalNavigation() {
+      const navButtons = document.querySelectorAll('.tab-btn');
+      const verticalTrack = document.getElementById('verticalTrack');
+      const menuToggle = document.getElementById('menuToggle');
+      const sidebarMenu = document.getElementById('sidebarMenu');
+      const overlay = document.getElementById('sidebarOverlay');
+
+      function toggleMenu() {
+        sidebarMenu.classList.toggle('open');
+        overlay.classList.toggle('active');
+      }
+
+      menuToggle.addEventListener('click', toggleMenu);
+      overlay.addEventListener('click', toggleMenu);
 
       navButtons.forEach(btn => {
         btn.addEventListener('click', () => {
+          const index = btn.getAttribute('data-index');
           const targetViewId = btn.getAttribute('data-view');
 
-          // สลับสถานะปุ่มเมนู
-          navButtons.forEach(b => {
-            b.classList.toggle('active', b.getAttribute('data-view') === targetViewId);
-          });
+          verticalTrack.style.transform = `translateY(-${index * 100}dvh)`;
 
-          // สลับการแสดงหน้า View
-          panels.forEach(panel => {
-            panel.classList.toggle('active', panel.id === targetViewId);
-          });
+          navButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          toggleMenu();
 
-          // หน่วงเวลาเล็กน้อยเพื่อให้เบราว์เซอร์จัดสเกลความกว้างก่อนวาดกราฟแท่ง
           if (targetViewId === 'view-light' && typeof window.initLightDashboard === 'function') {
-            setTimeout(() => {
-              window.initLightDashboard();
-            }, 100);
+            setTimeout(() => { window.initLightDashboard(); }, 600);
           }
         });
       });
