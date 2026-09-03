@@ -15,12 +15,56 @@
     </a>
   </div>
 
-<!-- แผงสถิติภาพรวม รวมอยู่ในการ์ดเดียวแบ่ง 3 คอลัมน์ -->
+  <!-- แผงเลือกอาคาร (Building Filter Panel) -->
+  <div class="filter-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 16px;">🏢</span>
+        <strong style="font-size: 14px; color: #1e293b;">เลือกอาคารที่ต้องการแสดงผลและออกรายงาน:</strong>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="btnSelectAllBuildings" type="button" style="padding: 4px 10px; font-size: 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #334155; font-weight: 500;">เลือกทั้งหมด</button>
+        <button id="btnDeselectAllBuildings" type="button" style="padding: 4px 10px; font-size: 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #334155; font-weight: 500;">ล้างตัวเลือก</button>
+      </div>
+    </div>
+    
+    <div id="buildingCheckboxGroup" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 12px;">
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="อาคารศาลายา" checked style="accent-color: #1F5A44;"> อาคารศาลายา
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="อาคารเพาะชำ" checked style="accent-color: #1F5A44;"> อาคารเพาะชำ
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="อาคารภูมิทัศน์และสิ่งแวดล้อม" checked style="accent-color: #1F5A44;"> อาคารภูมิทัศน์ฯ
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="อาคารอเนกประสงค์" checked style="accent-color: #1F5A44;"> อาคารอเนกประสงค์
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="สถานีไฟฟ้าย่อย" checked style="accent-color: #1F5A44;"> สถานีไฟฟ้าย่อย
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="อาคารระบบบำบัดน้ำเสียรวม" checked style="accent-color: #1F5A44;"> ระบบบำบัดน้ำเสียรวม
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="ศูนย์การเรียนรู้มหิดล" checked style="accent-color: #1F5A44;"> ศูนย์การเรียนรู้มหิดล
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="อาคารสิริวิทยา" checked style="accent-color: #1F5A44;"> อาคารสิริวิทยา
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
+        <input type="checkbox" class="bld-checkbox" value="มหิดลสิทธาคาร" checked style="accent-color: #1F5A44;"> มหิดลสิทธาคาร
+      </label>
+    </div>
+  </div>
+
+  <!-- แผงสถิติภาพรวม รวมอยู่ในการ์ดเดียวแบ่ง 3 คอลัมน์ -->
   <div class="light-summary-card">
     <div class="summary-metric">
       <span class="metric-title">จุดตรวจสะสม</span>
       <span class="metric-num" id="statTotal">--</span>
-      <span class="metric-sub">จุดตรวจทั้งหมด</span>
+      <span class="metric-sub">จุดตรวจที่เลือก</span>
     </div>
     
     <div class="metric-divider"></div>
@@ -39,6 +83,7 @@
       <span class="status-pill fail">ปรับปรุง</span>
     </div>
   </div>
+
   <div class="dashboard-content-grid">
     <div class="dash-card chart-card">
       <div class="dash-card-header">
@@ -53,12 +98,12 @@
       <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
         <h3>บันทึกผลการตรวจวัดล่าสุด</h3>
         <div style="display: flex; gap: 8px;">
-          <!-- ปุ่ม ก: ดาวน์โหลดเป็น Excel (.csv) -->
+          <!-- ปุ่ม Export Excel -->
           <button id="btnExportLightExcel" type="button" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background-color: #0f766e; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
             📊 Export Excel (.csv)
           </button>
 
-          <!-- ปุ่ม ข: พิมพ์/บันทึก PDF รายงานทางการ (สร้างจากข้อมูลในระบบโดยตรง) -->
+          <!-- ปุ่ม Export PDF -->
           <button id="btnExportLightPdf" type="button" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background-color: #1F5A44; color: #ffffff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
