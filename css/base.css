@@ -63,14 +63,19 @@ body {
   height: 100dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain; /* ป้องกันการดึงรีเฟรชหน้าเว็บทั้งจอขณะเลื่อนดูเนื้อหา */
 }
 
 .panel-content {
-  max-width: 1060px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 24px 20px 100px 20px;
+  padding: 16px 14px 90px 14px; /* ปรับ Padding ให้พอดีขอบจอมือถือ */
 }
-
+@media (min-width: 768px) {
+  .panel-content {
+    padding: 24px 20px 100px 20px;
+  }
+}
 /* ==========================================
    Floating Action Button (FAB)
 ========================================== */

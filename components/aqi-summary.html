@@ -18,77 +18,81 @@
   </div>
 </div>
 
-<!-- Carousel Section -->
-<div class="carousel-container" id="carouselContainer">
+<!-- Carousel Section แบบแยกการ์ดอิสระ -->
+<div class="carousel-viewport" id="carouselContainer">
   <div class="carousel-track" id="carouselTrack">
     
-    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง -->
+    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง (การ์ดเฉพาะส่วนกราฟ) -->
     <div class="carousel-slide" id="slide1">
-      <div class="slide-header">
-        <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
-        <span class="swipe-hint">ปัดซ้ายเพื่อรับแจ้งเตือน ➔</span>
-      </div>
-      <div class="chart-wrapper">
-        <canvas id="aqiChart"></canvas>
+      <div class="slide-card">
+        <div class="slide-header">
+          <div>
+            <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
+            <span class="slide-sub">สถานีตรวจวัด มหาวิทยาลัยมหิดล ศาลายา</span>
+          </div>
+          <span class="swipe-hint">ปัดเพื่อรับแจ้งเตือน →</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="aqiChart"></canvas>
+        </div>
       </div>
     </div>
 
-    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน -->
+    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน (การ์ดเฉพาะส่วนฟอร์ม) -->
     <div class="carousel-slide" id="slide2">
-      <div class="slide-header">
-        <span class="slide-title">🔔 รับการแจ้งเตือนฝุ่นรายวัน</span>
-        <span class="swipe-hint">ปัดเพื่อดูกราฟ ➔</span>
-      </div>
-      <div class="form-wrapper">
-        <!-- หัวเรื่องหลักให้โดดเด่น -->
-        <div class="form-headline">
-          <h3>รับการแจ้งเตือนค่าฝุ่น PM2.5 และ AQI</h3>
-          <p>รายงานสรุปสถานการณ์มลพิษทางอากาศส่งตรงถึงอุปกรณ์ของคุณทุกเช้า</p>
+      <div class="slide-card">
+        <div class="slide-header">
+          <div>
+            <span class="slide-title">รับการแจ้งเตือนค่าฝุ่นรายวัน</span>
+            <span class="slide-sub">สรุปสถานการณ์ PM2.5 และ AQI เข้ามือถือทุกเช้า</span>
+          </div>
+          <span class="swipe-hint">← ปัดเพื่อดูกราฟ</span>
         </div>
 
-        <!-- กล่องแนะนำขั้นตอนการติดตั้ง แยกซ้าย-ขวา -->
-        <div class="guide-grid">
-          <!-- ฝั่งซ้าย: Android -->
-          <div class="guide-card android">
-            <div class="guide-title">
-              <span class="os-tag">Android</span>
-              <span>ผ่านแอป Chrome</span>
+        <div class="form-wrapper">
+          <div class="guide-grid">
+            <!-- ฝั่ง Android -->
+            <div class="guide-card android">
+              <div class="guide-title">
+                <span class="os-tag">Android</span>
+                <span>แอป Chrome</span>
+              </div>
+              <ol class="guide-steps">
+                <li>เปิดเว็บผ่านแอป <strong>Chrome</strong></li>
+                <li>กรอกอีเมลด้านล่าง แล้วกดปุ่ม <strong>"เปิดรับการแจ้งเตือน"</strong></li>
+                <li>เมื่อมีป๊อปอัปขึ้นมา ให้กด <strong>"อนุญาต" (Allow)</strong></li>
+              </ol>
             </div>
-            <ol class="guide-steps">
-              <li>เปิดหน้าเว็บผ่านแอป <strong>Google Chrome</strong></li>
-              <li>ปัดการ์ดแสดงสภาพอากาศไปทางซ้ายเพื่อเข้าสู่หน้าฟอร์ม</li>
-              <li>กรอกอีเมลของคุณ แล้วกดปุ่ม <strong>"เปิดรับการแจ้งเตือน"</strong></li>
-              <li>เมื่อมีป๊อปอัปขึ้นมา ให้กด <strong>"อนุญาต" (Allow)</strong></li>
-            </ol>
+
+            <!-- ฝั่ง iOS -->
+            <div class="guide-card ios">
+              <div class="guide-title">
+                <span class="os-tag">iOS / iPhone</span>
+                <span>Safari (iOS 16.4+)</span>
+              </div>
+              <ol class="guide-steps">
+                <li>เปิดเว็บด้วยแอป <strong>Safari</strong></li>
+                <li>กดปุ่มแชร์ แล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong></li>
+                <li>เปิดแอปจากไอคอนบนหน้าจอโฮม แล้วกดปุ่มเปิดรับแจ้งเตือน</li>
+              </ol>
+            </div>
           </div>
 
-          <!-- ฝั่งขวา: iOS -->
-          <div class="guide-card ios">
-            <div class="guide-title">
-              <span class="os-tag">iOS / iPhone</span>
-              <span>Safari (iOS 16.4+)</span>
+          <!-- ฟอร์มกรอกอีเมล -->
+          <form id="subscribeForm" onsubmit="return false;">
+            <div class="input-action-group">
+              <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+              <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
             </div>
-            <ol class="guide-steps">
-              <li>เปิดหน้าเว็บด้วยแอป <strong>Safari</strong> เท่านั้น</li>
-              <li>กดปุ่มแชร์ แล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)</strong></li>
-              <li>เปิดแอปจาก <strong>ไอคอนบนหน้าจอโฮม</strong></li>
-              <li>กรอกอีเมล กด <strong>"เปิดรับการแจ้งเตือน"</strong> แล้วแตะ <strong>"อนุญาต"</strong></li>
-            </ol>
-          </div>
+          </form>
+          <div id="status-msg"></div>
         </div>
-
-        <!-- ฟอร์มลงทะเบียน -->
-        <form id="subscribeForm" onsubmit="return false;">
-          <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
-          <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
-        </form>
-        <div id="status-msg"></div>
       </div>
     </div>
 
   </div>
 
-  <!-- Indicator Dots -->
+  <!-- Indicator Dots ลอยด้านล่าง -->
   <div class="carousel-footer">
     <div class="dot active" data-index="0"></div>
     <div class="dot" data-index="1"></div>
