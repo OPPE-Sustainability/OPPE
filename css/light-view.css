@@ -60,48 +60,97 @@
   transform: translateY(-1px);
 }
 
-/* 2. KPI Summary Grid */
-.stats-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.kpi-card {
+/* 2. Unified KPI Summary Card (3 Columns Single Card) */
+.light-summary-card {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-card);
-  padding: 20px 24px;
+  padding: 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  text-align: center;
   box-shadow: var(--shadow-warm);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.kpi-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-hover);
-}
-
-.border-pass { border-bottom: 4px solid var(--status-success); }
-.border-fail { border-bottom: 4px solid var(--status-danger); }
-
-.kpi-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  display: block;
   margin-bottom: 4px;
 }
 
-.kpi-num {
+.summary-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0; /* ป้องกันข้อความดันการ์ดล้นบนจอเล็ก */
+}
+
+.metric-divider {
+  width: 1px;
+  height: 40px;
+  background-color: var(--border-card);
+}
+
+.metric-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.metric-num {
   font-family: var(--font-mono);
-  font-size: 34px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
+  margin: 2px 0;
+  line-height: 1.1;
+}
+
+.metric-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Status Pill เล็กกะทัดรัดสำหรับแต่ละตัวเลข */
+.status-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  line-height: 1.2;
+}
+
+.status-pill.pass {
+  background: rgba(47, 158, 100, 0.12);
+  color: var(--status-success);
+}
+
+.status-pill.fail {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--status-danger);
 }
 
 .text-pass { color: var(--status-success); }
 .text-fail { color: var(--status-danger); }
+
+/* ปรับขนาดตัวเลขให้ใหญ่ขึ้นเมื่อเปิดบนจอแท็บเล็ต/คอมพิวเตอร์ */
+@media (min-width: 768px) {
+  .light-summary-card {
+    padding: 22px 28px;
+  }
+  .metric-title {
+    font-size: 12px;
+  }
+  .metric-num {
+    font-size: 34px;
+  }
+  .metric-sub, .status-pill {
+    font-size: 11px;
+  }
+}
 
 /* 3. Dashboard Grid (Chart + Table) */
 .dashboard-content-grid {
@@ -196,3 +245,4 @@
   padding: 30px;
   color: var(--text-secondary);
 }
+

@@ -15,27 +15,30 @@
     </a>
   </div>
 
-  <div class="stats-overview-grid">
-    <div class="kpi-card">
-      <div class="kpi-data">
-        <span class="kpi-title">จุดตรวจวัดสะสม</span>
-        <span class="kpi-num" id="statTotal">--</span>
-      </div>
+<!-- แผงสถิติภาพรวม รวมอยู่ในการ์ดเดียวแบ่ง 3 คอลัมน์ -->
+  <div class="light-summary-card">
+    <div class="summary-metric">
+      <span class="metric-title">จุดตรวจสะสม</span>
+      <span class="metric-num" id="statTotal">--</span>
+      <span class="metric-sub">จุดตรวจทั้งหมด</span>
     </div>
-    <div class="kpi-card border-pass">
-      <div class="kpi-data">
-        <span class="kpi-title">ผ่านเกณฑ์มาตรฐาน</span>
-        <span class="kpi-num text-pass" id="statPass">--</span>
-      </div>
+    
+    <div class="metric-divider"></div>
+
+    <div class="summary-metric">
+      <span class="metric-title">ผ่านเกณฑ์</span>
+      <span class="metric-num text-pass" id="statPass">--</span>
+      <span class="status-pill pass">ปลอดภัย</span>
     </div>
-    <div class="kpi-card border-fail">
-      <div class="kpi-data">
-        <span class="kpi-title">ต้องปรับปรุงแสงสว่าง</span>
-        <span class="kpi-num text-fail" id="statFail">--</span>
-      </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="summary-metric">
+      <span class="metric-title">ต้องปรับปรุง</span>
+      <span class="metric-num text-fail" id="statFail">--</span>
+      <span class="status-pill fail">ปรับปรุง</span>
     </div>
   </div>
-
   <div class="dashboard-content-grid">
     <div class="dash-card chart-card">
       <div class="dash-card-header">
@@ -48,10 +51,21 @@
 
     <div class="dash-card table-card">
       <div class="dash-card-header">
+    <div class="dash-card table-card">
+      <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3>บันทึกผลการตรวจวัดล่าสุด</h3>
+        <!-- เพิ่มปุ่ม Export PDF -->
+        <button id="btnExportLightPdf" class="btn-export-pdf" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background-color: #1F5A44; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          ดาวน์โหลด PDF
+        </button>
       </div>
       <div class="table-scroll-area">
-        <table class="data-table">
+        <table class="data-table" id="lightDataTable">
           <thead>
             <tr>
               <th>อาคาร / ห้อง</th>
@@ -67,6 +81,8 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>        
       </div>
     </div>
   </div>

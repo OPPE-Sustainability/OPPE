@@ -7,14 +7,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Quest OPPE Dashboard</title>
+  <title>OPPE Sustainability Dashboard</title>
   
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1A0F0A">
+  <meta name="theme-color" content="#1F5A44">
   <meta name="apple-mobile-web-app-capable" content="yes">
   
-  <!-- โหลดฟอนต์ระบบ QuestUI (Cinzel, Spectral, Fira Code) -->
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Fira+Code&family=Spectral:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- โหลดฟอนต์ Plus Jakarta Sans และ JetBrains Mono ตามสเปกดีไซน์ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/aqi-view.css">
@@ -26,33 +28,38 @@
 </head>
 <body>
 
-  <!-- ปุ่ม FAB สำหรับเปิดเมนู -->
-  <button id="menuToggle" class="fab-menu" aria-label="Toggle Quest Log">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+  <!-- ปุ่ม FAB เปิดเมนูมุมขวาล่าง -->
+  <button id="menuToggle" class="fab-menu" aria-label="เปิดเมนูนำทาง">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="7" x2="20" y2="7"></line>
+      <line x1="4" y1="12" x2="20" y2="12"></line>
+      <line x1="4" y1="17" x2="20" y2="17"></line>
+    </svg>
   </button>
 
-  <!-- Sidebar ซ่อนด้านข้าง -->
+  <!-- ม่านหลังและ Sidebar Menu Drawer -->
   <div id="sidebarOverlay" class="sidebar-overlay"></div>
   <aside id="sidebarMenu" class="sidebar">
     <div class="sidebar-header">
-      <h2>Quest Log</h2>
-      <p>กองกายภาพและสิ่งแวดล้อม</p>
+      <span class="brand-badge">EHS & Sustainability</span>
+      <h2>OPPE Portal</h2>
+      <p>กองกายภาพและสิ่งแวดล้อม ม.มหิดล</p>
     </div>
     <nav class="sidebar-nav">
       <button class="tab-btn active" data-index="0" data-view="view-air">
-        ✦ คุณภาพอากาศ
+        <span class="btn-dot"></span> คุณภาพอากาศและสภาพแวดล้อม
       </button>
       <button class="tab-btn" data-index="1" data-view="view-light">
-        ✦ ตรวจวัดแสงสว่าง
+        <span class="btn-dot"></span> ตรวจวัดแสงสว่าง (ISO 45001)
       </button>
     </nav>
   </aside>
 
-  <!-- พื้นที่สไลด์แนวตั้ง (Vertical Carousel) -->
+  <!-- พื้นที่สไลด์แนวตั้ง (Vertical Slide Carousel) -->
   <main class="main-viewport">
     <div class="vertical-track" id="verticalTrack">
       
-      <!-- หน้า 1: อากาศ -->
+      <!-- View 1: ข้อมูลคุณภาพอากาศ -->
       <section id="view-air" class="view-panel">
         <div class="panel-content">
           <div id="view-header"></div>
@@ -60,7 +67,7 @@
         </div>
       </section>
 
-      <!-- หน้า 2: แสง -->
+      <!-- View 2: ระบบตรวจวัดแสงสว่าง -->
       <section id="view-light" class="view-panel">
         <div class="panel-content">
           <div id="view-light-page"></div>
@@ -92,7 +99,9 @@
       for (const src of scripts) {
         await new Promise((resolve) => {
           const s = document.createElement('script');
-          s.src = src; s.onload = resolve; document.body.appendChild(s);
+          s.src = src;
+          s.onload = resolve;
+          document.body.appendChild(s);
         });
       }
 
@@ -125,7 +134,6 @@
           const index = btn.getAttribute('data-index');
           const targetViewId = btn.getAttribute('data-view');
 
-          // สไลด์หน้าต่างในแนวตั้ง
           verticalTrack.style.transform = `translateY(-${index * 100}dvh)`;
 
           navButtons.forEach(b => b.classList.remove('active'));
@@ -166,49 +174,81 @@
   </div>
 </div>
 
-<!-- Carousel Section -->
-<div class="carousel-container" id="carouselContainer">
+<!-- Carousel Section แบบแยกการ์ดอิสระ -->
+<div class="carousel-viewport" id="carouselContainer">
   <div class="carousel-track" id="carouselTrack">
     
-    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง -->
+    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง (การ์ดเฉพาะส่วนกราฟ) -->
     <div class="carousel-slide" id="slide1">
-      <div class="slide-header">
-        <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
-        <span class="swipe-hint">ปัดซ้ายเพื่อรับแจ้งเตือน ➔</span>
-      </div>
-      <div class="chart-wrapper">
-        <canvas id="aqiChart"></canvas>
+      <div class="slide-card">
+        <div class="slide-header">
+          <div>
+            <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
+            <span class="slide-sub">สถานีตรวจวัด มหาวิทยาลัยมหิดล ศาลายา</span>
+          </div>
+          <span class="swipe-hint">ปัดเพื่อรับแจ้งเตือน →</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="aqiChart"></canvas>
+        </div>
       </div>
     </div>
 
-    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน -->
+    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน (การ์ดเฉพาะส่วนฟอร์ม) -->
     <div class="carousel-slide" id="slide2">
-      <div class="slide-header">
-        <span class="slide-title">🔔 รับการแจ้งเตือนฝุ่นรายวัน</span>
-        <span class="swipe-hint">ปัดเพื่อดูกราฟ ➔</span>
-      </div>
-      <div class="form-wrapper">
-        <p>รับการแจ้งเตือนค่าฝุ่น PM2.5 และ AQI เด้งเข้าหน้าจออัตโนมัติทุกเช้า</p>
-        <p> โทรศัพท์มือถือ <b>Android </b>รับการแจ้งเตือนเข้าผ่าน Application Chrome</p>
-        <h4> สำหรับผู้ใช้ iOS / iPhone (Safari บน iOS 16.4+)
-          <p>1. เปิดลิงก์เว็บไซต์: เปิดหน้าเว็บด้วยแอป Safari</p>
-          <p>2. เพิ่มไปยังหน้าจอหลัก: กดปุ่มแชร์ (Share) แล้วเลือก "เพิ่มไปยังหน้าจอหลัก" (Add to Home Screen)</p>
-          <p>3. ปิด Safari แล้วแตะเปิดแอปจากไอคอนใหม่ที่แสดงบนหน้าจอโฮมของโทรศัพท์</p>
-          <p>4. ปัดหน้าจอไปท้ายซ้ายแล้วกดปุ่ม "เปิดรับการแจ้งเตือน" เพื่อสมัครรับการแจ้งเตือน</p>
+      <div class="slide-card">
+        <div class="slide-header">
+          <div>
+            <span class="slide-title">รับการแจ้งเตือนค่าฝุ่นรายวัน</span>
+            <span class="slide-sub">สรุปสถานการณ์ PM2.5 และ AQI เข้ามือถือทุกเช้า</span>
+          </div>
+          <span class="swipe-hint">← ปัดเพื่อดูกราฟ</span>
+        </div>
 
-        </h4>
+        <div class="form-wrapper">
+          <div class="guide-grid">
+            <!-- ฝั่ง Android -->
+            <div class="guide-card android">
+              <div class="guide-title">
+                <span class="os-tag">Android</span>
+                <span>แอป Chrome</span>
+              </div>
+              <ol class="guide-steps">
+                <li>เปิดเว็บผ่านแอป <strong>Chrome</strong></li>
+                <li>กรอกอีเมลด้านล่าง แล้วกดปุ่ม <strong>"เปิดรับการแจ้งเตือน"</strong></li>
+                <li>เมื่อมีป๊อปอัปขึ้นมา ให้กด <strong>"อนุญาต" (Allow)</strong></li>
+              </ol>
+            </div>
 
-        <form id="subscribeForm" onsubmit="return false;">
-          <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
-          <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
-        </form>
-        <div id="status-msg"></div>
+            <!-- ฝั่ง iOS -->
+            <div class="guide-card ios">
+              <div class="guide-title">
+                <span class="os-tag">iOS / iPhone</span>
+                <span>Safari (iOS 16.4+)</span>
+              </div>
+              <ol class="guide-steps">
+                <li>เปิดเว็บด้วยแอป <strong>Safari</strong></li>
+                <li>กดปุ่มแชร์ แล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong></li>
+                <li>เปิดแอปจากไอคอนบนหน้าจอโฮม แล้วกดปุ่มเปิดรับแจ้งเตือน</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- ฟอร์มกรอกอีเมล -->
+          <form id="subscribeForm" onsubmit="return false;">
+            <div class="input-action-group">
+              <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+              <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
+            </div>
+          </form>
+          <div id="status-msg"></div>
+        </div>
       </div>
     </div>
 
   </div>
 
-  <!-- Indicator Dots -->
+  <!-- Indicator Dots ลอยด้านล่าง -->
   <div class="carousel-footer">
     <div class="dot active" data-index="0"></div>
     <div class="dot" data-index="1"></div>
@@ -336,27 +376,30 @@
     </a>
   </div>
 
-  <div class="stats-overview-grid">
-    <div class="kpi-card">
-      <div class="kpi-data">
-        <span class="kpi-title">จุดตรวจวัดสะสม</span>
-        <span class="kpi-num" id="statTotal">--</span>
-      </div>
+<!-- แผงสถิติภาพรวม รวมอยู่ในการ์ดเดียวแบ่ง 3 คอลัมน์ -->
+  <div class="light-summary-card">
+    <div class="summary-metric">
+      <span class="metric-title">จุดตรวจสะสม</span>
+      <span class="metric-num" id="statTotal">--</span>
+      <span class="metric-sub">จุดตรวจทั้งหมด</span>
     </div>
-    <div class="kpi-card border-pass">
-      <div class="kpi-data">
-        <span class="kpi-title">ผ่านเกณฑ์มาตรฐาน</span>
-        <span class="kpi-num text-pass" id="statPass">--</span>
-      </div>
+    
+    <div class="metric-divider"></div>
+
+    <div class="summary-metric">
+      <span class="metric-title">ผ่านเกณฑ์</span>
+      <span class="metric-num text-pass" id="statPass">--</span>
+      <span class="status-pill pass">ปลอดภัย</span>
     </div>
-    <div class="kpi-card border-fail">
-      <div class="kpi-data">
-        <span class="kpi-title">ต้องปรับปรุงแสงสว่าง</span>
-        <span class="kpi-num text-fail" id="statFail">--</span>
-      </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="summary-metric">
+      <span class="metric-title">ต้องปรับปรุง</span>
+      <span class="metric-num text-fail" id="statFail">--</span>
+      <span class="status-pill fail">ปรับปรุง</span>
     </div>
   </div>
-
   <div class="dashboard-content-grid">
     <div class="dash-card chart-card">
       <div class="dash-card-header">
@@ -442,8 +485,8 @@ function renderAqiChart(historyData) {
         {
           label: 'AQI',
           data: aqiPoints,
-          borderColor: '#0288D1',
-          backgroundColor: 'rgba(2, 136, 209, 0.1)',
+          borderColor: '#1F5A44',                     /* Hijau Songkok */
+          backgroundColor: 'rgba(31, 90, 68, 0.08)',
           fill: true,
           tension: 0.35,
           pointRadius: 2.5
@@ -451,7 +494,7 @@ function renderAqiChart(historyData) {
         {
           label: 'PM2.5 (µg/m³)',
           data: pm25Points,
-          borderColor: '#FFA000',
+          borderColor: '#F2A93B',                     /* Kuning Maghrib */
           borderDash: [4, 4],
           fill: false,
           tension: 0.35,
