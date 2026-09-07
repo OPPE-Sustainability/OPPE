@@ -3,16 +3,20 @@
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
   let buildingChartInstance = null;
-  let allLightRecords = []; // ข้อมูลทั้งหมดจาก Sheet
-  let allBuildingStats = {}; // สถิติภาพรวมจาก Sheet
+  let allLightRecords = []; 
+  let allBuildingStats = {}; 
+  let isEventsBound = false; // ตัวแปรป้องกันการผูก Event Listener ซ้ำ
 
   window.initLightDashboard = function () {
     fetchLightDashboardData();
     bindFilterEvents();
   };
 
-  // ดักจับ Event ปุ่มกรองอาคาร และปุ่ม Export
   function bindFilterEvents() {
+    // หากเคย Bind Event ไปแล้ว ให้ข้ามทันทีเพื่อไม่ให้ Event ซ้อนกัน
+    if (isEventsBound) return;
+    isEventsBound = true;
+
     // 1. ติ๊ก Checkbox รายอาคาร
     document.addEventListener('change', function (e) {
       if (e.target.classList.contains('bld-checkbox')) {
@@ -20,7 +24,7 @@
       }
     });
 
-    // 2. ปุ่มเลือกทั้งหมด
+    // 2. ปุ่มเลือกทั้งหมด / ล้างตัวเลือก
     document.addEventListener('click', function (e) {
       if (e.target.id === 'btnSelectAllBuildings') {
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = true);
@@ -36,6 +40,8 @@
       const btnExcel = e.target.closest('#btnExportLightExcel');
       if (btnExcel) {
         e.preventDefault();
+        e.stopImmediatePropagation(); // หยุดการส่งต่อ Event ทันที ป้องกันเบิ้ล
+        
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
           alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
@@ -45,11 +51,13 @@
       }
     });
 
-    // 4. ปุ่ม Export PDF (ตามแบบฟอร์มทางการ .docx)
+    // 4. ปุ่ม Export PDF
     document.addEventListener('click', function (e) {
       const btnPdf = e.target.closest('#btnExportLightPdf');
       if (btnPdf) {
         e.preventDefault();
+        e.stopImmediatePropagation(); // หยุดการส่งต่อ Event ทันที ป้องกันเบิ้ล
+        
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
           alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
