@@ -1,77 +1,61 @@
 /* css/light-view.css */
 
-.light-dashboard-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* 1. Header Banner */
-.dashboard-banner {
-  background: linear-gradient(135deg, #1C382F 0%, var(--primary) 100%);
-  color: #FFFFFF;
-  padding: 26px 30px;
-  border-radius: var(--radius-card);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  box-shadow: var(--shadow-warm);
-}
-
-.iso-pill {
+.tag-iso {
+  display: inline-block;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--accent-gold);
-  background: rgba(242, 169, 59, 0.15);
-  padding: 4px 12px;
-  border-radius: var(--radius-pill);
-  display: inline-block;
+  color: var(--brand-primary);
+  background: #EBF3FD;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
 
-.dashboard-banner h2 {
-  font-size: 21px;
-  font-weight: 800;
-}
-
-.dashboard-banner p {
-  font-size: 13px;
-  color: #D3E0DC;
-  margin-top: 2px;
-}
-
-.btn-open-form {
-  background: var(--accent-gold);
-  color: #2B2620;
-  padding: 12px 22px;
-  border-radius: var(--radius-button);
-  text-decoration: none;
+.btn-outline {
+  display: inline-block;
+  border: 1.5px solid var(--brand-primary);
+  color: var(--brand-primary);
+  background: transparent;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 700;
-  box-shadow: 0 4px 14px rgba(242, 169, 59, 0.3);
-  transition: transform 0.2s ease, background 0.2s ease;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-outline:hover { background: #EBF3FD; }
+
+/* Filter Card */
+.filter-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+}
+.filter-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.filter-actions { display: flex; gap: 8px; }
+.btn-text {
+  background: #F1F5F9; border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 6px; font-size: 11px;
+  cursor: pointer; font-weight: 600; color: var(--text-secondary);
 }
 
-.btn-open-form:hover {
-  background: #E59C2C;
-  transform: translateY(-1px);
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 12px;
 }
+.checkbox-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-secondary); cursor: pointer;
+}
+.checkbox-item input { accent-color: var(--brand-primary); }
 
-/* 2. Unified KPI Summary Card (3 Columns Single Card) */
+/* Unified Light KPI Card (3 Columns) */
 .light-summary-card {
-  background: var(--surface-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-card);
-  padding: 18px 12px;
   display: flex;
   align-items: center;
   justify-content: space-around;
   text-align: center;
-  box-shadow: var(--shadow-warm);
-  margin-bottom: 4px;
+  padding: 20px 16px;
 }
 
 .summary-metric {
@@ -79,243 +63,61 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-width: 0; /* ป้องกันข้อความดันการ์ดล้นบนจอเล็ก */
 }
-
-.metric-divider {
-  width: 1px;
-  height: 40px;
-  background-color: var(--border-card);
-}
-
-.metric-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
+.metric-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 .metric-num {
   font-family: var(--font-mono);
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
+  font-size: 30px; font-weight: 700; color: var(--text-primary);
   margin: 2px 0;
-  line-height: 1.1;
 }
+.metric-sub { font-size: 11px; color: var(--text-muted); }
 
-.metric-sub {
-  font-size: 10px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-/* Status Pill เล็กกะทัดรัดสำหรับแต่ละตัวเลข */
 .status-pill {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  line-height: 1.2;
+  display: inline-block; font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: var(--radius-sm);
 }
+.status-pill.pass { background: #DCFCE7; color: var(--success); }
+.status-pill.fail { background: #FEE2E2; color: var(--danger); }
 
-.status-pill.pass {
-  background: rgba(47, 158, 100, 0.12);
-  color: var(--status-success);
-}
-
-.status-pill.fail {
-  background: rgba(220, 38, 38, 0.12);
-  color: var(--status-danger);
-}
-
-.text-pass { color: var(--status-success); }
-.text-fail { color: var(--status-danger); }
-
-/* ปรับขนาดตัวเลขให้ใหญ่ขึ้นเมื่อเปิดบนจอแท็บเล็ต/คอมพิวเตอร์ */
-@media (min-width: 768px) {
-  .light-summary-card {
-    padding: 22px 28px;
-  }
-  .metric-title {
-    font-size: 12px;
-  }
-  .metric-num {
-    font-size: 34px;
-  }
-  .metric-sub, .status-pill {
-    font-size: 11px;
-  }
-}
-
-/* 3. Dashboard Grid (Chart + Table) */
-.dashboard-content-grid {
+/* Analytics Dashboard Grid */
+.dashboard-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: 16px;
 }
 
-@media (min-width: 960px) {
-  .dashboard-content-grid {
-    grid-template-columns: 1.15fr 0.85fr;
-  }
-}
-
-.dash-card {
-  background: var(--surface-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-card);
-  padding: 24px;
-  box-shadow: var(--shadow-warm);
-}
-
-.dash-card-header h3 {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 16px;
+@media (min-width: 992px) {
+  .dashboard-grid { grid-template-columns: 1.1fr 0.9fr; }
 }
 
 .dash-chart-wrapper {
   position: relative;
-  height: 320px;
+  height: 300px;
   width: 100%;
 }
 
+/* Report Action Buttons */
+.report-actions { display: flex; gap: 8px; }
+.btn-sm {
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 700; border: none; cursor: pointer;
+}
+.btn-excel { background: #0F766E; color: #FFFFFF; }
+.btn-pdf { background: var(--brand-primary); color: #FFFFFF; }
+
+/* Measurement Table */
 .table-scroll-area {
   max-height: 320px;
   overflow-y: auto;
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-button);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th, .data-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.data-table th { background: #F8FAFC; color: var(--text-secondary); font-size: 12px; position: sticky; top: 0; z-index: 2; }
+.sub-text { font-size: 11px; color: var(--text-muted); }
 
-.data-table th,
-.data-table td {
-  padding: 12px 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-card);
-}
-
-.data-table th {
-  background: #FAF5EC;
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.sub-text {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-/* Status Pill */
-.status-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.status-tag.pass {
-  background: rgba(47, 158, 100, 0.12);
-  color: var(--status-success);
-}
-
-.status-tag.fail {
-  background: rgba(220, 38, 38, 0.12);
-  color: var(--status-danger);
-}
-
-.loading-td {
-  text-align: center;
-  padding: 30px;
-  color: var(--text-secondary);
-}
-
-/* ==========================================
-   CSS จัดหน้ากระดาษ A4 สำหรับ Export PDF / Print
-   ========================================== */
-@media print {
-  /* ซ่อนเมนู, ปุ่มกด, แถบด้านข้าง, และกราฟ */
-  #menuToggle,
-  #sidebarMenu,
-  #sidebarOverlay,
-  #btnExportLightPdf,
-  .btn-open-form,
-  .chart-card,
-  .fab-menu {
-    display: none !important;
-  }
-
-  /* ปลดการล็อกความสูงของ Carousel เพื่อให้พิมพ์ได้ทุกหน้า */
-  html, body, .main-viewport, .vertical-track, .view-panel, .panel-content {
-    height: auto !important;
-    overflow: visible !important;
-    transform: none !important;
-    background: #ffffff !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* จัดกรอบรายงานให้เต็มหน้า */
-  .light-dashboard-container {
-    padding: 10px !important;
-    width: 100% !important;
-  }
-
-  .table-scroll-area {
-    overflow: visible !important;
-    max-height: none !important;
-  }
-
-  /* แต่งตารางให้คมชัดสำหรับพิมพ์ */
-  .data-table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    font-size: 10.5pt !important;
-  }
-
-  .data-table th, .data-table td {
-    border: 1px solid #94a3b8 !important;
-    padding: 6px 8px !important;
-    color: #0f172a !important;
-  }
-
-  .data-table th {
-    background-color: #1F5A44 !important;
-    color: #ffffff !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .status-tag.pass {
-    color: #15803d !important;
-    font-weight: bold !important;
-  }
-
-  .status-tag.fail {
-    color: #b91c1c !important;
-    font-weight: bold !important;
-  }
-
-  .light-summary-card {
-    border: 1px solid #cbd5e1 !important;
-    box-shadow: none !important;
-    margin-bottom: 16px !important;
-    page-break-inside: avoid;
-  }
-}
+.status-tag.pass { background: #DCFCE7; color: var(--success); }
+.status-tag.fail { background: #FEE2E2; color: var(--danger); }
+.loading-td { text-align: center; padding: 24px; color: var(--text-muted); }

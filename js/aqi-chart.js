@@ -44,8 +44,8 @@ function renderAqiChart(historyData) {
         {
           label: 'AQI',
           data: aqiPoints,
-          borderColor: '#1F5A44',                     /* Hijau Songkok */
-          backgroundColor: 'rgba(31, 90, 68, 0.08)',
+          borderColor: '#1769E0',                     /* Modern University Blue */
+          backgroundColor: 'rgba(23, 105, 224, 0.08)',
           fill: true,
           tension: 0.35,
           pointRadius: 2.5
@@ -53,7 +53,7 @@ function renderAqiChart(historyData) {
         {
           label: 'PM2.5 (µg/m³)',
           data: pm25Points,
-          borderColor: '#F2A93B',                     /* Kuning Maghrib */
+          borderColor: '#F59E0B',                     /* Amber Warning */
           borderDash: [4, 4],
           fill: false,
           tension: 0.35,
@@ -71,13 +71,13 @@ function renderAqiChart(historyData) {
       plugins: { 
         legend: { 
           position: 'bottom',
-          labels: { boxWidth: 12, font: { size: 11 } }
+          labels: { boxWidth: 12, font: { size: 11, family: 'Plus Jakarta Sans' } }
         } 
       },
       scales: { 
         y: { 
           beginAtZero: true,
-          grid: { color: 'rgba(0, 0, 0, 0.05)' }
+          grid: { color: 'rgba(0, 0, 0, 0.04)' }
         },
         x: {
           grid: { display: false },
@@ -104,37 +104,56 @@ async function loadAirData(gasUrl) {
     const pm25Val = Number(latest.PM_25).toFixed(1);
     const pm10Val = Number(latest.PM_10).toFixed(1);
 
-    document.getElementById('valAqi').textContent = aqiVal;
-    document.getElementById('valPm25').textContent = pm25Val;
-    document.getElementById('valPm10').textContent = pm10Val;
+    // อัปเดตในหน้า AQI Detail
+    if (document.getElementById('valAqi')) document.getElementById('valAqi').textContent = aqiVal;
+    if (document.getElementById('valPm25')) document.getElementById('valPm25').textContent = pm25Val;
+    if (document.getElementById('valPm10')) document.getElementById('valPm10').textContent = pm10Val;
 
-    const aqiPill = document.getElementById('lblStatus');
+    // อัปเดตไปยังหน้า Home Overview
+    if (document.getElementById('homeValAqi')) document.getElementById('homeValAqi').textContent = aqiVal;
+    if (document.getElementById('homeValPm25')) document.getElementById('homeValPm25').textContent = pm25Val;
+
+    // ประเมินสีและข้อความสถานะตามเกณฑ์เดิม
+    let statusText = "";
+    let statusBg = "";
+    let statusColor = "";
+
     if (aqiVal <= 25) {
-      aqiPill.textContent = "อากาศดีมาก";
-      aqiPill.style.background = "#E8F5E9";
-      aqiPill.style.color = "#2E7D32";
+      statusText = "อากาศดีมาก";
+      statusBg = "#DCFCE7";
+      statusColor = "#16A34A";
     } else if (aqiVal <= 50) {
-      aqiPill.textContent = "อากาศดี";
-      aqiPill.style.background = "#E8F5E9";
-      aqiPill.style.color = "#2E7D32";
+      statusText = "อากาศดี";
+      statusBg = "#DCFCE7";
+      statusColor = "#16A34A";
     } else if (aqiVal <= 100) {
-      aqiPill.textContent = "ปานกลาง";
-      aqiPill.style.background = "#FFFDE7";
-      aqiPill.style.color = "#F57F17";
+      statusText = "ปานกลาง";
+      statusBg = "#FEF9C3";
+      statusColor = "#CA8A04";
     } else if (aqiVal <= 200) {
-      aqiPill.textContent = "เริ่มมีผลกระทบ";
-      aqiPill.style.background = "#FFF3E0";
-      aqiPill.style.color = "#E65100";
+      statusText = "เริ่มมีผลกระทบ";
+      statusBg = "#FFEDD5";
+      statusColor = "#EA580C";
     } else {
-      aqiPill.textContent = "มีผลกระทบต่อสุขภาพ";
-      aqiPill.style.background = "#FFEBEE";
-      aqiPill.style.color = "#C62828";
+      statusText = "มีผลกระทบต่อสุขภาพ";
+      statusBg = "#FEE2E2";
+      statusColor = "#DC2626";
     }
+
+    const setStatusStyle = (el) => {
+      if (!el) return;
+      el.textContent = statusText;
+      el.style.background = statusBg;
+      el.style.color = statusColor;
+    };
+
+    setStatusStyle(document.getElementById('lblStatus'));
+    setStatusStyle(document.getElementById('homeLblStatus'));
 
     renderAqiChart(data);
 
   } catch (error) {
     console.error("ดึงข้อมูลจาก Google Sheets ล้มเหลว:", error);
-    document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
+    if (document.getElementById('lblStatus')) document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
   }
 }

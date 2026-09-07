@@ -1,224 +1,243 @@
 /* css/base.css */
 :root {
-  /* โทนสี Senja di Serambi Pesantren */
-  --primary: #1F5A44;            /* Hijau Songkok: อัตลักษณ์หลัก */
-  --primary-hover: #164332;
-  --accent-gold: #F2A93B;        /* Kuning Maghrib: ไฮไลต์, ตัวเลขสำคัญ */
-  --accent-warm: #FF7A59;        /* Jingga Senja: ปุ่มกระตุ้นและไอคอน */
-  --accent-warm-hover: #E86544;
-  --bg-page: #FFF9F0;            /* Putih Kertas Kitab: พื้นหลังอบอุ่น ถนอมสายตา */
-  --surface-card: #FFFFFF;       /* สีการ์ดขาวสะอาด */
-  --text-primary: #2B2620;       /* Coklat Tinta: ตัวหนังสือสีหมึกน้ำตาลเข้ม */
-  --text-secondary: #7A7264;     /* สีข้อความรอง */
-  --border-card: #EFE7DB;        /* ขอบการ์ดโทนอุ่น */
-  --status-success: #2F9E64;
-  --status-danger: #DC2626;
+  /* Modern University Blue-first Palette */
+  --brand-primary: #1769E0;
+  --brand-primary-dark: #0B4FB3;
+  --brand-deep: #0B3B82;
 
-  /* Typography */
-  --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bg-app: #F6F9FD;
+  --surface: #FFFFFF;
+  --border: #E5EAF1;
+
+  --text-primary: #172B4D;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --font-main: 'Plus Jakarta Sans', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Soft Rounded & Elevation */
-  --radius-card: 20px;
-  --radius-pill: 9999px;
-  --radius-button: 14px;
-  --shadow-warm: 0 10px 25px -4px rgba(43, 38, 32, 0.06), 0 4px 10px -2px rgba(43, 38, 32, 0.03);
-  --shadow-hover: 0 16px 32px -4px rgba(31, 90, 68, 0.12);
+  --shadow-sm: 0 1px 3px rgba(11, 59, 130, 0.04);
+  --shadow-card: 0 4px 12px rgba(11, 59, 130, 0.05);
+  --shadow-hover: 0 8px 24px rgba(11, 59, 130, 0.08);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: var(--font-main);
-  background-color: var(--bg-page);
+  background-color: var(--bg-app);
   color: var(--text-primary);
   line-height: 1.5;
-  overflow: hidden; /* ล็อกการเลื่อนของบอดี้เพื่อใช้ Vertical Carousel */
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ==========================================
-   Vertical Viewport & Track
-========================================== */
-.main-viewport {
-  width: 100%;
-  height: 100dvh;
-  overflow: hidden;
-  position: relative;
-}
-
-.vertical-track {
+/* App Shell Layout */
+.app-layout {
   display: flex;
+  min-height: 100vh;
+}
+
+/* Desktop Sidebar */
+.app-sidebar {
+  display: none;
+  width: 260px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
   flex-direction: column;
-  height: 200dvh;
-  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-  will-change: transform;
-}
-
-.view-panel {
-  width: 100%;
-  height: 100dvh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain; /* ป้องกันการดึงรีเฟรชหน้าเว็บทั้งจอขณะเลื่อนดูเนื้อหา */
-}
-
-.panel-content {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 16px 14px 90px 14px; /* ปรับ Padding ให้พอดีขอบจอมือถือ */
-}
-@media (min-width: 768px) {
-  .panel-content {
-    padding: 24px 20px 100px 20px;
-  }
-}
-/* ==========================================
-   Floating Action Button (FAB)
-========================================== */
-.fab-menu {
   position: fixed;
-  bottom: 28px;
-  right: 28px;
-  width: 58px;
-  height: 58px;
-  border-radius: var(--radius-pill);
-  background: var(--primary);
-  color: #FFFFFF;
-  border: 3px solid rgba(255, 249, 240, 0.6);
-  box-shadow: 0 10px 20px rgba(31, 90, 68, 0.3);
-  cursor: pointer;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.25s ease, background-color 0.2s ease;
+  top: 0; bottom: 0; left: 0;
+  z-index: 100;
+  padding: 24px 16px;
 }
 
-.fab-menu:hover {
-  background: var(--primary-hover);
-  transform: scale(1.08);
-}
-
-/* ==========================================
-   Sidebar Drawer
-========================================== */
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(43, 38, 32, 0.45);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  visibility: hidden;
-  z-index: 1001;
-  transition: opacity 0.3s ease;
-}
-
-.sidebar-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-.sidebar {
-  position: fixed;
-  top: 0;
-  right: -320px;
-  width: 300px;
-  height: 100%;
-  background: var(--surface-card);
-  border-left: 1px solid var(--border-card);
-  z-index: 1002;
-  box-shadow: -10px 0 35px rgba(43, 38, 32, 0.1);
-  transition: right 0.45s cubic-bezier(0.25, 1, 0.5, 1);
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar.open {
-  right: 0;
-}
-
-.sidebar-header {
-  padding: 40px 24px 24px 24px;
-  border-bottom: 1px solid var(--border-card);
-  background: #FAF5EC;
-}
-
-.brand-badge {
+.sidebar-brand .brand-badge {
+  display: inline-block;
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--primary);
-  background: rgba(31, 90, 68, 0.08);
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  display: inline-block;
+  color: var(--brand-primary);
+  background: #EBF3FD;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
   margin-bottom: 8px;
 }
 
-.sidebar-header h2 {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text-primary);
+.brand-name { font-size: 18px; font-weight: 800; color: var(--brand-deep); }
+.brand-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; margin-bottom: 24px; }
+
+.sidebar-nav { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius-md);
+  border: none; background: transparent; color: var(--text-secondary);
+  font-family: var(--font-main); font-size: 14px; font-weight: 600;
+  cursor: pointer; text-align: left; transition: all 0.2s;
+}
+.nav-item:hover { background: #F0F5FC; color: var(--brand-primary); }
+.nav-item.active { background: #EBF3FD; color: var(--brand-primary); font-weight: 700; }
+
+.sidebar-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding-top: 16px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted);
 }
 
-.sidebar-header p {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 4px;
+.status-indicator-dot.online {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--success);
 }
 
-.sidebar-nav {
-  padding: 20px 16px;
+/* Main Content Area */
+.app-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  min-width: 0;
 }
 
-.tab-btn {
+.app-topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  position: sticky; top: 0; z-index: 90;
+}
+
+.topbar-content {
+  max-width: 1200px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.mobile-logo-group { display: flex; align-items: center; gap: 10px; }
+.topbar-logo { width: 34px; height: 34px; border-radius: var(--radius-sm); }
+.topbar-title { font-size: 16px; font-weight: 800; color: var(--brand-deep); }
+.topbar-sub { font-size: 11px; color: var(--text-secondary); display: block; }
+
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.network-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: #F0F5FC; padding: 4px 10px; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+}
+
+.btn-icon {
+  background: transparent; border: 1px solid var(--border);
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); cursor: pointer;
+}
+
+.app-content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 16px 80px 16px; /* เว้นที่สำหรับ Bottom Nav ในมือถือ */
+}
+
+/* Page Switching Control */
+.page-view { display: none; }
+.page-view.active { display: block; animation: fadeIn 0.25s ease-in-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Card Surface Standard */
+.card-surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.page-header { margin-bottom: 18px; }
+.page-header.flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 20px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
+.page-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Overview Grid (Home Page) */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.kpi-card:hover { transform: translateY(-2px); }
+.kpi-card.border-danger { border-top: 3px solid var(--danger); }
+
+.kpi-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); display: block; }
+.kpi-value { font-family: var(--font-mono); font-size: 26px; font-weight: 700; color: var(--text-primary); margin: 4px 0; }
+.kpi-unit { font-size: 11px; color: var(--text-muted); }
+.text-danger { color: var(--danger); }
+.text-success { color: var(--success); }
+
+/* Service Cards */
+.service-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.service-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-button);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font-main);
-  color: var(--text-secondary);
+  gap: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+.service-card:hover { border-color: var(--brand-primary); transform: translateX(3px); }
+.service-icon { font-size: 24px; }
+.service-info h3 { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.service-info p { font-size: 12px; color: var(--text-secondary); }
+.service-arrow { margin-left: auto; color: var(--brand-primary); font-weight: bold; }
+
+/* Mobile Bottom Navigation */
+.mobile-bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 60px; background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-around; align-items: center;
+  z-index: 100;
 }
 
-.tab-btn .btn-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #D5CBBB;
-  transition: background 0.2s;
+.bottom-nav-item {
+  flex: 1; height: 100%; border: none; background: transparent;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--text-secondary); cursor: pointer;
 }
+.bottom-nav-item span { font-size: 10px; font-weight: 600; margin-top: 2px; }
+.bottom-nav-item.active { color: var(--brand-primary); font-weight: 700; }
 
-.tab-btn:hover {
-  background: #F7EFE3;
-  color: var(--text-primary);
-}
-
-.tab-btn.active {
-  background: rgba(31, 90, 68, 0.08);
-  color: var(--primary);
-  font-weight: 700;
-  border-color: rgba(31, 90, 68, 0.15);
-}
-
-.tab-btn.active .btn-dot {
-  background: var(--primary);
+/* Desktop Responsiveness */
+@media (min-width: 900px) {
+  .app-sidebar { display: flex; }
+  .app-main { margin-left: 260px; }
+  .mobile-bottom-nav { display: none; }
+  .app-content { padding: 28px 32px; }
+  .overview-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .service-actions-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
 }

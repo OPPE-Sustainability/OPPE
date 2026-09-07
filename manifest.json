@@ -1,25 +1,16 @@
 {
-  "id": "/OPPE/",
-  "name": "รายงานคุณภาพอากาศ ม.มหิดล",
+  "name": "OPPE-Notifications",
   "short_name": "AirAlert",
-  "start_url": "/OPPE/index.html",
-  "scope": "/OPPE/",
+  "description": "ระบบรายงานคุณภาพอากาศและสุขศาสตร์อุตสาหกรรม มหาวิทยาลัยมหิดล",
+  "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#0288D1",
+  "background_color": "#F6F9FD",
+  "theme_color": "#1769E0",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

@@ -1,314 +1,133 @@
 /* css/aqi-view.css */
 
-/* 1. Header Card */
-.header-card {
-  background: linear-gradient(135deg, var(--primary) 0%, #297458 100%);
-  color: #FFFFFF;
-  border-radius: var(--radius-card);
-  padding: 20px 24px;
-  text-align: center;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-warm);
-}
-
-.header-card h1 {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-}
-
-.header-card p {
-  font-size: 12px;
-  opacity: 0.9;
-  margin-top: 4px;
-}
-
-/* 2. Hero Summary Metric Card */
-.hero-card {
-  background: var(--surface-card);
-  border-radius: var(--radius-card);
-  padding: 18px 16px;
+/* Hero Status Card (Single Card - 3 Columns) */
+.hero-status-card {
   display: flex;
   justify-content: space-around;
   align-items: center;
   text-align: center;
-  margin-bottom: 16px;
-  border: 1px solid var(--border-card);
-  box-shadow: var(--shadow-warm);
+  padding: 24px 16px;
 }
 
-.metric-item {
+.metric-block {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.metric-item .title {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.metric-item .val {
+.metric-caption { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.metric-number {
   font-family: var(--font-mono);
-  font-size: 30px;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--brand-deep);
+  line-height: 1.1;
+  margin: 4px 0;
+}
+
+.metric-number-sub {
+  font-family: var(--font-mono);
+  font-size: 26px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 2px 0;
-  letter-spacing: -1px;
+  line-height: 1.1;
+  margin: 4px 0;
 }
 
-.metric-item .unit {
-  font-size: 10px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
+.metric-unit { font-size: 11px; color: var(--text-muted); }
+.metric-divider { width: 1px; height: 44px; background: var(--border); }
 
-.aqi-pill {
-  background: rgba(47, 158, 100, 0.12);
-  color: var(--status-success);
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
+/* Status Badge */
+.status-badge, .status-tag {
+  display: inline-block;
   font-size: 11px;
   font-weight: 700;
-  margin-top: 2px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
 }
 
-/* 3. Carousel Viewport (ไม่มีกรอบขาวรวมกัน) */
-.carousel-viewport {
-  position: relative;
-  overflow: hidden;
-  touch-action: pan-y pinch-zoom;
-  user-select: none;
-  cursor: grab;
-  width: 100%;
-}
-
-.carousel-viewport:active {
-  cursor: grabbing;
-}
-
-.carousel-track {
-  display: flex;
-  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-  width: 100%;
-  will-change: transform;
-  align-items: flex-start; /* ให้แต่ละ Slide มีความสูงตามเนื้อหาจริง */
-}
-
-.carousel-slide {
-  min-width: 100%;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* การ์ดแยกเดี่ยวสำหรับแต่ละสไลด์ */
-.slide-card {
-  background: var(--surface-card);
-  border-radius: var(--radius-card);
-  border: 1px solid var(--border-card);
-  box-shadow: var(--shadow-warm);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-.slide-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 14px;
+/* Card Headers */
+.card-header {
+  margin-bottom: 16px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #F4EDE2;
-  gap: 8px;
+  border-bottom: 1px solid #F1F5F9;
 }
+.card-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.card-subtitle { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; }
 
-.slide-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-  display: block;
-}
-
-.slide-sub {
-  font-size: 11px;
-  color: var(--text-secondary);
-  display: block;
-  margin-top: 2px;
-}
-
-.swipe-hint {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent-warm);
-  white-space: nowrap;
-}
-
-/* พื้นที่วาดกราฟที่สมส่วนบนมือถือ */
+/* Chart Container */
 .chart-wrapper {
   position: relative;
-  height: 220px;
+  height: 240px;
   width: 100%;
 }
 
 @media (min-width: 768px) {
-  .chart-wrapper {
-    height: 280px;
-  }
+  .chart-wrapper { height: 300px; }
 }
 
-/* 4. Form & Guide Grid */
-.form-wrapper {
-  width: 100%;
-}
-
+/* Subscription Form & Guides */
 .guide-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
 @media (min-width: 600px) {
-  .guide-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+  .guide-grid { grid-template-columns: 1fr 1fr; }
 }
 
 .guide-card {
-  background: #FAF5EC;
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-button);
-  padding: 12px 14px;
+  background: #F8FAFC;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+.guide-card.android { border-left: 4px solid var(--brand-primary); }
+.guide-card.ios { border-left: 4px solid #0EA5E9; }
+
+.guide-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; margin-bottom: 6px;
 }
 
-.guide-card.android { border-left: 3px solid var(--accent-gold); }
-.guide-card.ios { border-left: 3px solid var(--accent-warm); }
-
-.guide-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 6px;
+.platform-badge {
+  font-size: 10px; font-weight: 800; background: var(--surface);
+  border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px;
 }
 
-.os-tag {
-  font-size: 9px;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--surface-card);
-  color: var(--primary);
-  border: 1px solid var(--border-card);
-}
+.guide-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 
-.guide-steps {
-  margin: 0;
-  padding-left: 16px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.guide-steps li {
-  margin-bottom: 3px;
-}
-
-/* ช่องกรอก + ปุ่ม Action */
-.input-action-group {
+/* Form Actions */
+.form-input-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-@media (min-width: 500px) {
-  .input-action-group {
-    flex-direction: row;
-  }
-  .input-action-group .email-input {
-    flex: 1;
-    margin-bottom: 0;
-  }
-  .input-action-group .btn-sub {
-    width: auto;
-    white-space: nowrap;
-  }
+@media (min-width: 540px) {
+  .form-input-group { flex-direction: row; }
+  .form-input-group .text-input { flex: 1; }
 }
 
-.email-input {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: var(--radius-button);
-  border: 1.5px solid var(--border-card);
-  background: #FCFAF7;
-  font-size: 13px;
-  font-family: var(--font-main);
-  color: var(--text-primary);
-  outline: none;
-  box-sizing: border-box;
+.text-input {
+  width: 100%; padding: 12px 16px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-md);
+  font-family: var(--font-main); font-size: 13px; outline: none;
+  transition: border-color 0.2s;
 }
+.text-input:focus { border-color: var(--brand-primary); }
 
-.email-input:focus {
-  border-color: var(--primary);
-  background: #FFFFFF;
+.btn-primary {
+  background: var(--brand-primary); color: #FFFFFF;
+  border: none; padding: 12px 22px; border-radius: var(--radius-md);
+  font-family: var(--font-main); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: background 0.2s;
 }
+.btn-primary:hover { background: var(--brand-primary-dark); }
+.btn-primary:disabled { background: var(--text-muted); cursor: not-allowed; }
 
-.btn-sub {
-  background: var(--accent-warm);
-  color: #FFFFFF;
-  border: none;
-  padding: 12px 18px;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: var(--font-main);
-  border-radius: var(--radius-button);
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(255, 122, 89, 0.25);
-  transition: all 0.2s;
-}
-
-.btn-sub:hover {
-  background: var(--accent-warm-hover);
-}
-
-.btn-sub:disabled {
-  background: #D9D2C7;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-/* 5. Indicators */
-.carousel-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 0 6px 0;
-}
-
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-pill);
-  background: #D9D2C7;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.dot.active {
-  width: 20px;
-  background: var(--primary);
-}
-
-#status-msg {
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.status-msg-success { color: var(--status-success); }
-.status-msg-error { color: var(--status-danger); }
+#status-msg { margin-top: 10px; font-size: 12px; font-weight: 600; text-align: center; }

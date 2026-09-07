@@ -83,10 +83,10 @@
     updateChartWithFilter();
   }
 
+
   async function fetchLightDashboardData() {
     const tbody = document.getElementById('lightTableBody');
     try {
-      // ดึงทั้งข้อมูลตารางและสถิติกราฟพร้อมกัน
       const [summaryRes, statsRes] = await Promise.all([
         fetch(`${LIGHT_API_URL}?action=getLightSummary`),
         fetch(`${LIGHT_API_URL}?action=getBuildingStats`)
@@ -97,13 +97,20 @@
 
       applyBuildingFilter();
     } catch (err) {
+      console.error("Fetch light data error:", err);
       if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ</td></tr>';
     }
   }
 
+
+
+
   function updateTableAndStats(list) {
     const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
+    // เพิ่มการอัปเดตไปยังหน้า Home Overview
+    if (document.getElementById('homeStatTotal')) document.getElementById('homeStatTotal').textContent = list.length;
+    if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = fail;
 
     if (!list || list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามอาคารที่เลือก</td></tr>';

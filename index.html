@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OPPE Sustainability Dashboard</title>
+  <title>OPPE-Notifications | Mahidol EHS Monitoring</title>
   
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1F5A44">
+  <meta name="theme-color" content="#1769E0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   
-  <!-- โหลดฟอนต์ Plus Jakarta Sans และ JetBrains Mono ตามสเปกดีไซน์ -->
+  <!-- Typography: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/aqi-view.css">
@@ -23,75 +23,200 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
+  <div id="app" class="app-layout">
+    <!-- Desktop Sidebar Navigation -->
+    <aside id="desktopSidebar" class="app-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge">EHS Portal</div>
+        <h1 class="brand-name">OPPE-Notifications</h1>
+        <p class="brand-sub">กองกายภาพและสิ่งแวดล้อม ม.มหิดล</p>
+      </div>
 
-  <!-- ปุ่ม FAB เปิดเมนูมุมขวาล่าง -->
-  <button id="menuToggle" class="fab-menu" aria-label="เปิดเมนูนำทาง">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="4" y1="7" x2="20" y2="7"></line>
-      <line x1="4" y1="12" x2="20" y2="12"></line>
-      <line x1="4" y1="17" x2="20" y2="17"></line>
-    </svg>
-  </button>
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-item active" data-page="home">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+          <span>ภาพรวมระบบ (Home)</span>
+        </button>
+        <button type="button" class="nav-item" data-page="air">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+          <span>คุณภาพอากาศ (AQI)</span>
+        </button>
+        <button type="button" class="nav-item" data-page="light">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+          <span>ตรวจวัดแสงสว่าง (ISO)</span>
+        </button>
+        <button type="button" class="nav-item" data-page="notifications">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span>แจ้งเตือน & ข้อความ</span>
+        </button>
+      </nav>
 
-  <!-- ม่านหลังและ Sidebar Menu Drawer -->
-  <div id="sidebarOverlay" class="sidebar-overlay"></div>
-  <aside id="sidebarMenu" class="sidebar">
-    <div class="sidebar-header">
-      <span class="brand-badge">EHS & Sustainability</span>
-      <h2>OPPE Portal</h2>
-      <p>กองกายภาพและสิ่งแวดล้อม ม.มหิดล</p>
-    </div>
-    <nav class="sidebar-nav">
-      <button class="tab-btn active" data-index="0" data-view="view-air">
-        <span class="btn-dot"></span> คุณภาพอากาศและสภาพแวดล้อม
-      </button>
-      <button class="tab-btn" data-index="1" data-view="view-light">
-        <span class="btn-dot"></span> ตรวจวัดแสงสว่าง (ISO 45001)
-      </button>
-    </nav>
-  </aside>
+      <div class="sidebar-footer">
+        <span class="status-indicator-dot online"></span>
+        <span class="system-status-text">Serverless Realtime Active</span>
+      </div>
+    </aside>
 
-  <!-- พื้นที่สไลด์แนวตั้ง (Vertical Slide Carousel) -->
-  <main class="main-viewport">
-    <div class="vertical-track" id="verticalTrack">
-      
-      <!-- View 1: ข้อมูลคุณภาพอากาศ -->
-      <section id="view-air" class="view-panel">
-        <div class="panel-content">
-          <div id="view-header"></div>
+    <div class="app-main">
+      <!-- Global Topbar Header -->
+      <header id="topbar" class="app-topbar"></header>
+
+      <!-- Main Dynamic Content (Natural Scrolling) -->
+      <main id="appContent" class="app-content">
+        <!-- Page: Home Overview -->
+        <section id="page-home" class="page-view active">
+          <div class="page-header">
+            <div>
+              <h2 class="page-title">ภาพรวมระบบ EHS วันนี้</h2>
+              <p class="page-subtitle">มหาวิทยาลัยมหิดล ศาลายา • ติดตามแบบเรียลไทม์</p>
+            </div>
+          </div>
+
+          <div class="overview-grid">
+            <div class="kpi-card" onclick="window.navigateTo('air')">
+              <span class="kpi-label">AQI ศาลายา</span>
+              <div class="kpi-value" id="homeValAqi">--</div>
+              <span class="status-tag" id="homeLblStatus">กำลังโหลด...</span>
+            </div>
+            <div class="kpi-card" onclick="window.navigateTo('air')">
+              <span class="kpi-label">PM2.5 ปัจจุบัน</span>
+              <div class="kpi-value" id="homeValPm25">--</div>
+              <span class="kpi-unit">µg/m³</span>
+            </div>
+            <div class="kpi-card" onclick="window.navigateTo('light')">
+              <span class="kpi-label">จุดตรวจแสงสะสม</span>
+              <div class="kpi-value" id="homeStatTotal">--</div>
+              <span class="kpi-unit">จุดตรวจ</span>
+            </div>
+            <div class="kpi-card border-danger" onclick="window.navigateTo('light')">
+              <span class="kpi-label">ต้องปรับปรุงแสง</span>
+              <div class="kpi-value text-danger" id="homeStatFail">--</div>
+              <span class="kpi-unit">จุดเสี่ยง</span>
+            </div>
+          </div>
+
+          <div class="service-actions-grid">
+            <div class="service-card" onclick="window.navigateTo('air')">
+              <div class="service-icon">🌿</div>
+              <div class="service-info">
+                <h3>ระบบติดตามคุณภาพอากาศ</h3>
+                <p>รายงานกราฟแนวโน้มมลพิษย้อนหลัง 24 ชม. และคำแนะนำสุขภาพ</p>
+              </div>
+              <span class="service-arrow">→</span>
+            </div>
+            <div class="service-card" onclick="window.navigateTo('light')">
+              <div class="service-icon">💡</div>
+              <div class="service-info">
+                <h3>ระบบตรวจประเมินความเข้มแสงสว่าง</h3>
+                <p>การตรวจติดตาม ISO 45001 / 14001 และส่งออกรายงานทางราชการ</p>
+              </div>
+              <span class="service-arrow">→</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Page: Air Quality -->
+        <section id="page-air" class="page-view">
           <div id="view-aqi"></div>
-        </div>
-      </section>
+        </section>
 
-      <!-- View 2: ระบบตรวจวัดแสงสว่าง -->
-      <section id="view-light" class="view-panel">
-        <div class="panel-content">
+        <!-- Page: Illumination -->
+        <section id="page-light" class="page-view">
           <div id="view-light-page"></div>
-        </div>
-      </section>
+        </section>
 
+        <!-- Page: Notification Center -->
+        <section id="page-notifications" class="page-view">
+          <div class="page-header">
+            <h2 class="page-title">ศูนย์จัดการการแจ้งเตือน (Notifications)</h2>
+            <p class="page-subtitle">ลงทะเบียนรับ Push Notification สรุปสภาพแวดล้อมประจำวัน</p>
+          </div>
+          <div class="card-surface" id="notificationCenterMount">
+            <!-- ย้ายฟอร์มสมัครแจ้งเตือนมาแสดงเต็มรูปแบบที่นี่ -->
+          </div>
+        </section>
+      </main>
+
+      <!-- Mobile Bottom Navigation Bar -->
+      <nav id="mobileBottomNav" class="mobile-bottom-nav">
+        <button type="button" class="bottom-nav-item active" data-page="home">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+          <span>หน้าหลัก</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="air">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+          <span>อากาศ</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="light">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"></path></svg>
+          <span>ตรวจวัดแสง</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="notifications">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span>แจ้งเตือน</span>
+        </button>
+      </nav>
     </div>
-  </main>
+  </div>
 
-  <script>
+
+<script>
     async function loadComponent(elementId, filePath) {
       try {
         const res = await fetch(filePath);
-        if (!res.ok) throw new Error(`HTTP error on ${filePath}`);
-        document.getElementById(elementId).innerHTML = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status} on ${filePath}`);
+        const html = await res.text();
+        const el = document.getElementById(elementId);
+        if (el) el.innerHTML = html;
       } catch (e) {
-        console.error("Load error:", e);
+        console.error("Load component error:", e);
       }
     }
 
+    // State Navigation Controller
+    window.navigateTo = function(pageId) {
+      // 1. ซ่อนทุกหน้า แล้วเปิดเฉพาะหน้าที่เลือก
+      document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+      const targetPage = document.getElementById(`page-${pageId}`);
+      if (targetPage) targetPage.classList.add('active');
+
+      // 2. สลับสถานะปุ่มเมนู
+      document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-page') === pageId);
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // 3. จัดการเรนเดอร์กราฟตรวจวัดแสงเมื่อเปิดเข้าหน้านี้
+      if (pageId === 'light' && typeof window.initLightDashboard === 'function') {
+        setTimeout(() => {
+          window.initLightDashboard();
+        }, 150);
+      }
+    };
+
     async function initApp() {
+      // 1. โหลดคอมโพเนนต์ HTML ให้ครบถ้วนก่อน
       await Promise.all([
-        loadComponent('view-header', 'components/header.html'),
+        loadComponent('topbar', 'components/header.html'),
         loadComponent('view-aqi', 'components/aqi-summary.html'),
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      const scripts = ['js/carousel.js', 'js/aqi-chart.js', 'js/push-notify.js', 'js/light-data.js'];
+      // 2. Clone ฟอร์มแจ้งเตือนไปไว้ในหน้า Notification Center
+      const formOriginal = document.getElementById('subscribeCardWrapper');
+      const notifMount = document.getElementById('notificationCenterMount');
+      if (formOriginal && notifMount) {
+        notifMount.innerHTML = formOriginal.innerHTML;
+      }
+
+      // 3. โหลด JavaScript Logic
+      const scripts = [
+        'js/aqi-chart.js',
+        'js/push-notify.js',
+        'js/light-data.js'
+      ];
+
       for (const src of scripts) {
         await new Promise((resolve) => {
           const s = document.createElement('script');
@@ -101,49 +226,23 @@
         });
       }
 
-      if (typeof window.initCarousel === 'function') window.initCarousel();
+      // 4. ติดตั้ง Event คลิกนำทาง
+      document.querySelectorAll('[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          window.navigateTo(btn.getAttribute('data-page'));
+        });
+      });
 
+      // 5. รันการดึงข้อมูลทั้งสองระบบทันทีตั้งแต่เริ่มโหลด
       const GAS_WEBAPP_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
       if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
-
-      setupVerticalNavigation();
-    }
-
-    function setupVerticalNavigation() {
-      const navButtons = document.querySelectorAll('.tab-btn');
-      const verticalTrack = document.getElementById('verticalTrack');
-      const menuToggle = document.getElementById('menuToggle');
-      const sidebarMenu = document.getElementById('sidebarMenu');
-      const overlay = document.getElementById('sidebarOverlay');
-
-      function toggleMenu() {
-        sidebarMenu.classList.toggle('open');
-        overlay.classList.toggle('active');
-      }
-
-      menuToggle.addEventListener('click', toggleMenu);
-      overlay.addEventListener('click', toggleMenu);
-
-      navButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const index = btn.getAttribute('data-index');
-          const targetViewId = btn.getAttribute('data-view');
-
-          verticalTrack.style.transform = `translateY(-${index * 100}dvh)`;
-
-          navButtons.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          toggleMenu();
-
-          if (targetViewId === 'view-light' && typeof window.initLightDashboard === 'function') {
-            setTimeout(() => { window.initLightDashboard(); }, 600);
-          }
-        });
-      });
+      if (typeof window.initLightDashboard === 'function') window.initLightDashboard();
     }
 
     window.addEventListener('DOMContentLoaded', initApp);
   </script>
+
+
 </body>
 </html>

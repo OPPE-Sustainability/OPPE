@@ -1,100 +1,82 @@
 <!-- components/aqi-summary.html -->
-<!-- Real-time Status Card -->
-<div class="hero-card">
-  <div class="metric-item">
-    <span class="title">AQI ปัจจุบัน</span>
-    <span class="val" id="valAqi">--</span>
-    <div class="aqi-pill" id="lblStatus">กำลังโหลด...</div>
+<div class="air-view-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <h2 class="page-title">รายงานสถานการณ์คุณภาพอากาศ</h2>
+    <p class="page-subtitle">สถานีตรวจวัดกองกายภาพและสิ่งแวดล้อม ศาลายา</p>
   </div>
-  <div class="metric-item">
-    <span class="title">PM2.5</span>
-    <span class="val" id="valPm25">--</span>
-    <span class="unit">µg/m³</span>
-  </div>
-  <div class="metric-item">
-    <span class="title">PM10</span>
-    <span class="val" id="valPm10">--</span>
-    <span class="unit">µg/m³</span>
-  </div>
-</div>
 
-<!-- Carousel Section แบบแยกการ์ดอิสระ -->
-<div class="carousel-viewport" id="carouselContainer">
-  <div class="carousel-track" id="carouselTrack">
-    
-    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง (การ์ดเฉพาะส่วนกราฟ) -->
-    <div class="carousel-slide" id="slide1">
-      <div class="slide-card">
-        <div class="slide-header">
-          <div>
-            <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
-            <span class="slide-sub">สถานีตรวจวัด มหาวิทยาลัยมหิดล ศาลายา</span>
-          </div>
-          <span class="swipe-hint">ปัดเพื่อรับแจ้งเตือน →</span>
-        </div>
-        <div class="chart-wrapper">
-          <canvas id="aqiChart"></canvas>
-        </div>
+  <!-- 1. Air Status Hero Card -->
+  <div class="card-surface hero-status-card">
+    <div class="metric-block aqi-main">
+      <span class="metric-caption">AQI ปัจจุบัน</span>
+      <span class="metric-number" id="valAqi">--</span>
+      <span class="status-badge" id="lblStatus">กำลังโหลด...</span>
+    </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="metric-block">
+      <span class="metric-caption">PM2.5</span>
+      <span class="metric-number-sub" id="valPm25">--</span>
+      <span class="metric-unit">µg/m³</span>
+    </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="metric-block">
+      <span class="metric-caption">PM10</span>
+      <span class="metric-number-sub" id="valPm10">--</span>
+      <span class="metric-unit">µg/m³</span>
+    </div>
+  </div>
+
+  <!-- 2. Air Quality 24h Trend Card -->
+  <div class="card-surface trend-card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">แนวโน้มค่าฝุ่นย้อนหลัง 24 ชั่วโมง</h3>
+        <span class="card-subtitle">เปรียบเทียบแนวโน้มดัชนี AQI และ PM2.5 แบบรายชั่วโมง</span>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="aqiChart"></canvas>
+    </div>
+  </div>
+
+  <!-- 3. Notification Subscription Card -->
+  <div class="card-surface subscription-card" id="subscribeCardWrapper">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">รับการแจ้งเตือนสภาพอากาศรายวัน</h3>
+        <span class="card-subtitle">สรุปสถานการณ์ PM2.5 และแจ้งเตือนล่วงหน้าเข้าอุปกรณ์ของคุณทุกเช้า</span>
       </div>
     </div>
 
-    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน (การ์ดเฉพาะส่วนฟอร์ม) -->
-    <div class="carousel-slide" id="slide2">
-      <div class="slide-card">
-        <div class="slide-header">
-          <div>
-            <span class="slide-title">รับการแจ้งเตือนค่าฝุ่นรายวัน</span>
-            <span class="slide-sub">สรุปสถานการณ์ PM2.5 และ AQI เข้ามือถือทุกเช้า</span>
-          </div>
-          <span class="swipe-hint">← ปัดเพื่อดูกราฟ</span>
+    <div class="guide-grid">
+      <div class="guide-card android">
+        <div class="guide-head">
+          <span class="platform-badge">Android</span>
+          <span>Google Chrome</span>
         </div>
+        <p class="guide-text">เปิดผ่าน Chrome → กรอกอีเมลด้านล่าง → กดเปิดแจ้งเตือน → กด <strong>"อนุญาต" (Allow)</strong></p>
+      </div>
 
-        <div class="form-wrapper">
-          <div class="guide-grid">
-            <!-- ฝั่ง Android -->
-            <div class="guide-card android">
-              <div class="guide-title">
-                <span class="os-tag">Android</span>
-                <span>แอป Chrome</span>
-              </div>
-              <ol class="guide-steps">
-                <li>เปิดเว็บผ่านแอป <strong>Chrome</strong></li>
-                <li>กรอกอีเมลด้านล่าง แล้วกดปุ่ม <strong>"เปิดรับการแจ้งเตือน"</strong></li>
-                <li>เมื่อมีป๊อปอัปขึ้นมา ให้กด <strong>"อนุญาต" (Allow)</strong></li>
-              </ol>
-            </div>
-
-            <!-- ฝั่ง iOS -->
-            <div class="guide-card ios">
-              <div class="guide-title">
-                <span class="os-tag">iOS / iPhone</span>
-                <span>Safari (iOS 16.4+)</span>
-              </div>
-              <ol class="guide-steps">
-                <li>เปิดเว็บด้วยแอป <strong>Safari</strong></li>
-                <li>กดปุ่มแชร์ แล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong></li>
-                <li>เปิดแอปจากไอคอนบนหน้าจอโฮม แล้วกดปุ่มเปิดรับแจ้งเตือน</li>
-              </ol>
-            </div>
-          </div>
-
-          <!-- ฟอร์มกรอกอีเมล -->
-          <form id="subscribeForm" onsubmit="return false;">
-            <div class="input-action-group">
-              <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
-              <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
-            </div>
-          </form>
-          <div id="status-msg"></div>
+      <div class="guide-card ios">
+        <div class="guide-head">
+          <span class="platform-badge">iOS / iPhone</span>
+          <span>Safari (iOS 16.4+)</span>
         </div>
+        <p class="guide-text">กดปุ่มแชร์ → เลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong> → เปิดแอปจากหน้าจอหลักแล้วกดยืนยัน</p>
       </div>
     </div>
 
-  </div>
-
-  <!-- Indicator Dots ลอยด้านล่าง -->
-  <div class="carousel-footer">
-    <div class="dot active" data-index="0"></div>
-    <div class="dot" data-index="1"></div>
+    <form id="subscribeForm" class="subscribe-form" onsubmit="return false;">
+      <div class="form-input-group">
+        <input type="email" id="userEmail" class="text-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+        <button type="submit" class="btn-primary" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
+      </div>
+    </form>
+    <div id="status-msg"></div>
   </div>
 </div>
