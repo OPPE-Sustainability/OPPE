@@ -5,7 +5,7 @@
   let buildingChartInstance = null;
   let allLightRecords = []; 
   let allBuildingStats = {}; 
-  let isEventsBound = false; // ตัวแปรป้องกันการผูก Event Listener ซ้ำ
+  let isExporting = false; // Flag ล็อกไม่ให้รันฟังก์ชัน Export ซ้อนกันเด็ดขาด
 
   window.initLightDashboard = function () {
     fetchLightDashboardData();
@@ -13,9 +13,9 @@
   };
 
   function bindFilterEvents() {
-    // หากเคย Bind Event ไปแล้ว ให้ข้ามทันทีเพื่อไม่ให้ Event ซ้อนกัน
-    if (isEventsBound) return;
-    isEventsBound = true;
+    // ป้องกันการ Bind ซ้ำอย่างเด็ดขาดด้วย Global Window Property
+    if (window.__isLightEventsBound) return;
+    window.__isLightEventsBound = true;
 
     // 1. ติ๊ก Checkbox รายอาคาร
     document.addEventListener('change', function (e) {
@@ -24,46 +24,68 @@
       }
     });
 
-    // 2. ปุ่มเลือกทั้งหมด / ล้างตัวเลือก
+    // 2. จัดการคลิกปุ่มทั้งหมดใน Event เดียว
     document.addEventListener('click', function (e) {
+      // ปุ่มเลือกทั้งหมด
       if (e.target.id === 'btnSelectAllBuildings') {
+        e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = true);
         applyBuildingFilter();
-      } else if (e.target.id === 'btnDeselectAllBuildings') {
+        return;
+      } 
+      
+      // ปุ่มล้างตัวเลือก
+      if (e.target.id === 'btnDeselectAllBuildings') {
+        e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = false);
         applyBuildingFilter();
+        return;
       }
-    });
 
-    // 3. ปุ่ม Export Excel (.csv)
-    document.addEventListener('click', function (e) {
+      // ปุ่ม Export Excel (.csv)
       const btnExcel = e.target.closest('#btnExportLightExcel');
       if (btnExcel) {
         e.preventDefault();
-        e.stopImmediatePropagation(); // หยุดการส่งต่อ Event ทันที ป้องกันเบิ้ล
-        
+        e.stopPropagation();
+
+        if (isExporting) return; // หากกำลัง Export อยู่ให้ระงับทันที
+
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
           alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
           return;
         }
-        exportToExcel(filtered);
-      }
-    });
 
-    // 4. ปุ่ม Export PDF
-    document.addEventListener('click', function (e) {
+        isExporting = true;
+        try {
+          exportToExcel(filtered);
+        } finally {
+          setTimeout(() => { isExporting = false; }, 1200); // ปลดล็อกหลัง 1.2 วินาที
+        }
+        return;
+      }
+
+      // ปุ่ม Export PDF
       const btnPdf = e.target.closest('#btnExportLightPdf');
       if (btnPdf) {
         e.preventDefault();
-        e.stopImmediatePropagation(); // หยุดการส่งต่อ Event ทันที ป้องกันเบิ้ล
-        
+        e.stopPropagation();
+
+        if (isExporting) return; // หากกำลัง Export อยู่ให้ระงับทันที
+
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
           alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
           return;
         }
-        generateOfficialPdfReport(filtered);
+
+        isExporting = true;
+        try {
+          generateOfficialPdfReport(filtered);
+        } finally {
+          setTimeout(() => { isExporting = false; }, 1500); // ปลดล็อกหลัง 1.5 วินาที
+        }
+        return;
       }
     });
   }
@@ -91,7 +113,6 @@
     updateChartWithFilter();
   }
 
-
   async function fetchLightDashboardData() {
     const tbody = document.getElementById('lightTableBody');
     try {
@@ -110,21 +131,18 @@
     }
   }
 
-
-
-
   function updateTableAndStats(list) {
     const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
-    // เพิ่มการอัปเดตไปยังหน้า Home Overview
+
     if (document.getElementById('homeStatTotal')) document.getElementById('homeStatTotal').textContent = list.length;
-    if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = fail;
 
     if (!list || list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามอาคารที่เลือก</td></tr>';
       if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = "0";
       if (document.getElementById('statPass')) document.getElementById('statPass').textContent = "0";
       if (document.getElementById('statFail')) document.getElementById('statFail').textContent = "0";
+      if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = "0";
       return;
     }
 
@@ -165,6 +183,7 @@
     if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = list.length;
     if (document.getElementById('statPass')) document.getElementById('statPass').textContent = pass;
     if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
+    if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = fail;
   }
 
   function updateChartWithFilter() {
@@ -172,7 +191,6 @@
     if (!canvas) return;
 
     const selected = getSelectedBuildings();
-    // กรองเฉพาะอาคารที่เลือกและมีในฐานข้อมูล
     const buildings = Object.keys(allBuildingStats).filter(b => selected.includes(b));
 
     const passData = buildings.map(b => allBuildingStats[b].pass);
@@ -228,7 +246,7 @@
     });
   }
 
-  // Export Excel (.csv)
+  // Export Excel (.csv) - ปรับปรุงไม่ให้ Event วนลูปกลับมา Document
   function exportToExcel(dataList) {
     const headers = [
       "ลำดับ",
@@ -276,55 +294,53 @@
     const link = document.createElement("a");
 
     const today = new Date().toISOString().slice(0, 10);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `แบบรายงานผลการตรวจวัดแสงสว่าง_${today}.csv`);
+    link.href = url;
+    link.download = `แบบรายงานผลการตรวจวัดแสงสว่าง_${today}.csv`;
+    link.style.display = "none";
+    
+    // ดักไม่ให้การคลิก element จำลองนี้ ส่ง Event ย้อนกลับไปหา Document
+    link.onclick = function(e) {
+      e.stopPropagation();
+    };
+
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    
+    setTimeout(() => {
+      if (link.parentNode) link.parentNode.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 200);
   }
 
-  // สร้างไฟล์ PDF ตามแม่แบบ .docx (จัดเลย์เอาต์ Area & Spot Measurement ครบถ้วน)
-// ฟังก์ชันสร้างหน้ารายงานทางการ A4 แนวนอน พร้อมโลโก้ และสั่งพิมพ์/บันทึก PDF ผ่าน Iframe
-  
-function generateOfficialPdfReport(dataList) {
+  // สร้างไฟล์ PDF ตามแม่แบบทางการ
+  function generateOfficialPdfReport(dataList) {
+    function formatDateTime(item) {
+      const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
+      let datePart = item.date || "";
 
-  // ฟังก์ชันจัดรูปแบบ yyyy-mm-dd / hh:mm
-  function formatDateTime(item) {
-    const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
-    let datePart = item.date || "";
-
-    // หากวันที่เป็น Timestamp หรือ ISO string ให้แปลงเป็น yyyy-mm-dd
-    if (item.timestamp && !datePart) {
-      const d = new Date(item.timestamp);
-      if (!isNaN(d.getTime())) {
-        datePart = d.toISOString().slice(0, 10);
-      }
-    } else if (datePart.includes("/")) {
-      // รองรับกรณีวันที่มาเป็น dd/mm/yyyy
-      const parts = datePart.split("/");
-      if (parts.length === 3) {
-        if (parts[2].length === 4) {
+      if (item.timestamp && !datePart) {
+        const d = new Date(item.timestamp);
+        if (!isNaN(d.getTime())) {
+          datePart = d.toISOString().slice(0, 10);
+        }
+      } else if (datePart.includes("/")) {
+        const parts = datePart.split("/");
+        if (parts.length === 3 && parts[2].length === 4) {
           datePart = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
       }
-    }
 
-    if (datePart && timePart) {
-      return `${datePart} / ${timePart}`;
-    }
+      if (datePart && timePart) {
+        return `${datePart} / ${timePart}`;
+      }
       return datePart || timePart || "-";
-  }
-  // ==============
+    }
 
     const sample = dataList[0] || {};
-    const auditDate = sample.date || new Date().toLocaleDateString('th-TH');
     const equipName = (sample.equipment && sample.equipment !== "-") ? sample.equipment : "Lux Meter (เครื่องตรวจวัดความเข้มของแสงสว่าง)";
     const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
     const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
-    const reportDate = new Date().toLocaleDateString('th-TH');
 
-    // แยกข้อมูลเป็นกลุ่ม Area และ Spot
     const areaRecords = [];
     const spotRecords = [];
 
@@ -338,15 +354,11 @@ function generateOfficialPdfReport(dataList) {
       }
     });
 
-    // 1. แถวตาราง Area Measurement
-
-// 1. แถวตาราง Area Measurement
     const areaRowsHtml = areaRecords.length > 0 ? areaRecords.map((item, idx) => {
       const isPass = item.evaluation === "ผ่าน" || 
                      (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
                      Number(item.measuredLux) >= Number(item.standardLux);
       
-      // เรียกใช้ฟังก์ชันที่แปลงรูปแบบ yyyy-mm-dd / hh:mm
       const auditTime = formatDateTime(item);
       const dept = item.department || "กองกายภาพและสิ่งแวดล้อม";
       const area = `${item.building || "-"} (ห้อง ${item.room || "-"})`;
@@ -369,13 +381,11 @@ function generateOfficialPdfReport(dataList) {
       `;
     }).join("") : '<tr><td colspan="9" style="text-align:center; color:#64748b; padding:12px;">- ไม่มีข้อมูลการตรวจวัดบนพื้นที่ในอาคารที่เลือก -</td></tr>';
 
-// 2. แถวตาราง Spot Measurement
     const spotRowsHtml = spotRecords.length > 0 ? spotRecords.map((item, idx) => {
       const isPass = item.evaluation === "ผ่าน" || 
                      (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
                      Number(item.measuredLux) >= Number(item.standardLux);
       
-      // เรียกใช้ฟังก์ชันที่แปลงรูปแบบ yyyy-mm-dd / hh:mm
       const auditTime = formatDateTime(item);
       const dept = item.department || "กองกายภาพและสิ่งแวดล้อม";
       const workerName = item.workerOrPoint || "-";
@@ -416,7 +426,6 @@ function generateOfficialPdfReport(dataList) {
           .mu-logo { width: 62px; height: 62px; object-fit: contain; }
           .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
           .sub-title { font-size: 13pt; font-weight: bold; margin-top: 2px; color: #1F5A44; }
-          .meta-info { text-align: right; font-size: 11pt; }
 
           .section-title { font-weight: bold; margin: 8px 0 4px 0; font-size: 12pt; }
           table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
@@ -436,12 +445,10 @@ function generateOfficialPdfReport(dataList) {
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
               <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
-                      </div>
+            </div>
           </div>
-
         </div>
 
-        <!-- 1. วันที่ และ 2. เครื่องมือ -->
         <div style="margin-bottom: 8px;">
           <div style="margin-top: 3px;"><strong>2. เครื่องมือที่ใช้ในการตรวจวัด:</strong></div>
           <table>
@@ -452,8 +459,7 @@ function generateOfficialPdfReport(dataList) {
                 <th>หมายเลขเครื่อง (Serial Number)</th>
                 <th>มาตรฐานเครื่องตรวจวัด</th>
                 <th>ค่าการปรับศูนย์ (Zeroing) ณ วันที่ตรวจวัด</th>
-                <th>ปี/เดือน/วัน
-                 (ปรับเทียบความถูกต้อง)</th>
+                <th>ปี/เดือน/วัน (ปรับเทียบความถูกต้อง)</th>
               </tr>
             </thead>
             <tbody>
@@ -469,7 +475,6 @@ function generateOfficialPdfReport(dataList) {
           </table>
         </div>
 
-        <!-- 3. ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างบนพื้นที่ (Area Measurement) -->
         <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างบนพื้นที่ (Area Measurement)</div>
         <table>
           <thead>
@@ -493,7 +498,6 @@ function generateOfficialPdfReport(dataList) {
           </tbody>
         </table>
 
-        <!-- หมายเหตุและลงนามของส่วน Area -->
         <div class="notes-box">
           <strong>หมายเหตุ:</strong>
           <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
@@ -514,18 +518,16 @@ function generateOfficialPdfReport(dataList) {
           </div>
         </div>
 
-        <!-- หน้าที่ 2: ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement) -->
+        <!-- หน้าที่ 2: Spot Measurement -->
         <div class="page-break"></div>
 
-        <!-- หัวเอกสาร หน้า 2 -->
         <div class="report-header">
           <div class="header-brand-group">
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
               <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
-                      </div>
+            </div>
           </div>
-
         </div>
 
         <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement)</div>
@@ -552,7 +554,6 @@ function generateOfficialPdfReport(dataList) {
           </tbody>
         </table>
 
-        <!-- หมายเหตุและลงนามของส่วน Spot -->
         <div class="notes-box">
           <strong>หมายเหตุ:</strong>
           <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
@@ -577,22 +578,24 @@ function generateOfficialPdfReport(dataList) {
       </html>
     `;
 
-    // สั่ง Print ผ่าน Hidden Iframe
-    let printFrame = document.getElementById('pdfPrintFrame');
-    if (!printFrame) {
-      printFrame = document.createElement('iframe');
-      printFrame.id = 'pdfPrintFrame';
-      printFrame.style.position = 'fixed';
-      printFrame.style.right = '0';
-      printFrame.style.bottom = '0';
-      printFrame.style.width = '0';
-      printFrame.style.height = '0';
-      printFrame.style.border = '0';
-      document.body.appendChild(printFrame);
+    // ล้าง iframe เก่าทิ้งก่อนสร้างใหม่เสมอ
+    let oldFrame = document.getElementById('pdfPrintFrame');
+    if (oldFrame && oldFrame.parentNode) {
+      oldFrame.parentNode.removeChild(oldFrame);
     }
 
-    const frameDoc = printFrame.contentWindow || printFrame.contentDocument;
+    const printFrame = document.createElement('iframe');
+    printFrame.id = 'pdfPrintFrame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
     const doc = printFrame.contentDocument || printFrame.contentWindow.document;
+    const frameDoc = printFrame.contentWindow || printFrame.contentDocument;
 
     doc.open();
     doc.write(reportHtml);

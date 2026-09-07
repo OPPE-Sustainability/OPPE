@@ -7,16 +7,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OPPE Sustainability Dashboard</title>
+  <title>OPPE-Notifications | Mahidol EHS Monitoring</title>
   
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1F5A44">
+  <meta name="theme-color" content="#1769E0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   
-  <!-- โหลดฟอนต์ Plus Jakarta Sans และ JetBrains Mono ตามสเปกดีไซน์ -->
+  <!-- Typography: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/aqi-view.css">
@@ -27,75 +27,200 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
+  <div id="app" class="app-layout">
+    <!-- Desktop Sidebar Navigation -->
+    <aside id="desktopSidebar" class="app-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge">EHS Portal</div>
+        <h1 class="brand-name">OPPE-Notifications</h1>
+        <p class="brand-sub">กองกายภาพและสิ่งแวดล้อม ม.มหิดล</p>
+      </div>
 
-  <!-- ปุ่ม FAB เปิดเมนูมุมขวาล่าง -->
-  <button id="menuToggle" class="fab-menu" aria-label="เปิดเมนูนำทาง">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="4" y1="7" x2="20" y2="7"></line>
-      <line x1="4" y1="12" x2="20" y2="12"></line>
-      <line x1="4" y1="17" x2="20" y2="17"></line>
-    </svg>
-  </button>
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-item active" data-page="home">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+          <span>ภาพรวมระบบ (Home)</span>
+        </button>
+        <button type="button" class="nav-item" data-page="air">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+          <span>คุณภาพอากาศ (AQI)</span>
+        </button>
+        <button type="button" class="nav-item" data-page="light">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+          <span>ตรวจวัดแสงสว่าง (ISO)</span>
+        </button>
+        <button type="button" class="nav-item" data-page="notifications">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span>แจ้งเตือน & ข้อความ</span>
+        </button>
+      </nav>
 
-  <!-- ม่านหลังและ Sidebar Menu Drawer -->
-  <div id="sidebarOverlay" class="sidebar-overlay"></div>
-  <aside id="sidebarMenu" class="sidebar">
-    <div class="sidebar-header">
-      <span class="brand-badge">EHS & Sustainability</span>
-      <h2>OPPE Portal</h2>
-      <p>กองกายภาพและสิ่งแวดล้อม ม.มหิดล</p>
-    </div>
-    <nav class="sidebar-nav">
-      <button class="tab-btn active" data-index="0" data-view="view-air">
-        <span class="btn-dot"></span> คุณภาพอากาศและสภาพแวดล้อม
-      </button>
-      <button class="tab-btn" data-index="1" data-view="view-light">
-        <span class="btn-dot"></span> ตรวจวัดแสงสว่าง (ISO 45001)
-      </button>
-    </nav>
-  </aside>
+      <div class="sidebar-footer">
+        <span class="status-indicator-dot online"></span>
+        <span class="system-status-text">Serverless Realtime Active</span>
+      </div>
+    </aside>
 
-  <!-- พื้นที่สไลด์แนวตั้ง (Vertical Slide Carousel) -->
-  <main class="main-viewport">
-    <div class="vertical-track" id="verticalTrack">
-      
-      <!-- View 1: ข้อมูลคุณภาพอากาศ -->
-      <section id="view-air" class="view-panel">
-        <div class="panel-content">
-          <div id="view-header"></div>
+    <div class="app-main">
+      <!-- Global Topbar Header -->
+      <header id="topbar" class="app-topbar"></header>
+
+      <!-- Main Dynamic Content (Natural Scrolling) -->
+      <main id="appContent" class="app-content">
+        <!-- Page: Home Overview -->
+        <section id="page-home" class="page-view active">
+          <div class="page-header">
+            <div>
+              <h2 class="page-title">ภาพรวมระบบ EHS วันนี้</h2>
+              <p class="page-subtitle">มหาวิทยาลัยมหิดล ศาลายา • ติดตามแบบเรียลไทม์</p>
+            </div>
+          </div>
+
+          <div class="overview-grid">
+            <div class="kpi-card" onclick="window.navigateTo('air')">
+              <span class="kpi-label">AQI ศาลายา</span>
+              <div class="kpi-value" id="homeValAqi">--</div>
+              <span class="status-tag" id="homeLblStatus">กำลังโหลด...</span>
+            </div>
+            <div class="kpi-card" onclick="window.navigateTo('air')">
+              <span class="kpi-label">PM2.5 ปัจจุบัน</span>
+              <div class="kpi-value" id="homeValPm25">--</div>
+              <span class="kpi-unit">µg/m³</span>
+            </div>
+            <div class="kpi-card" onclick="window.navigateTo('light')">
+              <span class="kpi-label">จุดตรวจแสงสะสม</span>
+              <div class="kpi-value" id="homeStatTotal">--</div>
+              <span class="kpi-unit">จุดตรวจ</span>
+            </div>
+            <div class="kpi-card border-danger" onclick="window.navigateTo('light')">
+              <span class="kpi-label">ต้องปรับปรุงแสง</span>
+              <div class="kpi-value text-danger" id="homeStatFail">--</div>
+              <span class="kpi-unit">จุดเสี่ยง</span>
+            </div>
+          </div>
+
+          <div class="service-actions-grid">
+            <div class="service-card" onclick="window.navigateTo('air')">
+              <div class="service-icon">🌿</div>
+              <div class="service-info">
+                <h3>ระบบติดตามคุณภาพอากาศ</h3>
+                <p>รายงานกราฟแนวโน้มมลพิษย้อนหลัง 24 ชม. และคำแนะนำสุขภาพ</p>
+              </div>
+              <span class="service-arrow">→</span>
+            </div>
+            <div class="service-card" onclick="window.navigateTo('light')">
+              <div class="service-icon">💡</div>
+              <div class="service-info">
+                <h3>ระบบตรวจประเมินความเข้มแสงสว่าง</h3>
+                <p>การตรวจติดตาม ISO 45001 / 14001 และส่งออกรายงานทางราชการ</p>
+              </div>
+              <span class="service-arrow">→</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Page: Air Quality -->
+        <section id="page-air" class="page-view">
           <div id="view-aqi"></div>
-        </div>
-      </section>
+        </section>
 
-      <!-- View 2: ระบบตรวจวัดแสงสว่าง -->
-      <section id="view-light" class="view-panel">
-        <div class="panel-content">
+        <!-- Page: Illumination -->
+        <section id="page-light" class="page-view">
           <div id="view-light-page"></div>
-        </div>
-      </section>
+        </section>
 
+        <!-- Page: Notification Center -->
+        <section id="page-notifications" class="page-view">
+          <div class="page-header">
+            <h2 class="page-title">ศูนย์จัดการการแจ้งเตือน (Notifications)</h2>
+            <p class="page-subtitle">ลงทะเบียนรับ Push Notification สรุปสภาพแวดล้อมประจำวัน</p>
+          </div>
+          <div class="card-surface" id="notificationCenterMount">
+            <!-- ย้ายฟอร์มสมัครแจ้งเตือนมาแสดงเต็มรูปแบบที่นี่ -->
+          </div>
+        </section>
+      </main>
+
+      <!-- Mobile Bottom Navigation Bar -->
+      <nav id="mobileBottomNav" class="mobile-bottom-nav">
+        <button type="button" class="bottom-nav-item active" data-page="home">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+          <span>หน้าหลัก</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="air">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+          <span>อากาศ</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="light">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"></path></svg>
+          <span>ตรวจวัดแสง</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="notifications">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span>แจ้งเตือน</span>
+        </button>
+      </nav>
     </div>
-  </main>
+  </div>
 
-  <script>
+
+<script>
     async function loadComponent(elementId, filePath) {
       try {
         const res = await fetch(filePath);
-        if (!res.ok) throw new Error(`HTTP error on ${filePath}`);
-        document.getElementById(elementId).innerHTML = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status} on ${filePath}`);
+        const html = await res.text();
+        const el = document.getElementById(elementId);
+        if (el) el.innerHTML = html;
       } catch (e) {
-        console.error("Load error:", e);
+        console.error("Load component error:", e);
       }
     }
 
+    // State Navigation Controller
+    window.navigateTo = function(pageId) {
+      // 1. ซ่อนทุกหน้า แล้วเปิดเฉพาะหน้าที่เลือก
+      document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+      const targetPage = document.getElementById(`page-${pageId}`);
+      if (targetPage) targetPage.classList.add('active');
+
+      // 2. สลับสถานะปุ่มเมนู
+      document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-page') === pageId);
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // 3. จัดการเรนเดอร์กราฟตรวจวัดแสงเมื่อเปิดเข้าหน้านี้
+      if (pageId === 'light' && typeof window.initLightDashboard === 'function') {
+        setTimeout(() => {
+          window.initLightDashboard();
+        }, 150);
+      }
+    };
+
     async function initApp() {
+      // 1. โหลดคอมโพเนนต์ HTML ให้ครบถ้วนก่อน
       await Promise.all([
-        loadComponent('view-header', 'components/header.html'),
+        loadComponent('topbar', 'components/header.html'),
         loadComponent('view-aqi', 'components/aqi-summary.html'),
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      const scripts = ['js/carousel.js', 'js/aqi-chart.js', 'js/push-notify.js', 'js/light-data.js'];
+      // 2. Clone ฟอร์มแจ้งเตือนไปไว้ในหน้า Notification Center
+      const formOriginal = document.getElementById('subscribeCardWrapper');
+      const notifMount = document.getElementById('notificationCenterMount');
+      if (formOriginal && notifMount) {
+        notifMount.innerHTML = formOriginal.innerHTML;
+      }
+
+      // 3. โหลด JavaScript Logic
+      const scripts = [
+        'js/aqi-chart.js',
+        'js/push-notify.js',
+        'js/light-data.js'
+      ];
+
       for (const src of scripts) {
         await new Promise((resolve) => {
           const s = document.createElement('script');
@@ -105,153 +230,109 @@
         });
       }
 
-      if (typeof window.initCarousel === 'function') window.initCarousel();
+      // 4. ติดตั้ง Event คลิกนำทาง
+      document.querySelectorAll('[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          window.navigateTo(btn.getAttribute('data-page'));
+        });
+      });
 
+      // 5. รันการดึงข้อมูลทั้งสองระบบทันทีตั้งแต่เริ่มโหลด
       const GAS_WEBAPP_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
       if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
-
-      setupVerticalNavigation();
-    }
-
-    function setupVerticalNavigation() {
-      const navButtons = document.querySelectorAll('.tab-btn');
-      const verticalTrack = document.getElementById('verticalTrack');
-      const menuToggle = document.getElementById('menuToggle');
-      const sidebarMenu = document.getElementById('sidebarMenu');
-      const overlay = document.getElementById('sidebarOverlay');
-
-      function toggleMenu() {
-        sidebarMenu.classList.toggle('open');
-        overlay.classList.toggle('active');
-      }
-
-      menuToggle.addEventListener('click', toggleMenu);
-      overlay.addEventListener('click', toggleMenu);
-
-      navButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const index = btn.getAttribute('data-index');
-          const targetViewId = btn.getAttribute('data-view');
-
-          verticalTrack.style.transform = `translateY(-${index * 100}dvh)`;
-
-          navButtons.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          toggleMenu();
-
-          if (targetViewId === 'view-light' && typeof window.initLightDashboard === 'function') {
-            setTimeout(() => { window.initLightDashboard(); }, 600);
-          }
-        });
-      });
+      if (typeof window.initLightDashboard === 'function') window.initLightDashboard();
     }
 
     window.addEventListener('DOMContentLoaded', initApp);
   </script>
+
+
 </body>
 </html>
 
 ===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\aqi-summary.html =====
 
 <!-- components/aqi-summary.html -->
-<!-- Real-time Status Card -->
-<div class="hero-card">
-  <div class="metric-item">
-    <span class="title">AQI ปัจจุบัน</span>
-    <span class="val" id="valAqi">--</span>
-    <div class="aqi-pill" id="lblStatus">กำลังโหลด...</div>
+<div class="air-view-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <h2 class="page-title">รายงานสถานการณ์คุณภาพอากาศ</h2>
+    <p class="page-subtitle">สถานีตรวจวัดกองกายภาพและสิ่งแวดล้อม ศาลายา</p>
   </div>
-  <div class="metric-item">
-    <span class="title">PM2.5</span>
-    <span class="val" id="valPm25">--</span>
-    <span class="unit">µg/m³</span>
-  </div>
-  <div class="metric-item">
-    <span class="title">PM10</span>
-    <span class="val" id="valPm10">--</span>
-    <span class="unit">µg/m³</span>
-  </div>
-</div>
 
-<!-- Carousel Section แบบแยกการ์ดอิสระ -->
-<div class="carousel-viewport" id="carouselContainer">
-  <div class="carousel-track" id="carouselTrack">
-    
-    <!-- Slide 1: กราฟแนวโน้ม 24 ชั่วโมง (การ์ดเฉพาะส่วนกราฟ) -->
-    <div class="carousel-slide" id="slide1">
-      <div class="slide-card">
-        <div class="slide-header">
-          <div>
-            <span class="slide-title">แนวโน้มคุณภาพอากาศย้อนหลัง 24 ชม.</span>
-            <span class="slide-sub">สถานีตรวจวัด มหาวิทยาลัยมหิดล ศาลายา</span>
-          </div>
-          <span class="swipe-hint">ปัดเพื่อรับแจ้งเตือน →</span>
-        </div>
-        <div class="chart-wrapper">
-          <canvas id="aqiChart"></canvas>
-        </div>
+  <!-- 1. Air Status Hero Card -->
+  <div class="card-surface hero-status-card">
+    <div class="metric-block aqi-main">
+      <span class="metric-caption">AQI ปัจจุบัน</span>
+      <span class="metric-number" id="valAqi">--</span>
+      <span class="status-badge" id="lblStatus">กำลังโหลด...</span>
+    </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="metric-block">
+      <span class="metric-caption">PM2.5</span>
+      <span class="metric-number-sub" id="valPm25">--</span>
+      <span class="metric-unit">µg/m³</span>
+    </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="metric-block">
+      <span class="metric-caption">PM10</span>
+      <span class="metric-number-sub" id="valPm10">--</span>
+      <span class="metric-unit">µg/m³</span>
+    </div>
+  </div>
+
+  <!-- 2. Air Quality 24h Trend Card -->
+  <div class="card-surface trend-card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">แนวโน้มค่าฝุ่นย้อนหลัง 24 ชั่วโมง</h3>
+        <span class="card-subtitle">เปรียบเทียบแนวโน้มดัชนี AQI และ PM2.5 แบบรายชั่วโมง</span>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="aqiChart"></canvas>
+    </div>
+  </div>
+
+  <!-- 3. Notification Subscription Card -->
+  <div class="card-surface subscription-card" id="subscribeCardWrapper">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">รับการแจ้งเตือนสภาพอากาศรายวัน</h3>
+        <span class="card-subtitle">สรุปสถานการณ์ PM2.5 และแจ้งเตือนล่วงหน้าเข้าอุปกรณ์ของคุณทุกเช้า</span>
       </div>
     </div>
 
-    <!-- Slide 2: ฟอร์มสมัครรับการแจ้งเตือนรายวัน (การ์ดเฉพาะส่วนฟอร์ม) -->
-    <div class="carousel-slide" id="slide2">
-      <div class="slide-card">
-        <div class="slide-header">
-          <div>
-            <span class="slide-title">รับการแจ้งเตือนค่าฝุ่นรายวัน</span>
-            <span class="slide-sub">สรุปสถานการณ์ PM2.5 และ AQI เข้ามือถือทุกเช้า</span>
-          </div>
-          <span class="swipe-hint">← ปัดเพื่อดูกราฟ</span>
+    <div class="guide-grid">
+      <div class="guide-card android">
+        <div class="guide-head">
+          <span class="platform-badge">Android</span>
+          <span>Google Chrome</span>
         </div>
+        <p class="guide-text">เปิดผ่าน Chrome → กรอกอีเมลด้านล่าง → กดเปิดแจ้งเตือน → กด <strong>"อนุญาต" (Allow)</strong></p>
+      </div>
 
-        <div class="form-wrapper">
-          <div class="guide-grid">
-            <!-- ฝั่ง Android -->
-            <div class="guide-card android">
-              <div class="guide-title">
-                <span class="os-tag">Android</span>
-                <span>แอป Chrome</span>
-              </div>
-              <ol class="guide-steps">
-                <li>เปิดเว็บผ่านแอป <strong>Chrome</strong></li>
-                <li>กรอกอีเมลด้านล่าง แล้วกดปุ่ม <strong>"เปิดรับการแจ้งเตือน"</strong></li>
-                <li>เมื่อมีป๊อปอัปขึ้นมา ให้กด <strong>"อนุญาต" (Allow)</strong></li>
-              </ol>
-            </div>
-
-            <!-- ฝั่ง iOS -->
-            <div class="guide-card ios">
-              <div class="guide-title">
-                <span class="os-tag">iOS / iPhone</span>
-                <span>Safari (iOS 16.4+)</span>
-              </div>
-              <ol class="guide-steps">
-                <li>เปิดเว็บด้วยแอป <strong>Safari</strong></li>
-                <li>กดปุ่มแชร์ แล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong></li>
-                <li>เปิดแอปจากไอคอนบนหน้าจอโฮม แล้วกดปุ่มเปิดรับแจ้งเตือน</li>
-              </ol>
-            </div>
-          </div>
-
-          <!-- ฟอร์มกรอกอีเมล -->
-          <form id="subscribeForm" onsubmit="return false;">
-            <div class="input-action-group">
-              <input type="email" id="userEmail" class="email-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
-              <button type="submit" class="btn-sub" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
-            </div>
-          </form>
-          <div id="status-msg"></div>
+      <div class="guide-card ios">
+        <div class="guide-head">
+          <span class="platform-badge">iOS / iPhone</span>
+          <span>Safari (iOS 16.4+)</span>
         </div>
+        <p class="guide-text">กดปุ่มแชร์ → เลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong> → เปิดแอปจากหน้าจอหลักแล้วกดยืนยัน</p>
       </div>
     </div>
 
-  </div>
-
-  <!-- Indicator Dots ลอยด้านล่าง -->
-  <div class="carousel-footer">
-    <div class="dot active" data-index="0"></div>
-    <div class="dot" data-index="1"></div>
+    <form id="subscribeForm" class="subscribe-form" onsubmit="return false;">
+      <div class="form-input-group">
+        <input type="email" id="userEmail" class="text-input" placeholder="กรอกอีเมลของคุณ (เช่น user@mahidol.edu)" required>
+        <button type="submit" class="btn-primary" id="subscribeBtn">เปิดรับการแจ้งเตือน</button>
+      </div>
+    </form>
+    <div id="status-msg"></div>
   </div>
 </div>
 
@@ -296,9 +377,29 @@
 ===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\header.html =====
 
 <!-- components/header.html -->
-<div class="header-card">
-  <h1>🌿 Mahidol Air Quality Index</h1>
-  <p>ระบบตรวจวัดคุณภาพอากาศ มหาวิทยาลัยมหิดล ศาลายา</p>
+<div class="topbar-content">
+  <div class="topbar-left">
+    <div class="mobile-logo-group">
+      <img src="icon-192.png" alt="OPPE Logo" class="topbar-logo" onerror="this.style.display='none'">
+      <div>
+        <h2 class="topbar-title">OPPE-Notifications</h2>
+        <span class="topbar-sub">EHS & Sustainability Management Platform</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="network-badge">
+      <span class="status-indicator-dot online"></span>
+      <span class="network-text">Mahidol Net</span>
+    </div>
+    <button type="button" class="btn-icon" onclick="window.navigateTo('notifications')" aria-label="Notification Center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </svg>
+    </button>
+  </div>
 </div>
 
 ===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-modal.html =====
@@ -362,116 +463,86 @@
 <!-- components/light-page.html -->
 <div class="light-dashboard-container">
   
-  <div class="dashboard-banner">
-    <div class="banner-title-group">
-      <span class="iso-pill">ISO 45001 : 2018 / ISO 14001 : 2015</span>
-      <h2>ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
-      <p>รายงานผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
+  <div class="page-header flex-between">
+    <div>
+      <div class="tag-iso">ISO 45001 : 2018 / ISO 14001 : 2015</div>
+      <h2 class="page-title">ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
+      <p class="page-subtitle">รายงานผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
     </div>
     <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec" 
        target="_blank" 
        rel="noopener" 
-       class="btn-open-form">
-      แบบบันทึกข้อมูลภาคสนาม
+       class="btn-outline">
+      เปิดแบบบันทึกภาคสนาม
     </a>
   </div>
 
-  <!-- แผงเลือกอาคาร (Building Filter Panel) -->
-  <div class="filter-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 16px;">🏢</span>
-        <strong style="font-size: 14px; color: #1e293b;">เลือกอาคารที่ต้องการแสดงผลและออกรายงาน:</strong>
+  <!-- Building Filter Card -->
+  <div class="card-surface filter-card">
+    <div class="filter-header">
+      <div class="filter-title">
+        <span>🏢 เลือกอาคารเพื่อกรองข้อมูลและออกรายงาน:</span>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button id="btnSelectAllBuildings" type="button" style="padding: 4px 10px; font-size: 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #334155; font-weight: 500;">เลือกทั้งหมด</button>
-        <button id="btnDeselectAllBuildings" type="button" style="padding: 4px 10px; font-size: 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; color: #334155; font-weight: 500;">ล้างตัวเลือก</button>
+      <div class="filter-actions">
+        <button id="btnSelectAllBuildings" type="button" class="btn-text">เลือกทั้งหมด</button>
+        <button id="btnDeselectAllBuildings" type="button" class="btn-text">ล้างตัวเลือก</button>
       </div>
     </div>
     
-    <div id="buildingCheckboxGroup" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 12px;">
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="อาคารศาลายา" checked style="accent-color: #1F5A44;"> อาคารศาลายา
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="อาคารเพาะชำ" checked style="accent-color: #1F5A44;"> อาคารเพาะชำ
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="อาคารภูมิทัศน์และสิ่งแวดล้อม" checked style="accent-color: #1F5A44;"> อาคารภูมิทัศน์ฯ
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="อาคารอเนกประสงค์" checked style="accent-color: #1F5A44;"> อาคารอเนกประสงค์
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="สถานีไฟฟ้าย่อย" checked style="accent-color: #1F5A44;"> สถานีไฟฟ้าย่อย
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="อาคารระบบบำบัดน้ำเสียรวม" checked style="accent-color: #1F5A44;"> ระบบบำบัดน้ำเสียรวม
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="ศูนย์การเรียนรู้มหิดล" checked style="accent-color: #1F5A44;"> ศูนย์การเรียนรู้มหิดล
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="อาคารสิริวิทยา" checked style="accent-color: #1F5A44;"> อาคารสิริวิทยา
-      </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer;">
-        <input type="checkbox" class="bld-checkbox" value="มหิดลสิทธาคาร" checked style="accent-color: #1F5A44;"> มหิดลสิทธาคาร
-      </label>
+    <div id="buildingCheckboxGroup" class="checkbox-grid">
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารศาลายา" checked> อาคารศาลายา</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารเพาะชำ" checked> อาคารเพาะชำ</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารภูมิทัศน์และสิ่งแวดล้อม" checked> อาคารภูมิทัศน์ฯ</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารอเนกประสงค์" checked> อาคารอเนกประสงค์</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="สถานีไฟฟ้าย่อย" checked> สถานีไฟฟ้าย่อย</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารระบบบำบัดน้ำเสียรวม" checked> ระบบบำบัดน้ำเสียรวม</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="ศูนย์การเรียนรู้มหิดล" checked> ศูนย์การเรียนรู้มหิดล</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารสิริวิทยา" checked> อาคารสิริวิทยา</label>
+      <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="มหิดลสิทธาคาร" checked> มหิดลสิทธาคาร</label>
     </div>
   </div>
 
-  <!-- แผงสถิติภาพรวม รวมอยู่ในการ์ดเดียวแบ่ง 3 คอลัมน์ -->
-  <div class="light-summary-card">
+  <!-- Unified KPI Card (3 Columns) -->
+  <div class="card-surface light-summary-card">
     <div class="summary-metric">
       <span class="metric-title">จุดตรวจสะสม</span>
       <span class="metric-num" id="statTotal">--</span>
       <span class="metric-sub">จุดตรวจที่เลือก</span>
     </div>
-    
     <div class="metric-divider"></div>
-
     <div class="summary-metric">
       <span class="metric-title">ผ่านเกณฑ์</span>
-      <span class="metric-num text-pass" id="statPass">--</span>
+      <span class="metric-num text-success" id="statPass">--</span>
       <span class="status-pill pass">ปลอดภัย</span>
     </div>
-
     <div class="metric-divider"></div>
-
     <div class="summary-metric">
       <span class="metric-title">ต้องปรับปรุง</span>
-      <span class="metric-num text-fail" id="statFail">--</span>
+      <span class="metric-num text-danger" id="statFail">--</span>
       <span class="status-pill fail">ปรับปรุง</span>
     </div>
   </div>
 
-  <div class="dashboard-content-grid">
-    <div class="dash-card chart-card">
-      <div class="dash-card-header">
-        <h3>สรุปผลการประเมินแยกตามอาคาร</h3>
+  <!-- Analytics Grid -->
+  <div class="dashboard-grid">
+    <div class="card-surface chart-card">
+      <div class="card-header">
+        <h3 class="card-title">สรุปผลการประเมินแยกตามอาคาร</h3>
       </div>
       <div class="dash-chart-wrapper">
         <canvas id="buildingLightChart"></canvas>
       </div>
     </div>
 
-    <div class="dash-card table-card">
-      <div class="dash-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <h3>บันทึกผลการตรวจวัดล่าสุด</h3>
-        <div style="display: flex; gap: 8px;">
-          <!-- ปุ่ม Export Excel -->
-          <button id="btnExportLightExcel" type="button" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background-color: #0f766e; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
-            📊 Export Excel (.csv)
+    <div class="card-surface table-card">
+      <div class="card-header flex-between">
+        <h3 class="card-title">บันทึกผลการตรวจวัดล่าสุด</h3>
+        <div class="report-actions">
+          <button id="btnExportLightExcel" type="button" class="btn-sm btn-excel">
+            Export CSV
           </button>
-
-          <!-- ปุ่ม Export PDF -->
-          <button id="btnExportLightPdf" type="button" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background-color: #1F5A44; color: #ffffff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Export PDF
+          <button id="btnExportLightPdf" type="button" class="btn-sm btn-pdf">
+            Export PDF (ทางการ)
           </button>
         </div>
       </div>
@@ -546,8 +617,8 @@ function renderAqiChart(historyData) {
         {
           label: 'AQI',
           data: aqiPoints,
-          borderColor: '#1F5A44',                     /* Hijau Songkok */
-          backgroundColor: 'rgba(31, 90, 68, 0.08)',
+          borderColor: '#1769E0',                     /* Modern University Blue */
+          backgroundColor: 'rgba(23, 105, 224, 0.08)',
           fill: true,
           tension: 0.35,
           pointRadius: 2.5
@@ -555,7 +626,7 @@ function renderAqiChart(historyData) {
         {
           label: 'PM2.5 (µg/m³)',
           data: pm25Points,
-          borderColor: '#F2A93B',                     /* Kuning Maghrib */
+          borderColor: '#F59E0B',                     /* Amber Warning */
           borderDash: [4, 4],
           fill: false,
           tension: 0.35,
@@ -573,13 +644,13 @@ function renderAqiChart(historyData) {
       plugins: { 
         legend: { 
           position: 'bottom',
-          labels: { boxWidth: 12, font: { size: 11 } }
+          labels: { boxWidth: 12, font: { size: 11, family: 'Plus Jakarta Sans' } }
         } 
       },
       scales: { 
         y: { 
           beginAtZero: true,
-          grid: { color: 'rgba(0, 0, 0, 0.05)' }
+          grid: { color: 'rgba(0, 0, 0, 0.04)' }
         },
         x: {
           grid: { display: false },
@@ -606,38 +677,57 @@ async function loadAirData(gasUrl) {
     const pm25Val = Number(latest.PM_25).toFixed(1);
     const pm10Val = Number(latest.PM_10).toFixed(1);
 
-    document.getElementById('valAqi').textContent = aqiVal;
-    document.getElementById('valPm25').textContent = pm25Val;
-    document.getElementById('valPm10').textContent = pm10Val;
+    // อัปเดตในหน้า AQI Detail
+    if (document.getElementById('valAqi')) document.getElementById('valAqi').textContent = aqiVal;
+    if (document.getElementById('valPm25')) document.getElementById('valPm25').textContent = pm25Val;
+    if (document.getElementById('valPm10')) document.getElementById('valPm10').textContent = pm10Val;
 
-    const aqiPill = document.getElementById('lblStatus');
+    // อัปเดตไปยังหน้า Home Overview
+    if (document.getElementById('homeValAqi')) document.getElementById('homeValAqi').textContent = aqiVal;
+    if (document.getElementById('homeValPm25')) document.getElementById('homeValPm25').textContent = pm25Val;
+
+    // ประเมินสีและข้อความสถานะตามเกณฑ์เดิม
+    let statusText = "";
+    let statusBg = "";
+    let statusColor = "";
+
     if (aqiVal <= 25) {
-      aqiPill.textContent = "อากาศดีมาก";
-      aqiPill.style.background = "#E8F5E9";
-      aqiPill.style.color = "#2E7D32";
+      statusText = "อากาศดีมาก";
+      statusBg = "#DCFCE7";
+      statusColor = "#16A34A";
     } else if (aqiVal <= 50) {
-      aqiPill.textContent = "อากาศดี";
-      aqiPill.style.background = "#E8F5E9";
-      aqiPill.style.color = "#2E7D32";
+      statusText = "อากาศดี";
+      statusBg = "#DCFCE7";
+      statusColor = "#16A34A";
     } else if (aqiVal <= 100) {
-      aqiPill.textContent = "ปานกลาง";
-      aqiPill.style.background = "#FFFDE7";
-      aqiPill.style.color = "#F57F17";
+      statusText = "ปานกลาง";
+      statusBg = "#FEF9C3";
+      statusColor = "#CA8A04";
     } else if (aqiVal <= 200) {
-      aqiPill.textContent = "เริ่มมีผลกระทบ";
-      aqiPill.style.background = "#FFF3E0";
-      aqiPill.style.color = "#E65100";
+      statusText = "เริ่มมีผลกระทบ";
+      statusBg = "#FFEDD5";
+      statusColor = "#EA580C";
     } else {
-      aqiPill.textContent = "มีผลกระทบต่อสุขภาพ";
-      aqiPill.style.background = "#FFEBEE";
-      aqiPill.style.color = "#C62828";
+      statusText = "มีผลกระทบต่อสุขภาพ";
+      statusBg = "#FEE2E2";
+      statusColor = "#DC2626";
     }
+
+    const setStatusStyle = (el) => {
+      if (!el) return;
+      el.textContent = statusText;
+      el.style.background = statusBg;
+      el.style.color = statusColor;
+    };
+
+    setStatusStyle(document.getElementById('lblStatus'));
+    setStatusStyle(document.getElementById('homeLblStatus'));
 
     renderAqiChart(data);
 
   } catch (error) {
     console.error("ดึงข้อมูลจาก Google Sheets ล้มเหลว:", error);
-    document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
+    if (document.getElementById('lblStatus')) document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
   }
 }
 
@@ -765,16 +855,20 @@ async function loadAirData(gasUrl) {
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
   let buildingChartInstance = null;
-  let allLightRecords = []; // ข้อมูลทั้งหมดจาก Sheet
-  let allBuildingStats = {}; // สถิติภาพรวมจาก Sheet
+  let allLightRecords = []; 
+  let allBuildingStats = {}; 
+  let isEventsBound = false; // ตัวแปรป้องกันการผูก Event Listener ซ้ำ
 
   window.initLightDashboard = function () {
     fetchLightDashboardData();
     bindFilterEvents();
   };
 
-  // ดักจับ Event ปุ่มกรองอาคาร และปุ่ม Export
   function bindFilterEvents() {
+    // หากเคย Bind Event ไปแล้ว ให้ข้ามทันทีเพื่อไม่ให้ Event ซ้อนกัน
+    if (isEventsBound) return;
+    isEventsBound = true;
+
     // 1. ติ๊ก Checkbox รายอาคาร
     document.addEventListener('change', function (e) {
       if (e.target.classList.contains('bld-checkbox')) {
@@ -782,7 +876,7 @@ async function loadAirData(gasUrl) {
       }
     });
 
-    // 2. ปุ่มเลือกทั้งหมด
+    // 2. ปุ่มเลือกทั้งหมด / ล้างตัวเลือก
     document.addEventListener('click', function (e) {
       if (e.target.id === 'btnSelectAllBuildings') {
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = true);
@@ -798,6 +892,8 @@ async function loadAirData(gasUrl) {
       const btnExcel = e.target.closest('#btnExportLightExcel');
       if (btnExcel) {
         e.preventDefault();
+        e.stopImmediatePropagation(); // หยุดการส่งต่อ Event ทันที ป้องกันเบิ้ล
+        
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
           alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
@@ -807,11 +903,13 @@ async function loadAirData(gasUrl) {
       }
     });
 
-    // 4. ปุ่ม Export PDF (ตามแบบฟอร์มทางการ .docx)
+    // 4. ปุ่ม Export PDF
     document.addEventListener('click', function (e) {
       const btnPdf = e.target.closest('#btnExportLightPdf');
       if (btnPdf) {
         e.preventDefault();
+        e.stopImmediatePropagation(); // หยุดการส่งต่อ Event ทันที ป้องกันเบิ้ล
+        
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
           alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
@@ -845,10 +943,10 @@ async function loadAirData(gasUrl) {
     updateChartWithFilter();
   }
 
+
   async function fetchLightDashboardData() {
     const tbody = document.getElementById('lightTableBody');
     try {
-      // ดึงทั้งข้อมูลตารางและสถิติกราฟพร้อมกัน
       const [summaryRes, statsRes] = await Promise.all([
         fetch(`${LIGHT_API_URL}?action=getLightSummary`),
         fetch(`${LIGHT_API_URL}?action=getBuildingStats`)
@@ -859,13 +957,20 @@ async function loadAirData(gasUrl) {
 
       applyBuildingFilter();
     } catch (err) {
+      console.error("Fetch light data error:", err);
       if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ</td></tr>';
     }
   }
 
+
+
+
   function updateTableAndStats(list) {
     const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
+    // เพิ่มการอัปเดตไปยังหน้า Home Overview
+    if (document.getElementById('homeStatTotal')) document.getElementById('homeStatTotal').textContent = list.length;
+    if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = fail;
 
     if (!list || list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามอาคารที่เลือก</td></tr>';

@@ -1,12 +1,18 @@
 <!-- components/aqi-summary.html -->
 <div class="air-view-container">
-  <!-- Page Header -->
-  <div class="page-header">
-    <h2 class="page-title">รายงานสถานการณ์คุณภาพอากาศ</h2>
-    <p class="page-subtitle">สถานีตรวจวัดกองกายภาพและสิ่งแวดล้อม ศาลายา</p>
+  <!-- Page Header พร้อมเวลาอัปเดตล่าสุด -->
+  <div class="page-header flex-between">
+    <div>
+      <h2 class="page-title">รายงานสถานการณ์คุณภาพอากาศ</h2>
+      <p class="page-subtitle">สถานีตรวจวัดกองกายภาพและสิ่งแวดล้อม ศาลายา</p>
+    </div>
+    <div class="last-updated-badge">
+      <span class="pulse-dot"></span>
+      <span>อัปเดตล่าสุด: <strong id="lastUpdatedTime">กำลังโหลด...</strong></span>
+    </div>
   </div>
 
-  <!-- 1. Air Status Hero Card -->
+  <!-- 1. Air Status Hero Card (แสดงผลตัวแปรจริงตามชีต) -->
   <div class="card-surface hero-status-card">
     <div class="metric-block aqi-main">
       <span class="metric-caption">AQI ปัจจุบัน</span>
@@ -29,6 +35,14 @@
       <span class="metric-number-sub" id="valPm10">--</span>
       <span class="metric-unit">µg/m³</span>
     </div>
+
+    <div class="metric-divider"></div>
+
+    <div class="metric-block">
+      <span class="metric-caption">มลพิษหลัก (Main)</span>
+      <span class="metric-number-sub" id="valMainPollutant" style="font-size: 20px;">--</span>
+      <span class="metric-unit" id="valO3">O3: --</span>
+    </div>
   </div>
 
   <!-- 2. Air Quality 24h Trend Card -->
@@ -36,7 +50,7 @@
     <div class="card-header">
       <div>
         <h3 class="card-title">แนวโน้มค่าฝุ่นย้อนหลัง 24 ชั่วโมง</h3>
-        <span class="card-subtitle">เปรียบเทียบแนวโน้มดัชนี AQI และ PM2.5 แบบรายชั่วโมง</span>
+        <span class="card-subtitle">เปรียบเทียบแนวโน้มดัชนี AQI, PM2.5 และ PM10 รายชั่วโมง</span>
       </div>
     </div>
     <div class="chart-wrapper">
