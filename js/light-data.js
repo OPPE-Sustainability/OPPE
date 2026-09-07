@@ -228,7 +228,7 @@
       "ค่ามาตรฐานตามเกณฑ์ (Lux)",
       "ค่าเฉลี่ยที่วัดได้ (Lux)",
       "ผลการประเมิน",
-      "ข้อเสนอแนะและวิธีการปรับปรุงแก้ไข"
+      "หมายเหตุ/ข้อเสนอแนะ"
     ];
 
     const rows = dataList.map((item, index) => {
@@ -271,7 +271,37 @@
 
   // สร้างไฟล์ PDF ตามแม่แบบ .docx (จัดเลย์เอาต์ Area & Spot Measurement ครบถ้วน)
 // ฟังก์ชันสร้างหน้ารายงานทางการ A4 แนวนอน พร้อมโลโก้ และสั่งพิมพ์/บันทึก PDF ผ่าน Iframe
-  function generateOfficialPdfReport(dataList) {
+  
+function generateOfficialPdfReport(dataList) {
+
+  // ฟังก์ชันจัดรูปแบบ yyyy-mm-dd / hh:mm
+  function formatDateTime(item) {
+    const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
+    let datePart = item.date || "";
+
+    // หากวันที่เป็น Timestamp หรือ ISO string ให้แปลงเป็น yyyy-mm-dd
+    if (item.timestamp && !datePart) {
+      const d = new Date(item.timestamp);
+      if (!isNaN(d.getTime())) {
+        datePart = d.toISOString().slice(0, 10);
+      }
+    } else if (datePart.includes("/")) {
+      // รองรับกรณีวันที่มาเป็น dd/mm/yyyy
+      const parts = datePart.split("/");
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          datePart = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+    }
+
+    if (datePart && timePart) {
+      return `${datePart} / ${timePart}`;
+    }
+      return datePart || timePart || "-";
+  }
+  // ==============
+
     const sample = dataList[0] || {};
     const auditDate = sample.date || new Date().toLocaleDateString('th-TH');
     const equipName = (sample.equipment && sample.equipment !== "-") ? sample.equipment : "Lux Meter (เครื่องตรวจวัดความเข้มของแสงสว่าง)";
@@ -294,11 +324,15 @@
     });
 
     // 1. แถวตาราง Area Measurement
+
+// 1. แถวตาราง Area Measurement
     const areaRowsHtml = areaRecords.length > 0 ? areaRecords.map((item, idx) => {
       const isPass = item.evaluation === "ผ่าน" || 
                      (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
                      Number(item.measuredLux) >= Number(item.standardLux);
-      const auditTime = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "-");
+      
+      // เรียกใช้ฟังก์ชันที่แปลงรูปแบบ yyyy-mm-dd / hh:mm
+      const auditTime = formatDateTime(item);
       const dept = item.department || "กองกายภาพและสิ่งแวดล้อม";
       const area = `${item.building || "-"} (ห้อง ${item.room || "-"})`;
       const remark = (item.recommendation && item.recommendation !== "-") ? item.recommendation : "-";
@@ -307,7 +341,7 @@
         <tr>
           <td style="text-align:center;">${idx + 1}</td>
           <td>${dept}</td>
-          <td style="text-align:center;">${auditTime}</td>
+          <td style="text-align:center; white-space:nowrap;">${auditTime}</td>
           <td><strong>${area}</strong></td>
           <td>${item.task || "-"}</td>
           <td style="text-align:center; font-weight:bold;">${item.measuredLux || "0"}</td>
@@ -320,12 +354,14 @@
       `;
     }).join("") : '<tr><td colspan="9" style="text-align:center; color:#64748b; padding:12px;">- ไม่มีข้อมูลการตรวจวัดบนพื้นที่ในอาคารที่เลือก -</td></tr>';
 
-    // 2. แถวตาราง Spot Measurement
+// 2. แถวตาราง Spot Measurement
     const spotRowsHtml = spotRecords.length > 0 ? spotRecords.map((item, idx) => {
       const isPass = item.evaluation === "ผ่าน" || 
                      (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
                      Number(item.measuredLux) >= Number(item.standardLux);
-      const auditTime = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "-");
+      
+      // เรียกใช้ฟังก์ชันที่แปลงรูปแบบ yyyy-mm-dd / hh:mm
+      const auditTime = formatDateTime(item);
       const dept = item.department || "กองกายภาพและสิ่งแวดล้อม";
       const workerName = item.workerOrPoint || "-";
       const areaTask = `${item.building || "-"} / ${item.task || "-"}`;
@@ -335,7 +371,7 @@
         <tr>
           <td style="text-align:center;">${idx + 1}</td>
           <td>${dept}</td>
-          <td style="text-align:center;">${auditTime}</td>
+          <td style="text-align:center; white-space:nowrap;">${auditTime}</td>
           <td><strong>${workerName}</strong></td>
           <td>${areaTask}</td>
           <td style="text-align:center; font-weight:bold;">${item.measuredLux || "0"}</td>
@@ -385,8 +421,7 @@
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
               <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
-          
-            </div>
+                      </div>
           </div>
 
         </div>
@@ -402,7 +437,8 @@
                 <th>หมายเลขเครื่อง (Serial Number)</th>
                 <th>มาตรฐานเครื่องตรวจวัด</th>
                 <th>ค่าการปรับศูนย์ (Zeroing) ณ วันที่ตรวจวัด</th>
-                <th>วัน/เดือน/ปี (ปรับเทียบความถูกต้อง)</th>
+                <th>ปี/เดือน/วัน
+                 (ปรับเทียบความถูกต้อง)</th>
               </tr>
             </thead>
             <tbody>
@@ -425,7 +461,7 @@
             <tr>
               <th rowspan="2" style="width: 4%;">ลำดับ</th>
               <th rowspan="2" style="width: 14%;">แผนก</th>
-              <th rowspan="2" style="width: 8%;">เวลาตรวจวัด</th>
+              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th>
               <th rowspan="2" style="width: 18%;">พื้นที่ตรวจวัด</th>
               <th rowspan="2" style="width: 18%;">ลักษณะงาน</th>
               <th colspan="2" style="width: 14%;">ผลตรวจวัด (ลักซ์)</th>
@@ -471,14 +507,10 @@
           <div class="header-brand-group">
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
-              <div class="org-title">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล ศาลายา</div>
-              <div class="sub-title">รายงานผลการตรวจวัดความเข้มของแสงสว่าง (Illumination Management Report)</div>
-            </div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
+                      </div>
           </div>
-          <div class="meta-info">
-            <div>ฉบับที่: 01</div>
-            <div>วันที่รายงานผล: ${reportDate}</div>
-          </div>
+
         </div>
 
         <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement)</div>
@@ -487,7 +519,7 @@
             <tr>
               <th rowspan="2" style="width: 4%;">ลำดับ</th>
               <th rowspan="2" style="width: 12%;">แผนก</th>
-              <th rowspan="2" style="width: 8%;">เวลาตรวจวัด</th>
+              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th>
               <th rowspan="2" style="width: 16%;">ชื่อ-นามสกุลของลูกจ้าง (SEG)</th>
               <th rowspan="2" style="width: 18%;">ลักษณะงาน / พื้นที่</th>
               <th rowspan="2" style="width: 8%;">ค่าที่วัดได้ (ลักซ์)<br>พื้นที่ 1</th>
@@ -508,21 +540,21 @@
         <!-- หมายเหตุและลงนามของส่วน Spot -->
         <div class="notes-box">
           <strong>หมายเหตุ:</strong>
-          <div>1) 1) พื้นที่ตรวจวัดให้แนบแผนผังที่พื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
-          <div>2) 2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงกำหนดมาตรฐานในการบริหาร จัดการ และดำเนินการด้านความปลอดภัย อาชีวอนามัย และสภาพแวดล้อมในการทำงานเกี่ยวกับความร้อน แสงสว่าง และเสียง พ.ศ.2559 หมวด 1 ความร้อน ข้อ 2 </div>
-          <div>3) 3) กรณีผลการประเมินเป็นไปตามเกณฑ์แต่แสงสว่างมีผลกระทบต่อการปฏิบัติงานของลูกจ้าง และกรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข โดยสามารถจัดทำเป็นเอกสารแนบได้</div>
+          <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
+          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวง กำหนดมาตรฐานในการบริหาร จัดการ และดำเนินการด้านความปลอดภัย อาชีวอนามัย และสภาพแวดล้อมในการทำงานเกี่ยวกับความร้อน แสงสว่าง และเสียง พ.ศ. 2559</div>
+          <div>3) กรณีผลการประเมินเป็นไปตามเกณฑ์แต่แสงสว่างมีผลกระทบต่อการปฏิบัติงานของลูกจ้าง และกรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
         </div>
 
         <div class="sig-row">
           <div class="sig-box">
             <div>ลงชื่อ.....................................................................</div>
             <div style="margin-top: 3px;">(............................................................................)</div>
-            <div>ผู้ดำเนินการตรวจวัด</div>
+            <div>ผู้ดำเนินการตรวจวัดและวิเคราะห์สภาวะการทำงาน</div>
           </div>
           <div class="sig-box">
             <div>ลงชื่อ.....................................................................</div>
             <div style="margin-top: 3px;">(............................................................................)</div>
-            <div>ผู้ตรวจสอบและรับรองผล</div>
+            <div>ผู้บริหาร / ผู้มีอำนาจกระทำการแทน</div>
           </div>
         </div>
 
