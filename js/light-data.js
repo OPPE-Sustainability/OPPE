@@ -5,26 +5,40 @@
   let buildingChartInstance = null;
   let allLightRecords = []; 
   let allBuildingStats = {}; 
-  let isExporting = false; // Flag ล็อกไม่ให้รันฟังก์ชัน Export ซ้อนกันเด็ดขาด
+  let isExporting = false; // Flag ป้องกันการกด Export ซ้อนกัน
 
   window.initLightDashboard = function () {
     fetchLightDashboardData();
     bindFilterEvents();
   };
 
+  // ฟังก์ชันกลางสำหรับตัดสินผลประเมินว่า "ผ่านเกณฑ์" หรือไม่
+  function checkIsPass(item) {
+    if (!item) return false;
+    const evalText = (item.evaluation || "").toString().trim();
+    if (evalText === "ผ่าน") return true;
+    if (evalText.indexOf("ผ่าน") !== -1 && evalText.indexOf("ไม่ผ่าน") === -1) return true;
+    
+    const measured = Number(item.measuredLux);
+    const standard = Number(item.standardLux);
+    if (!isNaN(measured) && !isNaN(standard) && standard > 0) {
+      return measured >= standard;
+    }
+    return false;
+  }
+
   function bindFilterEvents() {
-    // ป้องกันการ Bind ซ้ำอย่างเด็ดขาดด้วย Global Window Property
     if (window.__isLightEventsBound) return;
     window.__isLightEventsBound = true;
 
-    // 1. ติ๊ก Checkbox รายอาคาร
+    // 1. ติ๊ก Checkbox เลือกอาคาร หรือเปลี่ยนตัวกรองสถานะ ผ่าน/ไม่ผ่าน
     document.addEventListener('change', function (e) {
-      if (e.target.classList.contains('bld-checkbox')) {
+      if (e.target.classList.contains('bld-checkbox') || e.target.id === 'selectEvaluationFilter') {
         applyBuildingFilter();
       }
     });
 
-    // 2. จัดการคลิกปุ่มทั้งหมดใน Event เดียว
+    // 2. จัดการคลิกปุ่มควบคุมและ Export
     document.addEventListener('click', function (e) {
       // ปุ่มเลือกทั้งหมด
       if (e.target.id === 'btnSelectAllBuildings') {
@@ -34,7 +48,7 @@
         return;
       } 
       
-      // ปุ่มล้างตัวเลือก
+      // ปุ่มล้างตัวเลือกอาคาร
       if (e.target.id === 'btnDeselectAllBuildings') {
         e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = false);
@@ -48,11 +62,11 @@
         e.preventDefault();
         e.stopPropagation();
 
-        if (isExporting) return; // หากกำลัง Export อยู่ให้ระงับทันที
+        if (isExporting) return;
 
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
-          alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
+          alert('ไม่พบข้อมูลตามเงื่อนไขตัวกรองสำหรับ Export');
           return;
         }
 
@@ -60,7 +74,7 @@
         try {
           exportToExcel(filtered);
         } finally {
-          setTimeout(() => { isExporting = false; }, 1200); // ปลดล็อกหลัง 1.2 วินาที
+          setTimeout(() => { isExporting = false; }, 1200);
         }
         return;
       }
@@ -71,11 +85,11 @@
         e.preventDefault();
         e.stopPropagation();
 
-        if (isExporting) return; // หากกำลัง Export อยู่ให้ระงับทันที
+        if (isExporting) return;
 
         const filtered = getFilteredRecords();
         if (filtered.length === 0) {
-          alert('กรุณาเลือกอาคารอย่างน้อย 1 อาคาร หรือยังไม่มีข้อมูลสำหรับ Export');
+          alert('ไม่พบข้อมูลตามเงื่อนไขตัวกรองสำหรับ Export');
           return;
         }
 
@@ -83,7 +97,7 @@
         try {
           generateOfficialPdfReport(filtered);
         } finally {
-          setTimeout(() => { isExporting = false; }, 1500); // ปลดล็อกหลัง 1.5 วินาที
+          setTimeout(() => { isExporting = false; }, 1500);
         }
         return;
       }
@@ -96,21 +110,31 @@
     return Array.from(checkboxes).map(cb => cb.value.trim());
   }
 
-  // กรองชุดข้อมูลตามอาคารที่เลือก
+  // กรองชุดข้อมูลตาม "อาคาร" และ "สถานะผ่าน/ไม่ผ่าน" ที่เลือก
   function getFilteredRecords() {
     const selected = getSelectedBuildings();
     if (selected.length === 0) return [];
+
+    const evalFilterEl = document.getElementById('selectEvaluationFilter');
+    const evalFilter = evalFilterEl ? evalFilterEl.value : 'all';
+
     return allLightRecords.filter(item => {
       const bld = (item.building || "").trim();
-      return selected.includes(bld);
+      const matchBuilding = selected.includes(bld);
+      if (!matchBuilding) return false;
+
+      const isPass = checkIsPass(item);
+      if (evalFilter === 'pass') return isPass;
+      if (evalFilter === 'fail') return !isPass;
+      return true;
     });
   }
 
-  // ใช้ตัวกรองอัปเดต ตาราง, สถิติ และกราฟ พร้อมกัน
+  // อัปเดตตาราง สถิติ และกราฟพร้อมกัน
   function applyBuildingFilter() {
     const filteredList = getFilteredRecords();
     updateTableAndStats(filteredList);
-    updateChartWithFilter();
+    updateChartWithFilter(filteredList);
   }
 
   async function fetchLightDashboardData() {
@@ -138,7 +162,7 @@
     if (document.getElementById('homeStatTotal')) document.getElementById('homeStatTotal').textContent = list.length;
 
     if (!list || list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามอาคารที่เลือก</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
       if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = "0";
       if (document.getElementById('statPass')) document.getElementById('statPass').textContent = "0";
       if (document.getElementById('statFail')) document.getElementById('statFail').textContent = "0";
@@ -150,9 +174,7 @@
     let fail = 0;
 
     tbody.innerHTML = list.map(item => {
-      const isPass = item.evaluation === "ผ่าน" || 
-                     (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
-                     Number(item.measuredLux) >= Number(item.standardLux);
+      const isPass = checkIsPass(item);
       if (isPass) pass++; else fail++;
 
       const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 
@@ -186,15 +208,32 @@
     if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = fail;
   }
 
-  function updateChartWithFilter() {
+  function updateChartWithFilter(filteredList) {
     const canvas = document.getElementById('buildingLightChart');
     if (!canvas) return;
 
     const selected = getSelectedBuildings();
-    const buildings = Object.keys(allBuildingStats).filter(b => selected.includes(b));
+    
+    // คำนวณจำนวน ผ่าน/ไม่ผ่าน แยกตามอาคารจากชุดข้อมูลที่ถูกกรองจริง
+    const dynamicStats = {};
+    selected.forEach(bld => {
+      dynamicStats[bld] = { pass: 0, fail: 0 };
+    });
 
-    const passData = buildings.map(b => allBuildingStats[b].pass);
-    const failData = buildings.map(b => allBuildingStats[b].fail);
+    (filteredList || []).forEach(item => {
+      const bld = (item.building || "").trim();
+      if (dynamicStats[bld]) {
+        if (checkIsPass(item)) {
+          dynamicStats[bld].pass++;
+        } else {
+          dynamicStats[bld].fail++;
+        }
+      }
+    });
+
+    const buildings = selected.filter(b => (dynamicStats[b].pass + dynamicStats[b].fail) > 0);
+    const passData = buildings.map(b => dynamicStats[b].pass);
+    const failData = buildings.map(b => dynamicStats[b].fail);
 
     const ctx = canvas.getContext('2d');
     if (buildingChartInstance) {
@@ -246,7 +285,7 @@
     });
   }
 
-  // Export Excel (.csv) - ปรับปรุงไม่ให้ Event วนลูปกลับมา Document
+  // Export Excel (.csv)
   function exportToExcel(dataList) {
     const headers = [
       "ลำดับ",
@@ -265,10 +304,7 @@
     ];
 
     const rows = dataList.map((item, index) => {
-      const isPass = item.evaluation === "ผ่าน" || 
-                     (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
-                     Number(item.measuredLux) >= Number(item.standardLux);
-
+      const isPass = checkIsPass(item);
       const clean = (val) => `"${(val || "-").toString().replace(/"/g, '""')}"`;
 
       return [
@@ -294,11 +330,15 @@
     const link = document.createElement("a");
 
     const today = new Date().toISOString().slice(0, 10);
+    const evalFilterEl = document.getElementById('selectEvaluationFilter');
+    const filterTag = evalFilterEl && evalFilterEl.value === 'pass' 
+      ? '_เฉพาะผ่านเกณฑ์' 
+      : (evalFilterEl && evalFilterEl.value === 'fail' ? '_เฉพาะไม่ผ่านเกณฑ์' : '');
+
     link.href = url;
-    link.download = `แบบรายงานผลการตรวจวัดแสงสว่าง_${today}.csv`;
+    link.download = `แบบรายงานผลการตรวจวัดแสงสว่าง${filterTag}_${today}.csv`;
     link.style.display = "none";
     
-    // ดักไม่ให้การคลิก element จำลองนี้ ส่ง Event ย้อนกลับไปหา Document
     link.onclick = function(e) {
       e.stopPropagation();
     };
@@ -355,10 +395,7 @@
     });
 
     const areaRowsHtml = areaRecords.length > 0 ? areaRecords.map((item, idx) => {
-      const isPass = item.evaluation === "ผ่าน" || 
-                     (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
-                     Number(item.measuredLux) >= Number(item.standardLux);
-      
+      const isPass = checkIsPass(item);
       const auditTime = formatDateTime(item);
       const dept = item.department || "กองกายภาพและสิ่งแวดล้อม";
       const area = `${item.building || "-"} (ห้อง ${item.room || "-"})`;
@@ -379,13 +416,10 @@
           <td>${remark}</td>
         </tr>
       `;
-    }).join("") : '<tr><td colspan="9" style="text-align:center; color:#64748b; padding:12px;">- ไม่มีข้อมูลการตรวจวัดบนพื้นที่ในอาคารที่เลือก -</td></tr>';
+    }).join("") : '<tr><td colspan="9" style="text-align:center; color:#64748b; padding:12px;">- ไม่มีข้อมูลการตรวจวัดบนพื้นที่ตามเงื่อนไขที่เลือก -</td></tr>';
 
     const spotRowsHtml = spotRecords.length > 0 ? spotRecords.map((item, idx) => {
-      const isPass = item.evaluation === "ผ่าน" || 
-                     (item.evaluation && item.evaluation.indexOf("ผ่าน") !== -1 && item.evaluation.indexOf("ไม่ผ่าน") === -1) || 
-                     Number(item.measuredLux) >= Number(item.standardLux);
-      
+      const isPass = checkIsPass(item);
       const auditTime = formatDateTime(item);
       const dept = item.department || "กองกายภาพและสิ่งแวดล้อม";
       const workerName = item.workerOrPoint || "-";
@@ -408,14 +442,19 @@
           <td>${remark}</td>
         </tr>
       `;
-    }).join("") : '<tr><td colspan="10" style="text-align:center; color:#64748b; padding:12px;">- ไม่มีข้อมูลการตรวจวัดแบบจุด (Spot) ในอาคารที่เลือก -</td></tr>';
+    }).join("") : '<tr><td colspan="10" style="text-align:center; color:#64748b; padding:12px;">- ไม่มีข้อมูลการตรวจวัดแบบจุด (Spot) ตามเงื่อนไขที่เลือก -</td></tr>';
+
+    const evalFilterEl = document.getElementById('selectEvaluationFilter');
+    const subtitleFilterText = evalFilterEl && evalFilterEl.value === 'pass'
+      ? ' (เฉพาะรายการที่ผ่านเกณฑ์มาตรฐาน)'
+      : (evalFilterEl && evalFilterEl.value === 'fail' ? ' (เฉพาะรายการที่ต้องปรับปรุง / ไม่ผ่านเกณฑ์)' : '');
 
     const reportHtml = `
       <!DOCTYPE html>
       <html lang="th">
       <head>
         <meta charset="utf-8">
-        <title>รายงานผลการตรวจวัดความเข้มของแสงสว่าง (Illumination Management Report)</title>
+        <title>รายงานผลการตรวจวัดความเข้มของแสงสว่าง</title>
         <style>
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
@@ -425,7 +464,6 @@
           .header-brand-group { display: flex; align-items: center; gap: 14px; }
           .mu-logo { width: 62px; height: 62px; object-fit: contain; }
           .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
-          .sub-title { font-size: 13pt; font-weight: bold; margin-top: 2px; color: #1F5A44; }
 
           .section-title { font-weight: bold; margin: 8px 0 4px 0; font-size: 12pt; }
           table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
@@ -439,12 +477,11 @@
         </style>
       </head>
       <body>
-        <!-- หัวเอกสาร หน้า 1 (Area Measurement) -->
         <div class="report-header">
           <div class="header-brand-group">
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
-              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)${subtitleFilterText}</div>
             </div>
           </div>
         </div>
@@ -501,8 +538,8 @@
         <div class="notes-box">
           <strong>หมายเหตุ:</strong>
           <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
-          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวง กำหนดมาตรฐานในการบริหาร จัดการ และดำเนินการด้านความปลอดภัย อาชีวอนามัย และสภาพแวดล้อมในการทำงานเกี่ยวกับความร้อน แสงสว่าง และเสียง พ.ศ. 2559</div>
-          <div>3) กรณีผลการประเมินเป็นไปตามเกณฑ์แต่แสงสว่างมีผลกระทบต่อการปฏิบัติงานของลูกจ้าง และกรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
+          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
         </div>
 
         <div class="sig-row">
@@ -518,14 +555,13 @@
           </div>
         </div>
 
-        <!-- หน้าที่ 2: Spot Measurement -->
         <div class="page-break"></div>
 
         <div class="report-header">
           <div class="header-brand-group">
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
-              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)${subtitleFilterText}</div>
             </div>
           </div>
         </div>
@@ -557,8 +593,8 @@
         <div class="notes-box">
           <strong>หมายเหตุ:</strong>
           <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
-          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวง กำหนดมาตรฐานในการบริหาร จัดการ และดำเนินการด้านความปลอดภัย อาชีวอนามัย และสภาพแวดล้อมในการทำงานเกี่ยวกับความร้อน แสงสว่าง และเสียง พ.ศ. 2559</div>
-          <div>3) กรณีผลการประเมินเป็นไปตามเกณฑ์แต่แสงสว่างมีผลกระทบต่อการปฏิบัติงานของลูกจ้าง และกรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
+          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
         </div>
 
         <div class="sig-row">
@@ -578,7 +614,6 @@
       </html>
     `;
 
-    // ล้าง iframe เก่าทิ้งก่อนสร้างใหม่เสมอ
     let oldFrame = document.getElementById('pdfPrintFrame');
     if (oldFrame && oldFrame.parentNode) {
       oldFrame.parentNode.removeChild(oldFrame);

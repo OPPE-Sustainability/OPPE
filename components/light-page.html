@@ -24,6 +24,7 @@
       <div class="filter-actions">
         <button id="btnSelectAllBuildings" type="button" class="btn-text">เลือกทั้งหมด</button>
         <button id="btnDeselectAllBuildings" type="button" class="btn-text">ล้างตัวเลือก</button>
+        
       </div>
     </div>
     
@@ -75,7 +76,12 @@
     <div class="card-surface table-card">
       <div class="card-header flex-between">
         <h3 class="card-title">บันทึกผลการตรวจวัดล่าสุด</h3>
-        <div class="report-actions">
+        <div class="report-actions"  style="display: flex; align-items: center; gap: 8px;">
+            <select id="selectEvaluationFilter" class="text-input" style="padding: 4px 8px; font-size: 13px; border-radius: 6px;">
+            <option value="all">สถานะทั้งหมด</option>
+            <option value="pass">เฉพาะที่ "ผ่านเกณฑ์"</option>
+            <option value="fail">เฉพาะที่ "ต้องปรับปรุง (ไม่ผ่าน)"</option>
+          </select>
           <button id="btnExportLightExcel" type="button" class="btn-sm btn-excel">
             Export CSV
           </button>
