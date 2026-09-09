@@ -5,9 +5,9 @@
     <div>
       <div class="tag-iso">ISO 45001 : 2018 / ISO 14001 : 2015</div>
       <h2 class="page-title">ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
-      <p class="page-subtitle">รายงานผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
+      <p class="page-subtitle">ศูนย์บริหารจัดการสุขศาสตร์อุตสาหกรรม กองกายภาพและสิ่งแวดล้อม</p>
     </div>
-    <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec" 
+    <a href="https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyn5cMl8TJFzSEbJt89uyhnoJN7mwwLJ9ehM4RIbSx4zCpiCUjCq3rLtAREjv6puv89xA/exec" 
        target="_blank" 
        rel="noopener" 
        class="btn-primary"
@@ -16,7 +16,7 @@
     </a>
   </div>
 
-  <!-- Building Filter Card -->
+  <!-- ตัวกรองอาคาร -->
   <div class="card-surface filter-card">
     <div class="filter-header">
       <div class="filter-title">
@@ -27,7 +27,6 @@
         <button id="btnDeselectAllBuildings" type="button" class="btn-text">ล้างตัวเลือก</button>
       </div>
     </div>
-    
     <div id="buildingCheckboxGroup" class="checkbox-grid">
       <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารศาลายา" checked> อาคารศาลายา</label>
       <label class="checkbox-item"><input type="checkbox" class="bld-checkbox" value="อาคารเพาะชำ" checked> อาคารเพาะชำ</label>
@@ -41,12 +40,12 @@
     </div>
   </div>
 
-  <!-- Unified KPI Card -->
+  <!-- บัตรสรุปภาพรวม KPI -->
   <div class="card-surface light-summary-card">
     <div class="summary-metric">
-      <span class="metric-title">จุดตรวจสะสม</span>
+      <span class="metric-title">ห้องที่ตรวจสะสม</span>
       <span class="metric-num" id="statTotal">--</span>
-      <span class="metric-sub">จุดตรวจที่เลือก</span>
+      <span class="metric-sub">ห้องในอาคารที่เลือก</span>
     </div>
     <div class="metric-divider"></div>
     <div class="summary-metric">
@@ -62,48 +61,75 @@
     </div>
   </div>
 
-  <!-- Analytics Grid -->
-  <div class="dashboard-grid">
+  <!-- Grid แสดงผล: กราฟแท่งเปรียบเทียบ ควบคู่กับ ตารางสรุปรายอาคาร -->
+  <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <!-- กราฟแท่ง -->
     <div class="card-surface chart-card">
       <div class="card-header">
-        <h3 class="card-title">สรุปผลการประเมินแยกตามอาคาร</h3>
+        <h3 class="card-title">📈 สถิติผลการตรวจวัดรายอาคาร (นับรายห้อง)</h3>
       </div>
-      <div class="dash-chart-wrapper">
+      <div class="chart-wrapper" style="position: relative; height: 260px; width: 100%;">
         <canvas id="buildingLightChart"></canvas>
       </div>
     </div>
 
+    <!-- ตารางสรุปผลรายอาคาร -->
     <div class="card-surface table-card">
-      <div class="card-header flex-between">
-        <h3 class="card-title">บันทึกผลการตรวจวัดล่าสุด</h3>
-        <div class="report-actions" style="display: flex; align-items: center; gap: 8px;">
-          <select id="selectEvaluationFilter" class="text-input" style="padding: 4px 8px; font-size: 13px; border-radius: 6px;">
-            <option value="all">สถานะทั้งหมด</option>
-            <option value="pass">เฉพาะที่ "ผ่านเกณฑ์"</option>
-            <option value="fail">เฉพาะที่ "ไม่ผ่านเกณฑ์"</option>
-          </select>
-          <button id="btnExportLightExcel" type="button" class="btn-sm btn-excel">Export CSV</button>
-          <button id="btnExportLightPdf" type="button" class="btn-sm btn-pdf">Export PDF (ทางการ)</button>
-        </div>
+      <div class="card-header">
+        <h3 class="card-title">📊 สรุปผลการตรวจวัดแยกตามอาคาร</h3>
       </div>
-      <div class="table-scroll-area">
+      <div class="table-scroll-area" style="max-height: 260px;">
         <table class="data-table">
           <thead>
             <tr>
-              <th>อาคาร / ห้อง</th>
-              <th>ลักษณะงาน</th>
-              <th>เกณฑ์ (Lux)</th>
-              <th>วัดได้ (Lux)</th>
-              <th>สถานะ</th>
+              <th>ชื่ออาคาร</th>
+              <th style="text-align: center;">ตรวจแล้ว (ห้อง)</th>
+              <th style="text-align: center; color: #16a34a;">ผ่านเกณฑ์</th>
+              <th style="text-align: center; color: #dc2626;">ต้องปรับปรุง</th>
+              <th style="text-align: center;">ปลอดภัย (%)</th>
             </tr>
           </thead>
-          <tbody id="lightTableBody">
-            <tr>
-              <td colspan="5" class="loading-td">กำลังโหลดข้อมูล...</td>
-            </tr>
+          <tbody id="buildingSummaryTbody">
+            <tr><td colspan="5" class="loading-td">กำลังรวบรวมข้อมูล...</td></tr>
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- บันทึกผลการตรวจวัดล่าสุด พร้อมปุ่มแยกพิมพ์รายงาน 2 ฉบับ -->
+  <div class="card-surface table-card">
+    <div class="card-header flex-between">
+      <h3 class="card-title">📋 บันทึกผลการตรวจวัดล่าสุดรายห้อง</h3>
+      <div class="report-actions" style="display: flex; align-items: center; gap: 8px;">
+        <select id="selectEvaluationFilter" class="text-input" style="padding: 4px 8px; font-size: 13px; border-radius: 6px;">
+          <option value="all">สถานะห้องทั้งหมด</option>
+          <option value="pass">เฉพาะห้องที่ "ผ่านเกณฑ์"</option>
+          <option value="fail">เฉพาะห้องที่ "ต้องปรับปรุง"</option>
+        </select>
+        <button id="btnExportAreaPdf" type="button" class="btn-sm btn-pdf" style="background: #16a34a; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+          📄 รายงานแบบพื้นที่ (PDF)
+        </button>
+        <button id="btnExportSpotPdf" type="button" class="btn-sm btn-pdf" style="background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+          👤 รายงานแบบจุด (PDF)
+        </button>
+      </div>
+    </div>
+    <div class="table-scroll-area">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 25%;">อาคาร / ห้อง</th>
+            <th style="width: 30%;">ลักษณะงาน & จุดตรวจ</th>
+            <th style="width: 15%;">เกณฑ์มาตรฐาน (Lux)</th>
+            <th style="width: 18%;">ผลการวัด (Lux)</th>
+            <th style="width: 12%; text-align: center;">สถานะ</th>
+          </tr>
+        </thead>
+        <tbody id="lightTableBody">
+          <tr><td colspan="5" class="loading-td">กำลังโหลดข้อมูล...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 

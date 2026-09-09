@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#1769E0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   
-  <!-- Typography: Plus Jakarta Sans & JetBrains Mono -->
+  <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,33 +23,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
-<!-- หน้าต่างบังคับลงชื่อเข้าใช้ (Login Gate) -->
-  <div id="loginGateModal" class="login-gate-overlay" style="display: none;">
-    <div class="login-gate-card">
-      <div class="login-brand">
-        <img src="icon-192.png" alt="Mahidol Logo" class="login-logo" onerror="this.style.display='none'">
-        <h2>OPPE-Notifications</h2>
-        <p class="login-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</p>
-      </div>
-
-      <div class="login-instruction">
-        <span class="lock-icon">🔒</span>
-        <h3>เข้าสู่ระบบเพื่อใช้งาน</h3>
-        <p>ระบบตรวจวัดสุขศาสตร์อุตสาหกรรมและสิ่งแวดล้อม สงวนสิทธิ์การเข้าใช้งานเฉพาะบุคลากรและเจ้าหน้าที่ด้วยบัญชีอีเมล <strong>@mahidol.ac.th</strong> เท่านั้น</p>
-      </div>
-
-      <!-- จุดติดตั้งปุ่ม Google Sign-In -->
-      <div id="googleModalBtnMount" class="google-btn-wrapper"></div>
-      
-      <div id="loginStatusMsg" class="login-status-msg"></div>
-
-      <div class="login-footer-note">
-        ISO 45001 : 2018 & ISO 14001 : 2015 Management System
-      </div>
-    </div>
-  </div>
   <div id="app" class="app-layout">
-    
     <!-- Desktop Sidebar Navigation -->
     <aside id="desktopSidebar" class="app-sidebar">
       <div class="sidebar-brand">
@@ -87,7 +61,7 @@
       <!-- Global Topbar Header -->
       <header id="topbar" class="app-topbar"></header>
 
-      <!-- Main Dynamic Content (Natural Scrolling) -->
+      <!-- Main Dynamic Content -->
       <main id="appContent" class="app-content">
         <!-- Page: Home Overview -->
         <section id="page-home" class="page-view active">
@@ -157,9 +131,7 @@
             <h2 class="page-title">ศูนย์จัดการการแจ้งเตือน (Notifications)</h2>
             <p class="page-subtitle">ลงทะเบียนรับ Push Notification สรุปสภาพแวดล้อมประจำวัน</p>
           </div>
-          <div class="card-surface" id="notificationCenterMount">
-            <!-- ย้ายฟอร์มสมัครแจ้งเตือนมาแสดงเต็มรูปแบบที่นี่ -->
-          </div>
+          <div class="card-surface" id="notificationCenterMount"></div>
         </section>
       </main>
 
@@ -185,11 +157,26 @@
     </div>
   </div>
 
+  <!-- Private Gate สำหรับหน้าตรวจวัดแสง (เข้าถึงเฉพาะเจ้าหน้าที่ EHS) -->
+  <div id="lightDashboardGateModal" class="login-gate-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 59, 130, 0.5); backdrop-filter: blur(6px); z-index: 99999; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 28px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
+      <div style="font-size: 32px; margin-bottom: 8px;">🔒</div>
+      <h3 style="margin: 0 0 6px 0; color: #0f172a;">เข้าสู่ระบบส่วนตรวจวัดแสง</h3>
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">สงวนสิทธิ์เฉพาะเจ้าหน้าที่ EHS เพื่อดูรายงานและสถิติประเมินความปลอดภัย</p>
+      
+      <form id="gateKeyForm" onsubmit="window.verifyLightGateKey(event)">
+        <input type="password" id="gatePasscode" class="text-input" placeholder="กรอกรหัสผ่านเจ้าหน้าที่ EHS" required style="text-align: center; font-size: 15px; letter-spacing: 2px; margin-bottom: 12px; width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 10px; background: #1769E0; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">ยืนยันสิทธิ์</button>
+        <div id="gateErrorMsg" style="color: #dc2626; font-size: 12px; margin-top: 8px; min-height: 18px;"></div>
+      </form>
+      
+      <div style="margin-top: 12px;">
+        <button type="button" onclick="window.navigateTo('home')" style="background: none; border: none; color: #64748b; font-size: 12px; cursor: pointer;">← กลับสู่หน้าหลักสาธารณะ</button>
+      </div>
+    </div>
+  </div>
 
-<script>
-
-// ... ในฟังก์ชัน initApp() ...
-  
+  <script>
     async function loadComponent(elementId, filePath) {
       try {
         const res = await fetch(filePath);
@@ -202,21 +189,38 @@
       }
     }
 
-    // State Navigation Controller
+    // 1. State Navigation Controller ป้องกัน Race Condition และดัก Private Gate
     window.navigateTo = function(pageId) {
-      // 1. ซ่อนทุกหน้า แล้วเปิดเฉพาะหน้าที่เลือก
+      // ดักตรวจสิทธิ์เฉพาะหน้าตรวจวัดแสง (light)
+      if (pageId === 'light') {
+        const isAuthorized = (typeof window.checkLightAccess === 'function') 
+          ? window.checkLightAccess() 
+          : (sessionStorage.getItem("light_dash_authorized") === "true");
+
+        if (!isAuthorized) {
+          const modal = document.getElementById("lightDashboardGateModal");
+          if (modal) {
+            modal.style.display = "flex";
+            const passInput = document.getElementById("gatePasscode");
+            if (passInput) passInput.focus();
+          }
+          return; // หยุดการทำงาน ไม่เปิดหน้า Dashboard แสง
+        }
+      }
+
+      // สลับหน้าจอ Active
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
       const targetPage = document.getElementById(`page-${pageId}`);
       if (targetPage) targetPage.classList.add('active');
 
-      // 2. สลับสถานะปุ่มเมนู
+      // สลับสถานะปุ่มเมนูนำทาง
       document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-page') === pageId);
       });
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      // 3. จัดการเรนเดอร์กราฟตรวจวัดแสงเมื่อเปิดเข้าหน้านี้
+      // เรนเดอร์กราฟตรวจวัดแสงเมื่อได้รับอนุญาตและเปิดเข้าหน้า light
       if (pageId === 'light' && typeof window.initLightDashboard === 'function') {
         setTimeout(() => {
           window.initLightDashboard();
@@ -225,28 +229,26 @@
     };
 
     async function initApp() {
-      // 1. โหลดคอมโพเนนต์ HTML ให้ครบถ้วนก่อน
+      // ขั้นตอนที่ 1: โหลด HTML Components ให้ครบทุกส่วนก่อน
       await Promise.all([
         loadComponent('topbar', 'components/header.html'),
         loadComponent('view-aqi', 'components/aqi-summary.html'),
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      // 2. Clone ฟอร์มแจ้งเตือนไปไว้ในหน้า Notification Center
+      // ย้ายฟอร์มแจ้งเตือนไปยังแท็บ Notification Center
       const formOriginal = document.getElementById('subscribeCardWrapper');
       const notifMount = document.getElementById('notificationCenterMount');
       if (formOriginal && notifMount) {
         notifMount.innerHTML = formOriginal.innerHTML;
       }
 
-      // 3. โหลด JavaScript Logic
+      // ขั้นตอนที่ 2: จัดลำดับโหลด Script โดยโหลด light-data.js ก่อนเพื่อให้ระบบสิทธิ์พร้อมทันที
       const scripts = [
-        'js/auth.js',
-        'js/aqi-chart.js',
-        'js/push-notify.js',
-        'js/light-data.js'
+        'js/light-data.js',   // ลำดับที่ 1: สิทธิ์ Private Gate และระบบข้อมูลตรวจวัดแสง
+        'js/aqi-chart.js',    // ลำดับที่ 2: ระบบพล็อตกราฟ AQI
+        'js/push-notify.js'   // ลำดับที่ 3: ระบบ Service Worker & Push Notification
       ];
-      if (typeof window.initGoogleAuth === 'function') window.initGoogleAuth();
 
       for (const src of scripts) {
         await new Promise((resolve) => {
@@ -257,23 +259,20 @@
         });
       }
 
-      // 4. ติดตั้ง Event คลิกนำทาง
+      // ขั้นตอนที่ 3: ติดตั้ง Event คลิกนำทางหลังสคริปต์โหลดเสร็จสมบูรณ์
       document.querySelectorAll('[data-page]').forEach(btn => {
         btn.addEventListener('click', () => {
           window.navigateTo(btn.getAttribute('data-page'));
         });
       });
 
-      // 5. รันการดึงข้อมูลทั้งสองระบบทันทีตั้งแต่เริ่มโหลด
-      const GAS_WEBAPP_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
-      if (typeof initPushNotification === 'function') initPushNotification(GAS_WEBAPP_URL);
-      if (typeof loadAirData === 'function') loadAirData(GAS_WEBAPP_URL);
-      if (typeof window.initLightDashboard === 'function') window.initLightDashboard();
+      // ขั้นตอนที่ 4: ดึงข้อมูลคุณภาพอากาศเริ่มต้น
+      const GAS_AQI_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
+      if (typeof initPushNotification === 'function') initPushNotification(GAS_AQI_URL);
+      if (typeof loadAirData === 'function') loadAirData(GAS_AQI_URL);
     }
 
     window.addEventListener('DOMContentLoaded', initApp);
   </script>
-
-
 </body>
 </html>
