@@ -324,56 +324,281 @@
     }).join('');
   }
 
-  // -------------------------------------------------------------
-  // REPORT 1: PDF รายงานแบบตรวจวัดพื้นที่ (Area Report)
+// -------------------------------------------------------------
+  // REPORT 1: PDF รายงานแบบตรวจวัดพื้นที่ (Area Report - แยกตามอาคาร)
   // -------------------------------------------------------------
   function generateAreaPdfReport(records) {
+    function formatDateTime(item) {
+      const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
+      let datePart = item.date || "";
+
+      if (item.timestamp && !datePart) {
+        const d = new Date(item.timestamp);
+        if (!isNaN(d.getTime())) datePart = d.toISOString().slice(0, 10);
+      } else if (datePart.includes("/")) {
+        const parts = datePart.split("/");
+        if (parts.length === 3 && parts[2].length === 4) {
+          datePart = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      return (datePart && timePart) ? `${datePart} ${timePart} น.` : (datePart || timePart || "-");
+    }
+
     const sample = records[0] || {};
-    const grouped = {};
+    const equipName = (sample.equipment && sample.equipment !== "-") ? sample.equipment : "Lux Meter";
+    const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
+    const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
+
+    // จัดกลุ่มตาม อาคาร ก่อน แล้วค่อยจัดกลุ่มย่อยตาม วันที่ + ห้อง
+    const groupedByBuilding = {};
     records.forEach(item => {
-      const key = `${item.date}_${item.building}_${item.room}`;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(item);
+      const bld = (item.building || "ไม่ระบุอาคาร").trim();
+      if (!groupedByBuilding[bld]) groupedByBuilding[bld] = [];
+      groupedByBuilding[bld].push(item);
     });
 
-    let rowsHtml = "";
-    let idx = 1;
+    let contentHtml = "";
 
-    Object.keys(grouped).forEach(k => {
-      const pts = grouped[k];
-      const count = pts.length;
-      const f = pts[0];
-      const isPass = checkIsPass(f);
-      const auditTime = `${f.date} ${f.time} น.`;
-
-      pts.forEach((p, i) => {
-        const loc = `${p.room}/${p.pointCode || 'r-' + (i+1)}`;
-        if (i === 0) {
-          rowsHtml += `
-            <tr>
-              <td rowspan="${count}" style="text-align:center;">${idx++}</td>
-              <td rowspan="${count}" style="text-align:center;">${auditTime}</td>
-              <td>${loc}</td>
-              <td rowspan="${count}">${f.task}</td>
-              <td style="text-align:center;">${p.pointLux}</td>
-              <td rowspan="${count}" style="text-align:center; font-weight:bold; background:#fafafa;">${f.measuredLux}</td>
-              <td rowspan="${count}" style="text-align:center;">${f.minLux || "-"}</td>
-              <td rowspan="${count}" style="text-align:center;">${f.standardLux || "-"}</td>
-              <td rowspan="${count}" style="text-align:center; font-weight:bold; ${isPass ? 'color:#15803d;' : 'color:#b91c1c;'}">
-                ${isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
-              </td>
-              <td rowspan="${count}">${f.recommendation || "-"}</td>
-            </tr>
-          `;
-        } else {
-          rowsHtml += `
-            <tr>
-              <td>${loc}</td>
-              <td style="text-align:center;">${p.pointLux}</td>
-            </tr>
-          `;
-        }
+    Object.keys(groupedByBuilding).forEach(bldName => {
+      const bldRecords = groupedByBuilding[bldName];
+      const groupedRoom = {};
+      bldRecords.forEach(item => {
+        const roomKey = `${item.date || ''}_${item.room || ''}`;
+        if (!groupedRoom[roomKey]) groupedRoom[roomKey] = [];
+        groupedRoom[roomKey].push(item);
       });
+
+      let areaRowsHtml = "";
+      let rowIndex = 1;
+
+      Object.keys(groupedRoom).forEach(roomKey => {
+        const points = groupedRoom[roomKey];
+        const count = points.length;
+        const first = points[0];
+        const dateTimeStr = formatDateTime(first);
+        const isPass = checkIsPass(first);
+
+        points.forEach((pt, idx) => {
+          const locationStr = `${pt.room || "-"}/${pt.pointCode || "r-" + (idx + 1)}`;
+          const pointLuxVal = pt.pointLux !== undefined && pt.pointLux !== 0 ? pt.pointLux : pt.measuredLux;
+
+          if (idx === 0) {
+            areaRowsHtml += `
+              <tr>
+                <td rowspan="${count}" style="text-align:center;">${rowIndex++}</td>
+                <td rowspan="${count}" style="text-align:center; white-space:nowrap;">${dateTimeStr}</td>
+                <td>${locationStr}</td>
+                <td rowspan="${count}">${first.task || "-"}</td>
+                <td style="text-align:center; font-weight:600;">${pointLuxVal}</td>
+                <td rowspan="${count}" style="text-align:center; font-weight:bold; background:#fafafa;">${first.measuredLux || "0"}</td>
+                <td rowspan="${count}" style="text-align:center;">${first.standardLux || "-"}</td>
+                <td rowspan="${count}" style="text-align:center;">${first.minLux || "-"}</td>
+                <td rowspan="${count}" style="text-align:center; font-weight:bold; ${isPass ? 'color:#15803d;' : 'color:#b91c1c;'}">
+                  ${isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+                </td>
+                <td rowspan="${count}">${first.recommendation || "-"}</td>
+              </tr>
+            `;
+          } else {
+            areaRowsHtml += `
+              <tr>
+                <td>${locationStr}</td>
+                <td style="text-align:center; font-weight:600;">${pointLuxVal}</td>
+              </tr>
+            `;
+          }
+        });
+      });
+
+      contentHtml += `
+        <div class="bld-section-title">อาคาร: ${bldName}</div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th>
+              <th rowspan="2" style="width: 14%;">วันเวลาที่ตรวจวัด</th>
+              <th rowspan="2" style="width: 17%;">สถานที่ตรวจวัด<br><span style="font-size:9pt; font-weight:normal;">(เลขห้อง/รหัสจุดตรวจวัด)</span></th>
+              <th rowspan="2" style="width: 16%;">ลักษณะงาน</th>
+              <th colspan="2" style="width: 14%;">ความเข้มของแสงสว่าง (ลักซ์)</th>
+              <th colspan="2" style="width: 15%;">ค่าความเข้มของแสงสว่างมาตรฐาน (ลักซ์)</th>
+              <th rowspan="2" style="width: 8%;">ผลประเมิน</th>
+              <th rowspan="2" style="width: 12%;">หมายเหตุ</th>
+            </tr>
+            <tr>
+              <th style="width: 7%;">ค่าที่วัดได้</th>
+              <th style="width: 7%;">ค่าเฉลี่ย</th>
+              <th style="width: 8%;">เกณฑ์มาตรฐาน</th>
+              <th style="width: 7%;">จุดความเข้มต่ำสุด</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${areaRowsHtml}
+          </tbody>
+        </table>
+        <div style="margin-bottom: 15px;"></div>
+      `;
+    });
+
+    const reportHtml = `
+      <!DOCTYPE html>
+      <html lang="th">
+      <head>
+        <meta charset="utf-8">
+        <title>รายงานผลการตรวจวัดความเข้มของแสงสว่าง</title>
+        <style>
+          @page { size: A4 landscape; margin: 8mm 10mm; }
+          * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
+          body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.2; }
+          
+          .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+          .header-brand-group { display: flex; align-items: center; gap: 14px; }
+          .mu-logo { width: 52px; height: 52px; object-fit: contain; }
+          .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
+
+          .section-title { font-weight: bold; margin: 6px 0 3px 0; font-size: 12pt; }
+          .bld-section-title { font-weight: bold; margin: 12px 0 4px 0; font-size: 12pt; color: #1769E0; background: #f8fafc; padding: 4px 8px; border-left: 4px solid #1769E0; }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
+          th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
+          th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
+
+          .notes-box { margin-top: 8px; font-size: 9pt; line-height: 1.35; }
+          .sig-row { display: flex; justify-content: space-between; margin-top: 20px; padding: 0 40px; page-break-inside: avoid; }
+          .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
+        </style>
+      </head>
+      <body>
+        <div class="report-header">
+          <div class="header-brand-group">
+            <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
+            <div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
+              <div style="font-size: 10.5pt; color: #334155;">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 6px;">
+          <div style="font-size: 11pt; font-weight:bold;">เครื่องมือที่ใช้ในการตรวจวัด:</div>
+          <table>
+            <thead>
+              <tr>
+                <th>เครื่องตรวจวัด</th>
+                <th>ยี่ห้อ/รุ่น</th>
+                <th>หมายเลขเครื่อง (Serial Number)</th>
+                <th>มาตรฐานเครื่องตรวจวัด</th>
+                <th>ค่าการปรับศูนย์ (Zeroing)</th>
+                <th>วัน/เดือน/ปี (ปรับเทียบความถูกต้อง)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">เครื่องตรวจวัดความเข้มของแสงสว่าง (Lux Meter)</td>
+                <td style="text-align:center;">${equipName}</td>
+                <td style="text-align:center;">${serialNum}</td>
+                <td style="text-align:center;">CIE Standard / ISO 45001</td>
+                <td style="text-align:center;">0.0 Lux (สมบูรณ์)</td>
+                <td style="text-align:center;">${calibDate}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างบนพื้นที่ (Area Measurement)</div>
+        
+        ${contentHtml}
+
+        <div class="notes-box">
+          <strong>หมายเหตุ:</strong>
+          <div>1) สถานที่ตรวจวัดระบุเป็น (เลขห้อง)/(รหัสจุดตรวจวัด) ตามกฎกระทรวงฯ พ.ศ. 2559[cite: 2]</div>
+          <div>2) เกณฑ์มาตรฐานความปลอดภัยอ้างอิงตามมาตรฐานกรมสวัสดิการและคุ้มครองแรงงาน</div>
+        </div>
+
+        <div class="sig-row">
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้ดำเนินการตรวจวัด</div>
+          </div>
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้ตรวจสอบและรับรองผล</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printFrameContent(reportHtml);
+  }
+
+  // -------------------------------------------------------------
+  // REPORT 2: PDF รายงานแบบตรวจวัดเฉพาะจุด (Spot Report - แยกตามอาคาร)
+  // -------------------------------------------------------------
+  function generateSpotPdfReport(records) {
+    const sample = records[0] || {};
+    const equipName = (sample.equipment && sample.equipment !== "-") ? sample.equipment : "Lux Meter";
+    const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
+    const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
+
+    const groupedByBuilding = {};
+    records.forEach(item => {
+      const bld = (item.building || "ไม่ระบุอาคาร").trim();
+      if (!groupedByBuilding[bld]) groupedByBuilding[bld] = [];
+      groupedByBuilding[bld].push(item);
+    });
+
+    let contentHtml = "";
+
+    Object.keys(groupedByBuilding).forEach(bldName => {
+      const bldRecords = groupedByBuilding[bldName];
+      const rowsHtml = bldRecords.map((r, i) => {
+        const isPass = checkIsPass(r);
+        return `
+          <tr>
+            <td style="text-align:center;">${i+1}</td>
+            <td style="text-align:center;">${r.date} ${r.time} น.</td>
+            <td><strong>${r.workerName}</strong></td>
+            <td>ห้อง ${r.room} / ${r.task}</td>
+            <td style="text-align:center; font-weight:bold;">${r.luxArea1}</td>
+            <td style="text-align:center;">${r.luxArea2}</td>
+            <td style="text-align:center;">${r.luxArea3}</td>
+            <td style="text-align:center;">${r.standardLux}</td>
+            <td style="text-align:center; font-weight:bold; ${isPass ? 'color:#15803d;' : 'color:#b91c1c;'}">
+              ${isPass ? 'ไม่เกินเกณฑ์' : 'เกินเกณฑ์'}
+            </td>
+            <td>${r.recommendation}</td>
+          </tr>
+        `;
+      }).join('');
+
+      contentHtml += `
+        <div class="bld-section-title">อาคาร: ${bldName}</div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th>
+              <th rowspan="2" style="width: 13%;">วันเวลาที่ตรวจวัด</th>
+              <th rowspan="2" style="width: 16%;">ชื่อ-นามสกุลลูกจ้าง (SEG)</th>
+              <th rowspan="2" style="width: 18%;">ห้อง / ลักษณะงาน</th>
+              <th rowspan="2" style="width: 9%;">ค่าที่วัดได้<br>พื้นที่ 1 (ลักซ์)</th>
+              <th colspan="2" style="width: 13%;">แสงสว่างโดยรอบ (ลักซ์)</th>
+              <th rowspan="2" style="width: 8%;">เกณฑ์ (Lux)</th>
+              <th rowspan="2" style="width: 9%;">ผลประเมิน</th>
+              <th rowspan="2" style="width: 10%;">ข้อเสนอแนะ</th>
+            </tr>
+            <tr>
+              <th style="width: 6.5%;">พื้นที่ 2</th>
+              <th style="width: 6.5%;">พื้นที่ 3</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+        <div style="margin-bottom: 15px;"></div>
+      `;
     });
 
     const html = `
@@ -381,64 +606,270 @@
       <html lang="th">
       <head>
         <meta charset="utf-8">
-        <title>รายงานผลตรวจวัดความเข้มแสงสว่างบนพื้นที่</title>
+        <title>รายงานผลการตรวจวัดความเข้มแสงสว่างแบบจุด</title>
         <style>
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
-          body { margin: 0; padding: 10px; font-size: 11pt; line-height: 1.2; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10.5pt; }
+          body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.2; }
+          
+          .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+          .header-brand-group { display: flex; align-items: center; gap: 14px; }
+          .mu-logo { width: 52px; height: 52px; object-fit: contain; }
+          .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
+
+          .section-title { font-weight: bold; margin: 6px 0 3px 0; font-size: 12pt; }
+          .bld-section-title { font-weight: bold; margin: 12px 0 4px 0; font-size: 12pt; color: #1769E0; background: #f8fafc; padding: 4px 8px; border-left: 4px solid #1769E0; }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
           th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
-          th { background: #f1f5f9; text-align: center; }
-          .sig-row { display: flex; justify-content: space-between; margin-top: 25px; padding: 0 40px; page-break-inside: avoid; }
+          th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
+
+          .notes-box { margin-top: 8px; font-size: 9pt; line-height: 1.35; }
+          .sig-row { display: flex; justify-content: space-between; margin-top: 20px; padding: 0 40px; page-break-inside: avoid; }
+          .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <h2 style="margin:0; font-size:16pt;">รายงานผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างบนพื้นที่ (Area Measurement)</h2>
-            <div style="font-size:11pt;">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล • มาตรฐาน ISO 45001</div>
+        <div class="report-header">
+          <div class="header-brand-group">
+            <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
+            <div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
+              <div style="font-size: 10.5pt; color: #334155;">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</div>
+            </div>
           </div>
-          <div style="font-size:10pt;">เครื่องตรวจวัด: ${sample.equipment || 'Lux Meter'} (${sample.serialNo || '-'})</div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th rowspan="2" style="width:4%;">ลำดับ</th>
-              <th rowspan="2" style="width:14%;">วันเวลาตรวจวัด</th>
-              <th rowspan="2" style="width:17%;">สถานที่ (ห้อง/รหัสจุด)</th>
-              <th rowspan="2" style="width:16%;">ลักษณะงาน</th>
-              <th colspan="2" style="width:14%;">ความเข้มแสง (ลักซ์)</th>
-              <th colspan="2" style="width:15%;">มาตรฐานตามกฎหมาย</th>
-              <th rowspan="2" style="width:8%;">ผลประเมิน</th>
-              <th rowspan="2" style="width:12%;">หมายเหตุ</th>
-            </tr>
-            <tr>
-              <th style="width:7%;">ค่าที่วัดได้</th>
-              <th style="width:7%;">ค่าเฉลี่ย</th>
-              <th style="width:8%;">จุดต่ำสุด</th>
-              <th style="width:7%;">เกณฑ์</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
+
+        <div style="margin-bottom: 6px;">
+          <div style="font-size: 11pt; font-weight:bold;">เครื่องมือที่ใช้ในการตรวจวัด:</div>
+          <table>
+            <thead>
+              <tr>
+                <th>เครื่องตรวจวัด</th>
+                <th>ยี่ห้อ/รุ่น</th>
+                <th>หมายเลขเครื่อง (Serial Number)</th>
+                <th>มาตรฐานเครื่องตรวจวัด</th>
+                <th>ค่าการปรับศูนย์ (Zeroing)</th>
+                <th>วัน/เดือน/ปี (ปรับเทียบความถูกต้อง)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">เครื่องตรวจวัดความเข้มของแสงสว่าง (Lux Meter)</td>
+                <td style="text-align:center;">${equipName}</td>
+                <td style="text-align:center;">${serialNum}</td>
+                <td style="text-align:center;">CIE Standard / ISO 45001</td>
+                <td style="text-align:center;">0.0 Lux (สมบูรณ์)</td>
+                <td style="text-align:center;">${calibDate}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement)</div>
+        
+        ${contentHtml}
+
         <div class="sig-row">
-          <div style="text-align:center; width:300px;">
-            <div>ลงชื่อ......................................................</div>
-            <div>(......................................................)</div>
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
             <div>ผู้ดำเนินการตรวจวัด</div>
           </div>
-          <div style="text-align:center; width:300px;">
-            <div>ลงชื่อ......................................................</div>
-            <div>(......................................................)</div>
-            <div>ผู้มีอำนาจรับรองผลการตรวจวัด</div>
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้ตรวจสอบและรับรองผล</div>
           </div>
         </div>
       </body>
       </html>
     `;
+
     printFrameContent(html);
   }
+
+  function printFrameContent(html) {
+    let oldFrame = document.getElementById('pdfPrintFrame');
+    if (oldFrame) oldFrame.remove();
+
+    const frame = document.createElement('iframe');
+    frame.id = 'pdfPrintFrame';
+    frame.style.position = 'fixed';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    document.body.appendChild(frame);
+
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    setTimeout(() => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    }, 450);
+  }
+
+  // -------------------------------------------------------------
+  // REPORT 2: PDF รายงานแบบตรวจวัดเฉพาะจุด (Spot Report)
+  // -------------------------------------------------------------
+  function generateSpotPdfReport(records) {
+    const sample = records[0] || {};
+    const equipName = (sample.equipment && sample.equipment !== "-") ? sample.equipment : "Lux Meter";
+    const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
+    const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
+
+    const rowsHtml = records.map((r, i) => {
+      const isPass = checkIsPass(r);
+      return `
+        <tr>
+          <td style="text-align:center;">${i+1}</td>
+          <td style="text-align:center;">${r.date} ${r.time} น.</td>
+          <td><strong>${r.workerName}</strong></td>
+          <td>${r.building} (ห้อง ${r.room}) / ${r.task}</td>
+          <td style="text-align:center; font-weight:bold;">${r.luxArea1}</td>
+          <td style="text-align:center;">${r.luxArea2}</td>
+          <td style="text-align:center;">${r.luxArea3}</td>
+          <td style="text-align:center;">${r.standardLux}</td>
+          <td style="text-align:center; font-weight:bold; ${isPass ? 'color:#15803d;' : 'color:#b91c1c;'}">
+            ${isPass ? 'ไม่เกินเกณฑ์' : 'เกินเกณฑ์'}
+          </td>
+          <td>${r.recommendation}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="th">
+      <head>
+        <meta charset="utf-8">
+        <title>รายงานผลการตรวจวัดความเข้มแสงสว่างแบบจุด</title>
+        <style>
+          @page { size: A4 landscape; margin: 8mm 10mm; }
+          * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
+          body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.2; }
+          
+          .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+          .header-brand-group { display: flex; align-items: center; gap: 14px; }
+          .mu-logo { width: 52px; height: 52px; object-fit: contain; }
+          .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
+
+          .section-title { font-weight: bold; margin: 6px 0 3px 0; font-size: 12pt; }
+          table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
+          th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
+          th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
+
+          .notes-box { margin-top: 8px; font-size: 9pt; line-height: 1.35; }
+          .sig-row { display: flex; justify-content: space-between; margin-top: 20px; padding: 0 40px; page-break-inside: avoid; }
+          .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
+        </style>
+      </head>
+      <body>
+        <div class="report-header">
+          <div class="header-brand-group">
+            <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
+            <div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
+              <div style="font-size: 10.5pt; color: #334155;">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 6px;">
+          <div style="font-size: 11pt; font-weight:bold;">เครื่องมือที่ใช้ในการตรวจวัด:</div>
+          <table>
+            <thead>
+              <tr>
+                <th>เครื่องตรวจวัด</th>
+                <th>ยี่ห้อ/รุ่น</th>
+                <th>หมายเลขเครื่อง (Serial Number)</th>
+                <th>มาตรฐานเครื่องตรวจวัด</th>
+                <th>ค่าการปรับศูนย์ (Zeroing)</th>
+                <th>วัน/เดือน/ปี (ปรับเทียบความถูกต้อง)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">เครื่องตรวจวัดความเข้มของแสงสว่าง (Lux Meter)</td>
+                <td style="text-align:center;">${equipName}</td>
+                <td style="text-align:center;">${serialNum}</td>
+                <td style="text-align:center;">CIE Standard / ISO 45001</td>
+                <td style="text-align:center;">0.0 Lux (สมบูรณ์)</td>
+                <td style="text-align:center;">${calibDate}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement)</div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th>
+              <th rowspan="2" style="width: 14%;">วันเวลาที่ตรวจวัด</th>
+              <th rowspan="2" style="width: 18%;">ชื่อ-นามสกุลลูกจ้าง (SEG)</th>
+              <th rowspan="2" style="width: 20%;">ลักษณะงาน / พื้นที่</th>
+              <th rowspan="2" style="width: 9%;">ค่าที่วัดได้<br>พื้นที่ 1 (ลักซ์)</th>
+              <th colspan="2" style="width: 13%;">แสงสว่างโดยรอบ (ลักซ์)</th>
+              <th rowspan="2" style="width: 9%;">ผลการประเมิน</th>
+              <th rowspan="2" style="width: 13%;">ข้อเสนอแนะ</th>
+            </tr>
+            <tr>
+              <th style="width: 6.5%;">พื้นที่ 2</th>
+              <th style="width: 6.5%;">พื้นที่ 3</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="sig-row">
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้ดำเนินการตรวจวัด</div>
+          </div>
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้ตรวจสอบและรับรองผล</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printFrameContent(html);
+  }
+
+  function printFrameContent(html) {
+    let oldFrame = document.getElementById('pdfPrintFrame');
+    if (oldFrame) oldFrame.remove();
+
+    const frame = document.createElement('iframe');
+    frame.id = 'pdfPrintFrame';
+    frame.style.position = 'fixed';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    document.body.appendChild(frame);
+
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    setTimeout(() => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    }, 450);
+  }
+
+
 
   // -------------------------------------------------------------
   // REPORT 2: PDF รายงานแบบตรวจวัดเฉพาะจุด (Spot Report)
@@ -470,26 +901,65 @@
       <html lang="th">
       <head>
         <meta charset="utf-8">
-        <title>รายงานผลตรวจวัดความเข้มแสงสว่างแบบจุด</title>
+        <title>รายงานผลการตรวจวัดความเข้มของแสงสว่าง</title>
         <style>
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
-          body { margin: 0; padding: 10px; font-size: 11pt; line-height: 1.2; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10.5pt; }
+          body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.25; }
+          
+          .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
+          .header-brand-group { display: flex; align-items: center; gap: 14px; }
+          .mu-logo { width: 62px; height: 62px; object-fit: contain; }
+          .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
+
+          .section-title { font-weight: bold; margin: 8px 0 4px 0; font-size: 12pt; }
+          table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
           th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
-          th { background: #f1f5f9; text-align: center; }
-          .sig-row { display: flex; justify-content: space-between; margin-top: 25px; padding: 0 40px; page-break-inside: avoid; }
+          th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
+
+          .notes-box { margin-top: 8px; font-size: 9.5pt; line-height: 1.35; }
+          .sig-row { display: flex; justify-content: space-between; margin-top: 22px; padding: 0 40px; page-break-inside: avoid; }
+          .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
+          .page-break { page-break-before: always; margin-top: 15px; }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <h2 style="margin:0; font-size:16pt;">รายงานผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement)</h2>
-            <div style="font-size:11pt;">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล • รูปแบบที่ 4 ตามกฎกระทรวงฯ</div>
+        <div class="report-header">
+          <div class="header-brand-group">
+            <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
+            <div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)${subtitleFilterText}</div>
+            </div>
           </div>
-          <div style="font-size:10pt;">เครื่องตรวจวัด: ${sample.equipment || 'Lux Meter'} (${sample.serialNo || '-'})</div>
         </div>
+
+        <div style="margin-bottom: 8px;">
+          <div style="margin-top: 3px;"><strong>2. เครื่องมือที่ใช้ในการตรวจวัด:</strong></div>
+          <table>
+            <thead>
+              <tr>
+                <th>เครื่องตรวจวัด</th>
+                <th>ยี่ห้อ/รุ่น</th>
+                <th>หมายเลขเครื่อง (Serial Number)</th>
+                <th>มาตรฐานเครื่องตรวจวัด</th>
+                <th>ค่าการปรับศูนย์ (Zeroing) ณ วันที่ตรวจวัด</th>
+                <th>ปี/เดือน/วัน (ปรับเทียบความถูกต้อง)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:center;">เครื่องตรวจวัดความเข้มของแสงสว่าง</td>
+                <td style="text-align:center;">${equipName}</td>
+                <td style="text-align:center;">${serialNum}</td>
+                <td style="text-align:center;">CIE Standard / ISO 45001</td>
+                <td style="text-align:center;">0.0 Lux (สมบูรณ์)</td>
+                <td style="text-align:center;">${calibDate}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างบนพื้นที่ (Area Measurement)</div>
         <table>
           <thead>
             <tr>
@@ -510,18 +980,82 @@
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
+
+        <div class="notes-box">
+          <strong>หมายเหตุ:</strong>
+          <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
+          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
+        </div>
+
         <div class="sig-row">
-          <div style="text-align:center; width:300px;">
-            <div>ลงชื่อ......................................................</div>
-            <div>(......................................................)</div>
-            <div>ผู้ดำเนินการตรวจวัด</div>
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้ดำเนินการตรวจวัดและวิเคราะห์สภาวะการทำงาน</div>
           </div>
-          <div style="text-align:center; width:300px;">
-            <div>ลงชื่อ......................................................</div>
-            <div>(......................................................)</div>
-            <div>ผู้มีอำนาจรับรองผลการตรวจวัด</div>
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้บริหาร / ผู้มีอำนาจกระทำการแทน</div>
           </div>
         </div>
+
+        <div class="page-break"></div>
+
+        <div class="report-header">
+          <div class="header-brand-group">
+            <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
+            <div>
+              <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)${subtitleFilterText}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement)</div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th>
+              <th rowspan="2" style="width: 12%;">แผนก</th>
+              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th>
+              <th rowspan="2" style="width: 16%;">ชื่อ-นามสกุลของลูกจ้าง (SEG)</th>
+              <th rowspan="2" style="width: 18%;">ลักษณะงาน / พื้นที่</th>
+              <th rowspan="2" style="width: 8%;">ค่าที่วัดได้ (ลักซ์)<br>พื้นที่ 1</th>
+              <th colspan="2" style="width: 12%;">แสงสว่างโดยรอบ (ลักซ์)</th>
+              <th rowspan="2" style="width: 11%;">ผลการประเมิน</th>
+              <th rowspan="2" style="width: 11%;">ข้อเสนอแนะและวิธีปรับปรุง</th>
+            </tr>
+            <tr>
+              <th style="width: 6%;">พื้นที่ 2</th>
+              <th style="width: 6%;">พื้นที่ 3</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${spotRowsHtml}
+          </tbody>
+        </table>
+
+        <div class="notes-box">
+          <strong>หมายเหตุ:</strong>
+          <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
+          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
+        </div>
+
+        <div class="sig-row">
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้ดำเนินการตรวจวัดและวิเคราะห์สภาวะการทำงาน</div>
+          </div>
+          <div class="sig-box">
+            <div>ลงชื่อ.....................................................................</div>
+            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div>ผู้บริหาร / ผู้มีอำนาจกระทำการแทน</div>
+          </div>
+        </div>
+
       </body>
       </html>
     `;
