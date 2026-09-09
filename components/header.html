@@ -1,16 +1,23 @@
 <!-- components/header.html -->
+<!-- components/header.html -->
 <div class="topbar-content">
   <div class="topbar-left">
     <div class="mobile-logo-group">
       <img src="icon-192.png" alt="OPPE Logo" class="topbar-logo" onerror="this.style.display='none'">
       <div>
         <h2 class="topbar-title">OPPE-Notifications</h2>
-        <span class="topbar-sub">EHS & Sustainability Management Platform</span>
+        <span class="topbar-sub">EHS & Sustainability Platform</span>
       </div>
     </div>
   </div>
 
   <div class="topbar-right">
+    <!-- กล่องแสดงโปรไฟล์ผู้ใช้ / ปุ่ม Sign in Google -->
+    <div id="userProfileBadge">
+      <div id="googleSignInBtnMount"></div>
+    </div>
+  </div>
+    <div class="topbar-right">
     <div class="network-badge">
       <span class="status-indicator-dot online"></span>
       <span class="network-text">Mahidol Net</span>
@@ -22,4 +29,10 @@
       </svg>
     </button>
   </div>
+
+
+
 </div>
+
+
+

@@ -2,17 +2,38 @@
 (function () {
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec";
 
+  // รหัสผ่านเข้าใช้งาน Dashboard (สามารถแก้ไขได้ตามต้องการ)
+  const EHS_ACCESS_KEY = "OPPE"; 
+
+  window.checkLightAccess = function () {
+    return sessionStorage.getItem("light_dash_authorized") === "true";
+  };
+
+  window.verifyLightGateKey = function (e) {
+    if (e) e.preventDefault();
+    const enteredKey = document.getElementById("gatePasscode").value.trim();
+    const errorMsg = document.getElementById("gateErrorMsg");
+
+    if (enteredKey === EHS_ACCESS_KEY) {
+      sessionStorage.setItem("light_dash_authorized", "true");
+      document.getElementById("lightDashboardGateModal").style.display = "none";
+      errorMsg.textContent = "";
+      document.getElementById("gatePasscode").value = "";
+      window.navigateTo('light');
+    } else {
+      errorMsg.textContent = "❌ รหัสผ่านไม่ถูกต้อง กรุณาติดต่อกองกายภาพและสิ่งแวดล้อม";
+    }
+  };
+
   let buildingChartInstance = null;
   let allLightRecords = []; 
-  let allBuildingStats = {}; 
-  let isExporting = false; // Flag ป้องกันการกด Export ซ้อนกัน
+  let isExporting = false;
 
   window.initLightDashboard = function () {
     fetchLightDashboardData();
     bindFilterEvents();
   };
 
-  // ฟังก์ชันกลางสำหรับตัดสินผลประเมินว่า "ผ่านเกณฑ์" หรือไม่
   function checkIsPass(item) {
     if (!item) return false;
     const evalText = (item.evaluation || "").toString().trim();
@@ -31,16 +52,13 @@
     if (window.__isLightEventsBound) return;
     window.__isLightEventsBound = true;
 
-    // 1. ติ๊ก Checkbox เลือกอาคาร หรือเปลี่ยนตัวกรองสถานะ ผ่าน/ไม่ผ่าน
     document.addEventListener('change', function (e) {
       if (e.target.classList.contains('bld-checkbox') || e.target.id === 'selectEvaluationFilter') {
         applyBuildingFilter();
       }
     });
 
-    // 2. จัดการคลิกปุ่มควบคุมและ Export
     document.addEventListener('click', function (e) {
-      // ปุ่มเลือกทั้งหมด
       if (e.target.id === 'btnSelectAllBuildings') {
         e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = true);
@@ -48,7 +66,6 @@
         return;
       } 
       
-      // ปุ่มล้างตัวเลือกอาคาร
       if (e.target.id === 'btnDeselectAllBuildings') {
         e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = false);
@@ -56,12 +73,10 @@
         return;
       }
 
-      // ปุ่ม Export Excel (.csv)
       const btnExcel = e.target.closest('#btnExportLightExcel');
       if (btnExcel) {
         e.preventDefault();
         e.stopPropagation();
-
         if (isExporting) return;
 
         const filtered = getFilteredRecords();
@@ -79,12 +94,10 @@
         return;
       }
 
-      // ปุ่ม Export PDF
       const btnPdf = e.target.closest('#btnExportLightPdf');
       if (btnPdf) {
         e.preventDefault();
         e.stopPropagation();
-
         if (isExporting) return;
 
         const filtered = getFilteredRecords();
@@ -104,13 +117,11 @@
     });
   }
 
-  // ดึงรายชื่ออาคารที่ถูกติ๊กเลือกอยู่
   function getSelectedBuildings() {
     const checkboxes = document.querySelectorAll('.bld-checkbox:checked');
     return Array.from(checkboxes).map(cb => cb.value.trim());
   }
 
-  // กรองชุดข้อมูลตาม "อาคาร" และ "สถานะผ่าน/ไม่ผ่าน" ที่เลือก
   function getFilteredRecords() {
     const selected = getSelectedBuildings();
     if (selected.length === 0) return [];
@@ -130,7 +141,6 @@
     });
   }
 
-  // อัปเดตตาราง สถิติ และกราฟพร้อมกัน
   function applyBuildingFilter() {
     const filteredList = getFilteredRecords();
     updateTableAndStats(filteredList);
@@ -140,14 +150,8 @@
   async function fetchLightDashboardData() {
     const tbody = document.getElementById('lightTableBody');
     try {
-      const [summaryRes, statsRes] = await Promise.all([
-        fetch(`${LIGHT_API_URL}?action=getLightSummary`),
-        fetch(`${LIGHT_API_URL}?action=getBuildingStats`)
-      ]);
-
-      allLightRecords = await summaryRes.json() || [];
-      allBuildingStats = await statsRes.json() || {};
-
+      const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
+      allLightRecords = await res.json() || [];
       applyBuildingFilter();
     } catch (err) {
       console.error("Fetch light data error:", err);
@@ -213,8 +217,6 @@
     if (!canvas) return;
 
     const selected = getSelectedBuildings();
-    
-    // คำนวณจำนวน ผ่าน/ไม่ผ่าน แยกตามอาคารจากชุดข้อมูลที่ถูกกรองจริง
     const dynamicStats = {};
     selected.forEach(bld => {
       dynamicStats[bld] = { pass: 0, fail: 0 };
@@ -223,11 +225,8 @@
     (filteredList || []).forEach(item => {
       const bld = (item.building || "").trim();
       if (dynamicStats[bld]) {
-        if (checkIsPass(item)) {
-          dynamicStats[bld].pass++;
-        } else {
-          dynamicStats[bld].fail++;
-        }
+        if (checkIsPass(item)) dynamicStats[bld].pass++;
+        else dynamicStats[bld].fail++;
       }
     });
 
@@ -263,44 +262,22 @@
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: {
-            stacked: true,
-            grid: { display: false },
-            ticks: { font: { size: 11 } }
-          },
-          y: {
-            stacked: true,
-            beginAtZero: true,
-            ticks: { precision: 0, stepSize: 1, font: { size: 11 } },
-            grid: { color: '#f1f5f9' }
-          }
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: { stacked: true, beginAtZero: true, ticks: { precision: 0, stepSize: 1, font: { size: 11 } }, grid: { color: '#f1f5f9' } }
         },
         plugins: {
-          legend: {
-            position: 'top',
-            labels: { boxWidth: 12, font: { size: 11 } }
-          }
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
         }
       }
     });
   }
 
-  // Export Excel (.csv)
   function exportToExcel(dataList) {
     const headers = [
-      "ลำดับ",
-      "วัน/เดือน/ปี ที่ตรวจวัด",
-      "เวลาตรวจวัด",
-      "แผนก/ส่วนงาน",
-      "อาคาร",
-      "ห้อง/พื้นที่ตรวจวัด",
-      "ลักษณะงาน/ลักษณะพื้นที่",
-      "ชื่อ-นามสกุลลูกจ้าง (SEG) / จุดตรวจ",
-      "เครื่องมือตรวจวัด (ยี่ห้อ/S/N)",
-      "ค่ามาตรฐานตามเกณฑ์ (Lux)",
-      "ค่าเฉลี่ยที่วัดได้ (Lux)",
-      "ผลการประเมิน",
-      "หมายเหตุ/ข้อเสนอแนะ"
+      "ลำดับ", "วัน/เดือน/ปี ที่ตรวจวัด", "เวลาตรวจวัด", "แผนก/ส่วนงาน", "อาคาร", 
+      "ห้อง/พื้นที่ตรวจวัด", "ลักษณะงาน/ลักษณะพื้นที่", "ชื่อ-นามสกุลลูกจ้าง (SEG) / จุดตรวจ", 
+      "เครื่องมือตรวจวัด (ยี่ห้อ/S/N)", "ค่ามาตรฐานตามเกณฑ์ (Lux)", "ค่าเฉลี่ยที่วัดได้ (Lux)", 
+      "ผลการประเมิน", "หมายเหตุ/ข้อเสนอแนะ", "ผู้ตรวจวัด (Email)"
     ];
 
     const rows = dataList.map((item, index) => {
@@ -320,7 +297,8 @@
         item.standardLux || 0,
         item.measuredLux || 0,
         isPass ? "ผ่านเกณฑ์" : "ไม่ผ่านเกณฑ์",
-        clean(item.recommendation || "-")
+        clean(item.recommendation || "-"),
+        clean(item.inspectorEmail || "Field Inspector")
       ].join(",");
     });
 
@@ -330,18 +308,10 @@
     const link = document.createElement("a");
 
     const today = new Date().toISOString().slice(0, 10);
-    const evalFilterEl = document.getElementById('selectEvaluationFilter');
-    const filterTag = evalFilterEl && evalFilterEl.value === 'pass' 
-      ? '_เฉพาะผ่านเกณฑ์' 
-      : (evalFilterEl && evalFilterEl.value === 'fail' ? '_เฉพาะไม่ผ่านเกณฑ์' : '');
-
     link.href = url;
-    link.download = `แบบรายงานผลการตรวจวัดแสงสว่าง${filterTag}_${today}.csv`;
+    link.download = `แบบรายงานผลการตรวจวัดแสงสว่าง_${today}.csv`;
     link.style.display = "none";
-    
-    link.onclick = function(e) {
-      e.stopPropagation();
-    };
+    link.onclick = (e) => e.stopPropagation();
 
     document.body.appendChild(link);
     link.click();
@@ -352,7 +322,6 @@
     }, 200);
   }
 
-  // สร้างไฟล์ PDF ตามแม่แบบทางการ
   function generateOfficialPdfReport(dataList) {
     function formatDateTime(item) {
       const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
@@ -360,20 +329,14 @@
 
       if (item.timestamp && !datePart) {
         const d = new Date(item.timestamp);
-        if (!isNaN(d.getTime())) {
-          datePart = d.toISOString().slice(0, 10);
-        }
+        if (!isNaN(d.getTime())) datePart = d.toISOString().slice(0, 10);
       } else if (datePart.includes("/")) {
         const parts = datePart.split("/");
         if (parts.length === 3 && parts[2].length === 4) {
           datePart = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
       }
-
-      if (datePart && timePart) {
-        return `${datePart} / ${timePart}`;
-      }
-      return datePart || timePart || "-";
+      return (datePart && timePart) ? `${datePart} / ${timePart}` : (datePart || timePart || "-");
     }
 
     const sample = dataList[0] || {};
@@ -387,11 +350,8 @@
     dataList.forEach(item => {
       const wp = (item.workerOrPoint || "").trim();
       const isSpot = wp && wp !== "-" && !wp.toLowerCase().startsWith("r-") && !wp.toLowerCase().startsWith("e-");
-      if (isSpot) {
-        spotRecords.push(item);
-      } else {
-        areaRecords.push(item);
-      }
+      if (isSpot) spotRecords.push(item);
+      else areaRecords.push(item);
     });
 
     const areaRowsHtml = areaRecords.length > 0 ? areaRecords.map((item, idx) => {
@@ -459,17 +419,14 @@
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
           body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.25; }
-          
           .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
           .header-brand-group { display: flex; align-items: center; gap: 14px; }
           .mu-logo { width: 62px; height: 62px; object-fit: contain; }
           .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
-
           .section-title { font-weight: bold; margin: 8px 0 4px 0; font-size: 12pt; }
           table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
           th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
           th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
-
           .notes-box { margin-top: 8px; font-size: 9.5pt; line-height: 1.35; }
           .sig-row { display: flex; justify-content: space-between; margin-top: 22px; padding: 0 40px; page-break-inside: avoid; }
           .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
@@ -491,12 +448,8 @@
           <table>
             <thead>
               <tr>
-                <th>เครื่องตรวจวัด</th>
-                <th>ยี่ห้อ/รุ่น</th>
-                <th>หมายเลขเครื่อง (Serial Number)</th>
-                <th>มาตรฐานเครื่องตรวจวัด</th>
-                <th>ค่าการปรับศูนย์ (Zeroing) ณ วันที่ตรวจวัด</th>
-                <th>ปี/เดือน/วัน (ปรับเทียบความถูกต้อง)</th>
+                <th>เครื่องตรวจวัด</th><th>ยี่ห้อ/รุ่น</th><th>หมายเลขเครื่อง (Serial Number)</th>
+                <th>มาตรฐานเครื่องตรวจวัด</th><th>ค่าการปรับศูนย์ (Zeroing)</th><th>ปี/เดือน/วัน (ปรับเทียบ)</th>
               </tr>
             </thead>
             <tbody>
@@ -516,18 +469,13 @@
         <table>
           <thead>
             <tr>
-              <th rowspan="2" style="width: 4%;">ลำดับ</th>
-              <th rowspan="2" style="width: 14%;">แผนก</th>
-              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th>
-              <th rowspan="2" style="width: 18%;">พื้นที่ตรวจวัด</th>
-              <th rowspan="2" style="width: 18%;">ลักษณะงาน</th>
-              <th colspan="2" style="width: 14%;">ผลตรวจวัด (ลักซ์)</th>
-              <th rowspan="2" style="width: 12%;">ผลการประเมิน</th>
-              <th rowspan="2" style="width: 12%;">หมายเหตุ</th>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th><th rowspan="2" style="width: 14%;">แผนก</th>
+              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th><th rowspan="2" style="width: 18%;">พื้นที่ตรวจวัด</th>
+              <th rowspan="2" style="width: 18%;">ลักษณะงาน</th><th colspan="2" style="width: 14%;">ผลตรวจวัด (ลักซ์)</th>
+              <th rowspan="2" style="width: 12%;">ผลการประเมิน</th><th rowspan="2" style="width: 12%;">หมายเหตุ</th>
             </tr>
             <tr>
-              <th style="width: 7%;">ค่าที่วัดได้</th>
-              <th style="width: 7%;">เกณฑ์มาตรฐาน</th>
+              <th style="width: 7%;">ค่าที่วัดได้</th><th style="width: 7%;">เกณฑ์มาตรฐาน</th>
             </tr>
           </thead>
           <tbody>
@@ -539,7 +487,6 @@
           <strong>หมายเหตุ:</strong>
           <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
           <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
-          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
         </div>
 
         <div class="sig-row">
@@ -570,32 +517,20 @@
         <table>
           <thead>
             <tr>
-              <th rowspan="2" style="width: 4%;">ลำดับ</th>
-              <th rowspan="2" style="width: 12%;">แผนก</th>
-              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th>
-              <th rowspan="2" style="width: 16%;">ชื่อ-นามสกุลของลูกจ้าง (SEG)</th>
-              <th rowspan="2" style="width: 18%;">ลักษณะงาน / พื้นที่</th>
-              <th rowspan="2" style="width: 8%;">ค่าที่วัดได้ (ลักซ์)<br>พื้นที่ 1</th>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th><th rowspan="2" style="width: 12%;">แผนก</th>
+              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th><th rowspan="2" style="width: 16%;">ชื่อลูกจ้าง (SEG)</th>
+              <th rowspan="2" style="width: 18%;">ลักษณะงาน / พื้นที่</th><th rowspan="2" style="width: 8%;">ค่าที่วัดได้ (ลักซ์)<br>พื้นที่ 1</th>
               <th colspan="2" style="width: 12%;">แสงสว่างโดยรอบ (ลักซ์)</th>
-              <th rowspan="2" style="width: 11%;">ผลการประเมิน</th>
-              <th rowspan="2" style="width: 11%;">ข้อเสนอแนะและวิธีปรับปรุง</th>
+              <th rowspan="2" style="width: 11%;">ผลการประเมิน</th><th rowspan="2" style="width: 11%;">ข้อเสนอแนะ</th>
             </tr>
             <tr>
-              <th style="width: 6%;">พื้นที่ 2</th>
-              <th style="width: 6%;">พื้นที่ 3</th>
+              <th style="width: 6%;">พื้นที่ 2</th><th style="width: 6%;">พื้นที่ 3</th>
             </tr>
           </thead>
           <tbody>
             ${spotRowsHtml}
           </tbody>
         </table>
-
-        <div class="notes-box">
-          <strong>หมายเหตุ:</strong>
-          <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
-          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
-          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
-        </div>
 
         <div class="sig-row">
           <div class="sig-box">
@@ -609,15 +544,12 @@
             <div>ผู้บริหาร / ผู้มีอำนาจกระทำการแทน</div>
           </div>
         </div>
-
       </body>
       </html>
     `;
 
     let oldFrame = document.getElementById('pdfPrintFrame');
-    if (oldFrame && oldFrame.parentNode) {
-      oldFrame.parentNode.removeChild(oldFrame);
-    }
+    if (oldFrame && oldFrame.parentNode) oldFrame.parentNode.removeChild(oldFrame);
 
     const printFrame = document.createElement('iframe');
     printFrame.id = 'pdfPrintFrame';

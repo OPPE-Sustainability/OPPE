@@ -241,3 +241,108 @@ body {
   .overview-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
   .service-actions-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
 }
+
+/* Login Gate Modal Overlay */
+.login-gate-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(11, 59, 130, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.login-gate-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(11, 59, 130, 0.15);
+  animation: modalScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleUp {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.login-brand .login-logo {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.login-brand h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--brand-deep);
+}
+
+.login-brand .login-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.login-instruction {
+  margin: 24px 0 20px 0;
+  background: #F8FAFC;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.login-instruction .lock-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.login-instruction h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.login-instruction p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.google-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+  min-height: 44px;
+}
+
+.login-status-msg {
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 18px;
+  margin-bottom: 8px;
+}
+.login-status-msg.error { color: var(--danger); }
+.login-status-msg.loading { color: var(--brand-primary); }
+
+.login-footer-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 16px;
+}

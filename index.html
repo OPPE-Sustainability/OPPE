@@ -23,7 +23,33 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
+<!-- หน้าต่างบังคับลงชื่อเข้าใช้ (Login Gate) -->
+  <div id="loginGateModal" class="login-gate-overlay" style="display: none;">
+    <div class="login-gate-card">
+      <div class="login-brand">
+        <img src="icon-192.png" alt="Mahidol Logo" class="login-logo" onerror="this.style.display='none'">
+        <h2>OPPE-Notifications</h2>
+        <p class="login-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</p>
+      </div>
+
+      <div class="login-instruction">
+        <span class="lock-icon">🔒</span>
+        <h3>เข้าสู่ระบบเพื่อใช้งาน</h3>
+        <p>ระบบตรวจวัดสุขศาสตร์อุตสาหกรรมและสิ่งแวดล้อม สงวนสิทธิ์การเข้าใช้งานเฉพาะบุคลากรและเจ้าหน้าที่ด้วยบัญชีอีเมล <strong>@mahidol.ac.th</strong> เท่านั้น</p>
+      </div>
+
+      <!-- จุดติดตั้งปุ่ม Google Sign-In -->
+      <div id="googleModalBtnMount" class="google-btn-wrapper"></div>
+      
+      <div id="loginStatusMsg" class="login-status-msg"></div>
+
+      <div class="login-footer-note">
+        ISO 45001 : 2018 & ISO 14001 : 2015 Management System
+      </div>
+    </div>
+  </div>
   <div id="app" class="app-layout">
+    
     <!-- Desktop Sidebar Navigation -->
     <aside id="desktopSidebar" class="app-sidebar">
       <div class="sidebar-brand">
@@ -161,6 +187,9 @@
 
 
 <script>
+
+// ... ในฟังก์ชัน initApp() ...
+  
     async function loadComponent(elementId, filePath) {
       try {
         const res = await fetch(filePath);
@@ -212,10 +241,12 @@
 
       // 3. โหลด JavaScript Logic
       const scripts = [
+        'js/auth.js',
         'js/aqi-chart.js',
         'js/push-notify.js',
         'js/light-data.js'
       ];
+      if (typeof window.initGoogleAuth === 'function') window.initGoogleAuth();
 
       for (const src of scripts) {
         await new Promise((resolve) => {

@@ -27,33 +27,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
-<!-- หน้าต่างบังคับลงชื่อเข้าใช้ (Login Gate) -->
-  <div id="loginGateModal" class="login-gate-overlay" style="display: none;">
-    <div class="login-gate-card">
-      <div class="login-brand">
-        <img src="icon-192.png" alt="Mahidol Logo" class="login-logo" onerror="this.style.display='none'">
-        <h2>OPPE-Notifications</h2>
-        <p class="login-sub">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</p>
-      </div>
-
-      <div class="login-instruction">
-        <span class="lock-icon">🔒</span>
-        <h3>เข้าสู่ระบบเพื่อใช้งาน</h3>
-        <p>ระบบตรวจวัดสุขศาสตร์อุตสาหกรรมและสิ่งแวดล้อม สงวนสิทธิ์การเข้าใช้งานเฉพาะบุคลากรและเจ้าหน้าที่ด้วยบัญชีอีเมล <strong>@mahidol.ac.th</strong> เท่านั้น</p>
-      </div>
-
-      <!-- จุดติดตั้งปุ่ม Google Sign-In -->
-      <div id="googleModalBtnMount" class="google-btn-wrapper"></div>
-      
-      <div id="loginStatusMsg" class="login-status-msg"></div>
-
-      <div class="login-footer-note">
-        ISO 45001 : 2018 & ISO 14001 : 2015 Management System
-      </div>
-    </div>
-  </div>
   <div id="app" class="app-layout">
-    
     <!-- Desktop Sidebar Navigation -->
     <aside id="desktopSidebar" class="app-sidebar">
       <div class="sidebar-brand">
@@ -191,9 +165,6 @@
 
 
 <script>
-
-// ... ในฟังก์ชัน initApp() ...
-  
     async function loadComponent(elementId, filePath) {
       try {
         const res = await fetch(filePath);
@@ -245,12 +216,10 @@
 
       // 3. โหลด JavaScript Logic
       const scripts = [
-        'js/auth.js',
         'js/aqi-chart.js',
         'js/push-notify.js',
         'js/light-data.js'
       ];
-      if (typeof window.initGoogleAuth === 'function') window.initGoogleAuth();
 
       for (const src of scripts) {
         await new Promise((resolve) => {
@@ -417,25 +386,18 @@
 ===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\header.html =====
 
 <!-- components/header.html -->
-<!-- components/header.html -->
 <div class="topbar-content">
   <div class="topbar-left">
     <div class="mobile-logo-group">
       <img src="icon-192.png" alt="OPPE Logo" class="topbar-logo" onerror="this.style.display='none'">
       <div>
         <h2 class="topbar-title">OPPE-Notifications</h2>
-        <span class="topbar-sub">EHS & Sustainability Platform</span>
+        <span class="topbar-sub">EHS & Sustainability Management Platform</span>
       </div>
     </div>
   </div>
 
   <div class="topbar-right">
-    <!-- กล่องแสดงโปรไฟล์ผู้ใช้ / ปุ่ม Sign in Google -->
-    <div id="userProfileBadge">
-      <div id="googleSignInBtnMount"></div>
-    </div>
-  </div>
-    <div class="topbar-right">
     <div class="network-badge">
       <span class="status-indicator-dot online"></span>
       <span class="network-text">Mahidol Net</span>
@@ -447,13 +409,7 @@
       </svg>
     </button>
   </div>
-
-
-
 </div>
-
-
-
 
 ===== FILE: D:\ART\REALTIME_SERVICE\OPPE\components\light-modal.html =====
 
@@ -522,13 +478,11 @@
       <h2 class="page-title">ระบบตรวจประเมินความเข้มแสงสว่าง</h2>
       <p class="page-subtitle">รายงานผลการตรวจวัดระดับความเข้มแสงสว่างและสุขศาสตร์อุตสาหกรรมในพื้นที่ปฏิบัติงาน</p>
     </div>
-    <!-- ลิงก์ตรงไปเปิดหน้าฟอร์มเต็มบน Google Apps Script -->
     <a href="https://script.google.com/macros/s/AKfycbydEOvHOmfeFkZBb4Wo98ftjblap5Avp42amLV63LPoU4ewjYhh2h9-YdbjV0_0lJvyig/exec" 
        target="_blank" 
        rel="noopener" 
-       class="btn-primary" 
-       style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-      📝 เปิดแบบบันทึกภาคสนาม (GAS Form) ↗
+       class="btn-outline">
+      เปิดแบบบันทึกภาคสนาม
     </a>
   </div>
 
@@ -541,6 +495,7 @@
       <div class="filter-actions">
         <button id="btnSelectAllBuildings" type="button" class="btn-text">เลือกทั้งหมด</button>
         <button id="btnDeselectAllBuildings" type="button" class="btn-text">ล้างตัวเลือก</button>
+        
       </div>
     </div>
     
@@ -592,14 +547,18 @@
     <div class="card-surface table-card">
       <div class="card-header flex-between">
         <h3 class="card-title">บันทึกผลการตรวจวัดล่าสุด</h3>
-        <div class="report-actions" style="display: flex; align-items: center; gap: 8px;">
-          <select id="selectEvaluationFilter" class="text-input" style="padding: 4px 8px; font-size: 13px; border-radius: 6px;">
+        <div class="report-actions"  style="display: flex; align-items: center; gap: 8px;">
+            <select id="selectEvaluationFilter" class="text-input" style="padding: 4px 8px; font-size: 13px; border-radius: 6px;">
             <option value="all">สถานะทั้งหมด</option>
             <option value="pass">เฉพาะที่ "ผ่านเกณฑ์"</option>
             <option value="fail">เฉพาะที่ "ไม่ผ่านเกณฑ์"</option>
           </select>
-          <button id="btnExportLightExcel" type="button" class="btn-sm btn-excel">Export CSV</button>
-          <button id="btnExportLightPdf" type="button" class="btn-sm btn-pdf">Export PDF (ทางการ)</button>
+          <button id="btnExportLightExcel" type="button" class="btn-sm btn-excel">
+            Export CSV
+          </button>
+          <button id="btnExportLightPdf" type="button" class="btn-sm btn-pdf">
+            Export PDF (ทางการ)
+          </button>
         </div>
       </div>
       <div class="table-scroll-area">
@@ -840,40 +799,6 @@ async function loadAirData(gasUrl) {
   }
 }
 
-===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\auth.js =====
-
-// js/auth.js
-(function () {
-  // จำลองสิทธิ์เพื่อพัฒนาฟังก์ชันหลักให้เสร็จก่อน
-  window.currentUser = {
-    email: "inspector.ehs@mahidol.ac.th",
-    name: "เจ้าหน้าที่ตรวจประเมิน (EHS Inspector)",
-    role: "INSPECTOR",
-    idToken: "mock-dev-token"
-  };
-
-  window.initGoogleAuth = function () {
-    // ปิดการทำงานของ Login Gate Modal
-    const modal = document.getElementById("loginGateModal");
-    if (modal) modal.style.display = "none";
-
-    // อัปเดตข้อมูลบน Header ทันที
-    const userBadge = document.getElementById("userProfileBadge");
-    if (userBadge) {
-      userBadge.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="status-tag pass">INSPECTOR (DEV)</span>
-          <span style="font-size:12px; font-weight:600; color:var(--text-primary);">${window.currentUser.email}</span>
-        </div>
-      `;
-    }
-  };
-
-  window.logoutUser = function () {
-    location.reload();
-  };
-})();
-
 ===== FILE: D:\ART\REALTIME_SERVICE\OPPE\js\carousel.js =====
 
 // js/carousel.js
@@ -999,13 +924,15 @@ async function loadAirData(gasUrl) {
 
   let buildingChartInstance = null;
   let allLightRecords = []; 
-  let isExporting = false;
+  let allBuildingStats = {}; 
+  let isExporting = false; // Flag ป้องกันการกด Export ซ้อนกัน
 
   window.initLightDashboard = function () {
     fetchLightDashboardData();
     bindFilterEvents();
   };
 
+  // ฟังก์ชันกลางสำหรับตัดสินผลประเมินว่า "ผ่านเกณฑ์" หรือไม่
   function checkIsPass(item) {
     if (!item) return false;
     const evalText = (item.evaluation || "").toString().trim();
@@ -1024,13 +951,16 @@ async function loadAirData(gasUrl) {
     if (window.__isLightEventsBound) return;
     window.__isLightEventsBound = true;
 
+    // 1. ติ๊ก Checkbox เลือกอาคาร หรือเปลี่ยนตัวกรองสถานะ ผ่าน/ไม่ผ่าน
     document.addEventListener('change', function (e) {
       if (e.target.classList.contains('bld-checkbox') || e.target.id === 'selectEvaluationFilter') {
         applyBuildingFilter();
       }
     });
 
+    // 2. จัดการคลิกปุ่มควบคุมและ Export
     document.addEventListener('click', function (e) {
+      // ปุ่มเลือกทั้งหมด
       if (e.target.id === 'btnSelectAllBuildings') {
         e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = true);
@@ -1038,6 +968,7 @@ async function loadAirData(gasUrl) {
         return;
       } 
       
+      // ปุ่มล้างตัวเลือกอาคาร
       if (e.target.id === 'btnDeselectAllBuildings') {
         e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = false);
@@ -1045,10 +976,12 @@ async function loadAirData(gasUrl) {
         return;
       }
 
+      // ปุ่ม Export Excel (.csv)
       const btnExcel = e.target.closest('#btnExportLightExcel');
       if (btnExcel) {
         e.preventDefault();
         e.stopPropagation();
+
         if (isExporting) return;
 
         const filtered = getFilteredRecords();
@@ -1066,10 +999,12 @@ async function loadAirData(gasUrl) {
         return;
       }
 
+      // ปุ่ม Export PDF
       const btnPdf = e.target.closest('#btnExportLightPdf');
       if (btnPdf) {
         e.preventDefault();
         e.stopPropagation();
+
         if (isExporting) return;
 
         const filtered = getFilteredRecords();
@@ -1089,11 +1024,13 @@ async function loadAirData(gasUrl) {
     });
   }
 
+  // ดึงรายชื่ออาคารที่ถูกติ๊กเลือกอยู่
   function getSelectedBuildings() {
     const checkboxes = document.querySelectorAll('.bld-checkbox:checked');
     return Array.from(checkboxes).map(cb => cb.value.trim());
   }
 
+  // กรองชุดข้อมูลตาม "อาคาร" และ "สถานะผ่าน/ไม่ผ่าน" ที่เลือก
   function getFilteredRecords() {
     const selected = getSelectedBuildings();
     if (selected.length === 0) return [];
@@ -1113,6 +1050,7 @@ async function loadAirData(gasUrl) {
     });
   }
 
+  // อัปเดตตาราง สถิติ และกราฟพร้อมกัน
   function applyBuildingFilter() {
     const filteredList = getFilteredRecords();
     updateTableAndStats(filteredList);
@@ -1122,8 +1060,14 @@ async function loadAirData(gasUrl) {
   async function fetchLightDashboardData() {
     const tbody = document.getElementById('lightTableBody');
     try {
-      const res = await fetch(`${LIGHT_API_URL}?action=getLightSummary`);
-      allLightRecords = await res.json() || [];
+      const [summaryRes, statsRes] = await Promise.all([
+        fetch(`${LIGHT_API_URL}?action=getLightSummary`),
+        fetch(`${LIGHT_API_URL}?action=getBuildingStats`)
+      ]);
+
+      allLightRecords = await summaryRes.json() || [];
+      allBuildingStats = await statsRes.json() || {};
+
       applyBuildingFilter();
     } catch (err) {
       console.error("Fetch light data error:", err);
@@ -1156,17 +1100,12 @@ async function loadAirData(gasUrl) {
       const pointInfo = item.workerOrPoint && item.workerOrPoint !== "-" 
         ? `<div class="sub-text">(${item.workerOrPoint})</div>` 
         : "";
-      
-      const inspectorInfo = item.inspectorEmail && item.inspectorEmail !== "-"
-        ? `<div class="sub-text" style="color:var(--text-muted); font-size:10px;">ผู้ตรวจ: ${item.inspectorEmail}</div>`
-        : "";
 
       return `
         <tr>
           <td>
             <strong>${item.building || "-"}</strong>
             <div class="sub-text">ห้อง ${item.room || "-"}</div>
-            ${inspectorInfo}
           </td>
           <td>
             <div>${item.task || "-"}</div>
@@ -1194,6 +1133,8 @@ async function loadAirData(gasUrl) {
     if (!canvas) return;
 
     const selected = getSelectedBuildings();
+    
+    // คำนวณจำนวน ผ่าน/ไม่ผ่าน แยกตามอาคารจากชุดข้อมูลที่ถูกกรองจริง
     const dynamicStats = {};
     selected.forEach(bld => {
       dynamicStats[bld] = { pass: 0, fail: 0 };
@@ -1202,8 +1143,11 @@ async function loadAirData(gasUrl) {
     (filteredList || []).forEach(item => {
       const bld = (item.building || "").trim();
       if (dynamicStats[bld]) {
-        if (checkIsPass(item)) dynamicStats[bld].pass++;
-        else dynamicStats[bld].fail++;
+        if (checkIsPass(item)) {
+          dynamicStats[bld].pass++;
+        } else {
+          dynamicStats[bld].fail++;
+        }
       }
     });
 
@@ -1239,22 +1183,44 @@ async function loadAirData(gasUrl) {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
-          y: { stacked: true, beginAtZero: true, ticks: { precision: 0, stepSize: 1, font: { size: 11 } }, grid: { color: '#f1f5f9' } }
+          x: {
+            stacked: true,
+            grid: { display: false },
+            ticks: { font: { size: 11 } }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: { precision: 0, stepSize: 1, font: { size: 11 } },
+            grid: { color: '#f1f5f9' }
+          }
         },
         plugins: {
-          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+          legend: {
+            position: 'top',
+            labels: { boxWidth: 12, font: { size: 11 } }
+          }
         }
       }
     });
   }
 
-function exportToExcel(dataList) {
+  // Export Excel (.csv)
+  function exportToExcel(dataList) {
     const headers = [
-      "ลำดับ", "วัน/เดือน/ปี ที่ตรวจวัด", "เวลาตรวจวัด", "แผนก/ส่วนงาน", "อาคาร", 
-      "ห้อง/พื้นที่ตรวจวัด", "ลักษณะงาน/ลักษณะพื้นที่", "ชื่อ-นามสกุลลูกจ้าง (SEG) / จุดตรวจ", 
-      "เครื่องมือตรวจวัด (ยี่ห้อ/S/N)", "ค่ามาตรฐานตามเกณฑ์ (Lux)", "ค่าเฉลี่ยที่วัดได้ (Lux)", 
-      "ผลการประเมิน", "หมายเหตุ/ข้อเสนอแนะ", "ผู้ตรวจวัด (Email)"
+      "ลำดับ",
+      "วัน/เดือน/ปี ที่ตรวจวัด",
+      "เวลาตรวจวัด",
+      "แผนก/ส่วนงาน",
+      "อาคาร",
+      "ห้อง/พื้นที่ตรวจวัด",
+      "ลักษณะงาน/ลักษณะพื้นที่",
+      "ชื่อ-นามสกุลลูกจ้าง (SEG) / จุดตรวจ",
+      "เครื่องมือตรวจวัด (ยี่ห้อ/S/N)",
+      "ค่ามาตรฐานตามเกณฑ์ (Lux)",
+      "ค่าเฉลี่ยที่วัดได้ (Lux)",
+      "ผลการประเมิน",
+      "หมายเหตุ/ข้อเสนอแนะ"
     ];
 
     const rows = dataList.map((item, index) => {
@@ -1274,8 +1240,7 @@ function exportToExcel(dataList) {
         item.standardLux || 0,
         item.measuredLux || 0,
         isPass ? "ผ่านเกณฑ์" : "ไม่ผ่านเกณฑ์",
-        clean(item.recommendation || "-"),
-        clean(item.inspectorEmail || "-") // คอลัมน์ใหม่
+        clean(item.recommendation || "-")
       ].join(",");
     });
 
@@ -1285,10 +1250,18 @@ function exportToExcel(dataList) {
     const link = document.createElement("a");
 
     const today = new Date().toISOString().slice(0, 10);
+    const evalFilterEl = document.getElementById('selectEvaluationFilter');
+    const filterTag = evalFilterEl && evalFilterEl.value === 'pass' 
+      ? '_เฉพาะผ่านเกณฑ์' 
+      : (evalFilterEl && evalFilterEl.value === 'fail' ? '_เฉพาะไม่ผ่านเกณฑ์' : '');
+
     link.href = url;
-    link.download = `แบบรายงานผลการตรวจวัดแสงสว่าง_${today}.csv`;
+    link.download = `แบบรายงานผลการตรวจวัดแสงสว่าง${filterTag}_${today}.csv`;
     link.style.display = "none";
-    link.onclick = (e) => e.stopPropagation();
+    
+    link.onclick = function(e) {
+      e.stopPropagation();
+    };
 
     document.body.appendChild(link);
     link.click();
@@ -1299,6 +1272,7 @@ function exportToExcel(dataList) {
     }, 200);
   }
 
+  // สร้างไฟล์ PDF ตามแม่แบบทางการ
   function generateOfficialPdfReport(dataList) {
     function formatDateTime(item) {
       const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
@@ -1306,14 +1280,20 @@ function exportToExcel(dataList) {
 
       if (item.timestamp && !datePart) {
         const d = new Date(item.timestamp);
-        if (!isNaN(d.getTime())) datePart = d.toISOString().slice(0, 10);
+        if (!isNaN(d.getTime())) {
+          datePart = d.toISOString().slice(0, 10);
+        }
       } else if (datePart.includes("/")) {
         const parts = datePart.split("/");
         if (parts.length === 3 && parts[2].length === 4) {
           datePart = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
       }
-      return (datePart && timePart) ? `${datePart} / ${timePart}` : (datePart || timePart || "-");
+
+      if (datePart && timePart) {
+        return `${datePart} / ${timePart}`;
+      }
+      return datePart || timePart || "-";
     }
 
     const sample = dataList[0] || {};
@@ -1327,8 +1307,11 @@ function exportToExcel(dataList) {
     dataList.forEach(item => {
       const wp = (item.workerOrPoint || "").trim();
       const isSpot = wp && wp !== "-" && !wp.toLowerCase().startsWith("r-") && !wp.toLowerCase().startsWith("e-");
-      if (isSpot) spotRecords.push(item);
-      else areaRecords.push(item);
+      if (isSpot) {
+        spotRecords.push(item);
+      } else {
+        areaRecords.push(item);
+      }
     });
 
     const areaRowsHtml = areaRecords.length > 0 ? areaRecords.map((item, idx) => {
@@ -1396,14 +1379,17 @@ function exportToExcel(dataList) {
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
           body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.25; }
+          
           .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
           .header-brand-group { display: flex; align-items: center; gap: 14px; }
           .mu-logo { width: 62px; height: 62px; object-fit: contain; }
           .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
+
           .section-title { font-weight: bold; margin: 8px 0 4px 0; font-size: 12pt; }
           table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
           th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
           th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
+
           .notes-box { margin-top: 8px; font-size: 9.5pt; line-height: 1.35; }
           .sig-row { display: flex; justify-content: space-between; margin-top: 22px; padding: 0 40px; page-break-inside: avoid; }
           .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
@@ -1425,8 +1411,12 @@ function exportToExcel(dataList) {
           <table>
             <thead>
               <tr>
-                <th>เครื่องตรวจวัด</th><th>ยี่ห้อ/รุ่น</th><th>หมายเลขเครื่อง (Serial Number)</th>
-                <th>มาตรฐานเครื่องตรวจวัด</th><th>ค่าการปรับศูนย์ (Zeroing)</th><th>ปี/เดือน/วัน (ปรับเทียบ)</th>
+                <th>เครื่องตรวจวัด</th>
+                <th>ยี่ห้อ/รุ่น</th>
+                <th>หมายเลขเครื่อง (Serial Number)</th>
+                <th>มาตรฐานเครื่องตรวจวัด</th>
+                <th>ค่าการปรับศูนย์ (Zeroing) ณ วันที่ตรวจวัด</th>
+                <th>ปี/เดือน/วัน (ปรับเทียบความถูกต้อง)</th>
               </tr>
             </thead>
             <tbody>
@@ -1446,13 +1436,18 @@ function exportToExcel(dataList) {
         <table>
           <thead>
             <tr>
-              <th rowspan="2" style="width: 4%;">ลำดับ</th><th rowspan="2" style="width: 14%;">แผนก</th>
-              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th><th rowspan="2" style="width: 18%;">พื้นที่ตรวจวัด</th>
-              <th rowspan="2" style="width: 18%;">ลักษณะงาน</th><th colspan="2" style="width: 14%;">ผลตรวจวัด (ลักซ์)</th>
-              <th rowspan="2" style="width: 12%;">ผลการประเมิน</th><th rowspan="2" style="width: 12%;">หมายเหตุ</th>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th>
+              <th rowspan="2" style="width: 14%;">แผนก</th>
+              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th>
+              <th rowspan="2" style="width: 18%;">พื้นที่ตรวจวัด</th>
+              <th rowspan="2" style="width: 18%;">ลักษณะงาน</th>
+              <th colspan="2" style="width: 14%;">ผลตรวจวัด (ลักซ์)</th>
+              <th rowspan="2" style="width: 12%;">ผลการประเมิน</th>
+              <th rowspan="2" style="width: 12%;">หมายเหตุ</th>
             </tr>
             <tr>
-              <th style="width: 7%;">ค่าที่วัดได้</th><th style="width: 7%;">เกณฑ์มาตรฐาน</th>
+              <th style="width: 7%;">ค่าที่วัดได้</th>
+              <th style="width: 7%;">เกณฑ์มาตรฐาน</th>
             </tr>
           </thead>
           <tbody>
@@ -1464,6 +1459,7 @@ function exportToExcel(dataList) {
           <strong>หมายเหตุ:</strong>
           <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
           <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
         </div>
 
         <div class="sig-row">
@@ -1494,20 +1490,32 @@ function exportToExcel(dataList) {
         <table>
           <thead>
             <tr>
-              <th rowspan="2" style="width: 4%;">ลำดับ</th><th rowspan="2" style="width: 12%;">แผนก</th>
-              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th><th rowspan="2" style="width: 16%;">ชื่อลูกจ้าง (SEG)</th>
-              <th rowspan="2" style="width: 18%;">ลักษณะงาน / พื้นที่</th><th rowspan="2" style="width: 8%;">ค่าที่วัดได้ (ลักซ์)<br>พื้นที่ 1</th>
+              <th rowspan="2" style="width: 4%;">ลำดับ</th>
+              <th rowspan="2" style="width: 12%;">แผนก</th>
+              <th rowspan="2" style="width: 12%;">เวลาตรวจวัด</th>
+              <th rowspan="2" style="width: 16%;">ชื่อ-นามสกุลของลูกจ้าง (SEG)</th>
+              <th rowspan="2" style="width: 18%;">ลักษณะงาน / พื้นที่</th>
+              <th rowspan="2" style="width: 8%;">ค่าที่วัดได้ (ลักซ์)<br>พื้นที่ 1</th>
               <th colspan="2" style="width: 12%;">แสงสว่างโดยรอบ (ลักซ์)</th>
-              <th rowspan="2" style="width: 11%;">ผลการประเมิน</th><th rowspan="2" style="width: 11%;">ข้อเสนอแนะ</th>
+              <th rowspan="2" style="width: 11%;">ผลการประเมิน</th>
+              <th rowspan="2" style="width: 11%;">ข้อเสนอแนะและวิธีปรับปรุง</th>
             </tr>
             <tr>
-              <th style="width: 6%;">พื้นที่ 2</th><th style="width: 6%;">พื้นที่ 3</th>
+              <th style="width: 6%;">พื้นที่ 2</th>
+              <th style="width: 6%;">พื้นที่ 3</th>
             </tr>
           </thead>
           <tbody>
             ${spotRowsHtml}
           </tbody>
         </table>
+
+        <div class="notes-box">
+          <strong>หมายเหตุ:</strong>
+          <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
+          <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
+        </div>
 
         <div class="sig-row">
           <div class="sig-box">
@@ -1521,12 +1529,15 @@ function exportToExcel(dataList) {
             <div>ผู้บริหาร / ผู้มีอำนาจกระทำการแทน</div>
           </div>
         </div>
+
       </body>
       </html>
     `;
 
     let oldFrame = document.getElementById('pdfPrintFrame');
-    if (oldFrame && oldFrame.parentNode) oldFrame.parentNode.removeChild(oldFrame);
+    if (oldFrame && oldFrame.parentNode) {
+      oldFrame.parentNode.removeChild(oldFrame);
+    }
 
     const printFrame = document.createElement('iframe');
     printFrame.id = 'pdfPrintFrame';
