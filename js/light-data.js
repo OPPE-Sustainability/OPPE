@@ -1,29 +1,9 @@
 // js/light-data.js
 (function () {
-  // อัปเดต URL ล่าสุดตามที่ระบุ
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbyn5cMl8TJFzSEbJt89uyhnoJN7mwwLJ9ehM4RIbSx4zCpiCUjCq3rLtAREjv6puv89xA/exec";
-  const EHS_ACCESS_KEY = "OPPE"; 
 
   window.checkLightAccess = function () {
-    // return sessionStorage.getItem("light_dash_authorized") === "true";
-    return true; // ปิดการตรวจสอบสิทธิ์สำหรับ DEV
-  };
-
-  window.verifyLightGateKey = function (e) {
-    if (e) e.preventDefault();
-    const enteredKey = document.getElementById("gatePasscode").value.trim();
-    const errorMsg = document.getElementById("gateErrorMsg");
-
-    if (enteredKey === EHS_ACCESS_KEY) {
-      sessionStorage.setItem("light_dash_authorized", "true");
-      const modal = document.getElementById("lightDashboardGateModal");
-      if (modal) modal.style.display = "none";
-      if (errorMsg) errorMsg.textContent = "";
-      document.getElementById("gatePasscode").value = "";
-      window.navigateTo('light');
-    } else {
-      if (errorMsg) errorMsg.textContent = "❌ รหัสผ่านไม่ถูกต้อง กรุณาติดต่อกองกายภาพและสิ่งแวดล้อม";
-    }
+    return true;
   };
 
   let areaRecords = [];
@@ -73,19 +53,23 @@
     window.__isLightEventsBound = true;
 
     document.addEventListener('change', e => {
-      if (e.target.classList.contains('bld-checkbox') || e.target.id === 'selectEvaluationFilter') {
+      if (e.target && (e.target.classList.contains('bld-checkbox') || e.target.id === 'selectEvaluationFilter')) {
         applyFilters();
       }
     });
 
     document.addEventListener('click', e => {
-      if (e.target.id === 'btnSelectAllBuildings') {
+      const target = e.target;
+      if (!target) return;
+
+      if (target.id === 'btnSelectAllBuildings') {
         e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = true);
         applyFilters();
         return;
       }
-      if (e.target.id === 'btnDeselectAllBuildings') {
+
+      if (target.id === 'btnDeselectAllBuildings') {
         e.preventDefault();
         document.querySelectorAll('.bld-checkbox').forEach(cb => cb.checked = false);
         applyFilters();
@@ -93,50 +77,80 @@
       }
 
       // พิมพ์รายงานแบบพื้นที่ (Area)
-      const btnAreaPdf = e.target.closest('#btnExportAreaPdf');
-      if (btnAreaPdf) {
+      const btnArea = target.closest('#btnExportAreaPdf');
+      if (btnArea) {
         e.preventDefault();
-        if (isExporting) return;
-        const filtered = getFilteredAreaRecords();
-        if (filtered.length === 0) { alert('ไม่พบข้อมูลตรวจวัดแบบพื้นที่'); return; }
-        
-        let inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
-        if (inputName === null) return; 
-
-        let displaySignature = "(............................................................................)";
-        if (inputName.trim() !== "") {
-          displaySignature = `(นาย ${inputName.trim()})`;
-        }
-
-        isExporting = true;
-        try { generateAreaPdfReport(filtered, displaySignature); }
-        finally { setTimeout(() => { isExporting = false; }, 1500); }
+        triggerAreaExport();
         return;
       }
 
       // พิมพ์รายงานแบบจุดบุคคล (Spot)
-      const btnSpotPdf = e.target.closest('#btnExportSpotPdf');
-      if (btnSpotPdf) {
+      const btnSpot = target.closest('#btnExportSpotPdf');
+      if (btnSpot) {
         e.preventDefault();
-        if (isExporting) return;
-        const filtered = getFilteredSpotRecords();
-        if (filtered.length === 0) { alert('ไม่พบข้อมูลตรวจวัดแบบจุด (Spot)'); return; }
-
-        let inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
-        if (inputName === null) return; 
-
-        let displaySignature = "(............................................................................)";
-        if (inputName.trim() !== "") {
-          displaySignature = `(นาย ${inputName.trim()})`;
-        }
-
-        isExporting = true;
-        try { generateSpotPdfReport(filtered, displaySignature); }
-        finally { setTimeout(() => { isExporting = false; }, 1500); }
+        triggerSpotExport();
         return;
       }
     });
   }
+
+  function triggerAreaExport() {
+    if (isExporting) return;
+    const filtered = getFilteredAreaRecords();
+    if (!filtered || filtered.length === 0) {
+      alert('⚠️ ไม่พบข้อมูลตรวจวัดแบบพื้นที่ในอาคารที่เลือก กรุณาเลือกอาคารในตัวกรองด้านบน');
+      return;
+    }
+
+    const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+    if (inputName === null) return;
+
+    let displaySignature = "(............................................................................)";
+    if (inputName.trim() !== "") {
+      displaySignature = `(นาย ${inputName.trim()})`;
+    }
+
+    isExporting = true;
+    try {
+      generateAreaPdfReport(filtered, displaySignature);
+    } catch (err) {
+      console.error("Area PDF generation error:", err);
+      alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
+    } finally {
+      setTimeout(() => { isExporting = false; }, 800);
+    }
+  }
+
+  function triggerSpotExport() {
+    if (isExporting) return;
+    const filtered = getFilteredSpotRecords();
+    if (!filtered || filtered.length === 0) {
+      alert('⚠️ ไม่พบข้อมูลตรวจวัดแบบจุด (Spot) ในอาคารที่เลือก กรุณาเลือกอาคารในตัวกรองด้านบน');
+      return;
+    }
+
+    const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+    if (inputName === null) return;
+
+    let displaySignature = "(............................................................................)";
+    if (inputName.trim() !== "") {
+      displaySignature = `(นาย ${inputName.trim()})`;
+    }
+
+    isExporting = true;
+    try {
+      generateSpotPdfReport(filtered, displaySignature);
+    } catch (err) {
+      console.error("Spot PDF generation error:", err);
+      alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
+    } finally {
+      setTimeout(() => { isExporting = false; }, 800);
+    }
+  }
+
+  // ผูกเข้ากับ window ให้เรียกใช้งานตรงได้กรณีจำเป็น
+  window.exportAreaPdf = triggerAreaExport;
+  window.exportSpotPdf = triggerSpotExport;
 
   function getSelectedBuildings() {
     return Array.from(document.querySelectorAll('.bld-checkbox:checked')).map(cb => cb.value.trim());
@@ -144,11 +158,13 @@
 
   function getFilteredAreaRecords() {
     const selected = getSelectedBuildings();
+    if (selected.length === 0) return [];
     return areaRecords.filter(item => selected.includes((item.building || "").trim()));
   }
 
   function getFilteredSpotRecords() {
     const selected = getSelectedBuildings();
+    if (selected.length === 0) return [];
     return spotRecords.filter(item => selected.includes((item.building || "").trim()));
   }
 
@@ -198,12 +214,12 @@
         fetch(`${LIGHT_API_URL}?action=getAreaSummary`),
         fetch(`${LIGHT_API_URL}?action=getSpotSummary`)
       ]);
-      areaRecords = await areaRes.json() || [];
-      spotRecords = await spotRes.json() || [];
+      areaRecords = (await areaRes.json()) || [];
+      spotRecords = (await spotRes.json()) || [];
       applyFilters();
     } catch (err) {
       console.error("Fetch data error:", err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ (ตรวจสอบการเชื่อมต่อ GAS)</td></tr>';
     }
   }
 
@@ -237,7 +253,6 @@
 
     const active = selected.filter(b => stats[b].total > 0);
 
-    // 1. อัปเดตตารางสรุป
     if (tbody) {
       if (active.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลในอาคารที่เลือก</td></tr>';
@@ -259,7 +274,6 @@
       }
     }
 
-    // 2. อัปเดตกราฟ Chart.js
     if (canvas && typeof Chart !== 'undefined') {
       const ctx = canvas.getContext('2d');
       if (buildingChartInstance) {
@@ -343,10 +357,7 @@
     }).join('');
   }
 
-// -------------------------------------------------------------
-  // REPORT 1: PDF รายงานแบบตรวจวัดพื้นที่ (Area Report - แยกตามอาคาร)
-  // -------------------------------------------------------------
-  function generateAreaPdfReport(records,displaySignature = "(.......................)") {
+  function generateAreaPdfReport(records, displaySignature) {
     function formatDateTime(item) {
       const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
       let datePart = item.date || "";
@@ -368,7 +379,6 @@
     const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
     const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
 
-    // จัดกลุ่มตาม อาคาร ก่อน แล้วค่อยจัดกลุ่มย่อยตาม วันที่ + ห้อง
     const groupedByBuilding = {};
     records.forEach(item => {
       const bld = (item.building || "ไม่ระบุอาคาร").trim();
@@ -468,19 +478,15 @@
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
           body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.2; }
-          
           .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
           .header-brand-group { display: flex; align-items: center; gap: 14px; }
           .mu-logo { width: 52px; height: 52px; object-fit: contain; }
           .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
-
           .section-title { font-weight: bold; margin: 6px 0 3px 0; font-size: 12pt; }
           .bld-section-title { font-weight: bold; margin: 12px 0 4px 0; font-size: 12pt; color: #1769E0; background: #f8fafc; padding: 4px 8px; border-left: 4px solid #1769E0; }
-          
           table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
           th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
           th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
-
           .notes-box { margin-top: 8px; font-size: 9pt; line-height: 1.35; }
           .sig-row { display: flex; justify-content: space-between; margin-top: 20px; padding: 0 40px; page-break-inside: avoid; }
           .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
@@ -523,7 +529,6 @@
         </div>
 
         <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างบนพื้นที่ (Area Measurement)</div>
-        
         ${contentHtml}
 
         <div class="notes-box">
@@ -552,17 +557,12 @@
     printFrameContent(reportHtml);
   }
 
-
-// -------------------------------------------------------------
-  // REPORT 2: PDF รายงานแบบตรวจวัดเฉพาะจุด (Spot Report) - แยกตามอาคาร
-  // -------------------------------------------------------------
-  function generateSpotPdfReport(records, displaySignature= "(...................................)") { // <-- รับค่าชื่อตรงนี้
+  function generateSpotPdfReport(records, displaySignature) {
     const sample = records[0] || {};
     const equipName = (sample.equipment && sample.equipment !== "-") ? sample.equipment : "Lux Meter";
     const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
     const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
 
-    // จัดกลุ่มข้อมูลตามชื่ออาคาร
     const groupedByBuilding = {};
     records.forEach(item => {
       const bld = (item.building || "ไม่ระบุอาคาร").trim();
@@ -572,7 +572,6 @@
 
     let contentHtml = "";
 
-    // สร้างตารางแยกทีละอาคาร
     Object.keys(groupedByBuilding).forEach(bldName => {
       const bldRecords = groupedByBuilding[bldName];
       const rowsHtml = bldRecords.map((r, i) => {
@@ -626,19 +625,15 @@
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: "TH Sarabun New", "Sarabun", Tahoma, sans-serif; }
           body { margin: 0; padding: 10px; color: #000; background: #fff; font-size: 11pt; line-height: 1.25; }
-          
           .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
           .header-brand-group { display: flex; align-items: center; gap: 14px; }
           .mu-logo { width: 62px; height: 62px; object-fit: contain; }
           .org-title { font-size: 15pt; font-weight: bold; line-height: 1.2; }
-
           .section-title { font-weight: bold; margin: 8px 0 4px 0; font-size: 12pt; }
           .bld-section-title { font-weight: bold; margin: 12px 0 4px 0; font-size: 12pt; color: #1769E0; background: #f8fafc; padding: 4px 8px; border-left: 4px solid #1769E0; }
-          
           table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5pt; }
           th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
           th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
-
           .notes-box { margin-top: 8px; font-size: 9.5pt; line-height: 1.35; }
           .sig-row { display: flex; justify-content: space-between; margin-top: 22px; padding: 0 40px; page-break-inside: avoid; }
           .sig-box { text-align: center; width: 340px; font-size: 10.5pt; }
@@ -680,7 +675,6 @@
         </div>
 
         <div class="section-title">ผลการตรวจวัดสภาวะการทำงานเกี่ยวกับแสงสว่างแบบจุด (Spot Measurement)</div>
-        
         ${contentHtml}
 
         <div class="notes-box">
@@ -693,7 +687,7 @@
         <div class="sig-row">
           <div class="sig-box">
             <div>ลงชื่อ.....................................................................</div>
-            <div style="margin-top: 3px;">${displaySignature}</div> <!-- นำค่าที่กรอกมาแสดงตรงนี้ -->
+            <div style="margin-top: 3px;">${displaySignature}</div>
             <div>ผู้ดำเนินการตรวจวัด</div>
           </div>
           <div class="sig-box">
@@ -702,16 +696,13 @@
             <div>ผู้บริหาร / ผู้มีอำนาจกระทำการแทน</div>
           </div>
         </div>
-
       </body>
       </html>
     `;
+
     printFrameContent(html);
   }
 
-
-
-  // เก็บ printFrameContent ไว้เพียงฟังก์ชันเดียว
   function printFrameContent(html) {
     let oldFrame = document.getElementById('pdfPrintFrame');
     if (oldFrame) oldFrame.remove();
@@ -719,6 +710,8 @@
     const frame = document.createElement('iframe');
     frame.id = 'pdfPrintFrame';
     frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
     frame.style.width = '0';
     frame.style.height = '0';
     frame.style.border = '0';
@@ -734,9 +727,4 @@
       frame.contentWindow.print();
     }, 450);
   }
-
-
-
-
-
 })();
