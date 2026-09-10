@@ -80,7 +80,36 @@
       const btnArea = target.closest('#btnExportAreaPdf');
       if (btnArea) {
         e.preventDefault();
-        triggerAreaExport();
+        if (isExporting) return;
+
+        if (!areaRecords || areaRecords.length === 0) {
+          alert("⚠️ ยังไม่สามารถดึงข้อมูลจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง Web App API หรือลองรีเฟรชหน้าเว็บ");
+          return;
+        }
+
+        const filtered = getFilteredAreaRecords();
+        if (!filtered || filtered.length === 0) {
+          alert('⚠️ กรุณาทำเครื่องหมายเลือกอาคารที่ต้องการออกรายงานอย่างน้อย 1 อาคาร');
+          return;
+        }
+
+        const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+        if (inputName === null) return;
+
+        let displaySignature = "(............................................................................)";
+        if (inputName.trim() !== "") {
+          displaySignature = `(นาย ${inputName.trim()})`;
+        }
+
+        isExporting = true;
+        try {
+          generateAreaPdfReport(filtered, displaySignature);
+        } catch (err) {
+          console.error("Area PDF generation error:", err);
+          alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
+        } finally {
+          setTimeout(() => { isExporting = false; }, 800);
+        }
         return;
       }
 
@@ -88,69 +117,40 @@
       const btnSpot = target.closest('#btnExportSpotPdf');
       if (btnSpot) {
         e.preventDefault();
-        triggerSpotExport();
+        if (isExporting) return;
+
+        if (!spotRecords || spotRecords.length === 0) {
+          alert("⚠️ ยังไม่สามารถดึงข้อมูลแบบจุดจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง Web App API หรือลองรีเฟรชหน้าเว็บ");
+          return;
+        }
+
+        const filtered = getFilteredSpotRecords();
+        if (!filtered || filtered.length === 0) {
+          alert('⚠️ กรุณาทำเครื่องหมายเลือกอาคารที่ต้องการออกรายงานอย่างน้อย 1 อาคาร');
+          return;
+        }
+
+        const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+        if (inputName === null) return;
+
+        let displaySignature = "(............................................................................)";
+        if (inputName.trim() !== "") {
+          displaySignature = `(นาย ${inputName.trim()})`;
+        }
+
+        isExporting = true;
+        try {
+          generateSpotPdfReport(filtered, displaySignature);
+        } catch (err) {
+          console.error("Spot PDF generation error:", err);
+          alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
+        } finally {
+          setTimeout(() => { isExporting = false; }, 800);
+        }
         return;
       }
     });
   }
-
-  function triggerAreaExport() {
-    if (isExporting) return;
-    const filtered = getFilteredAreaRecords();
-    if (!filtered || filtered.length === 0) {
-      alert('⚠️ ไม่พบข้อมูลตรวจวัดแบบพื้นที่ในอาคารที่เลือก กรุณาเลือกอาคารในตัวกรองด้านบน');
-      return;
-    }
-
-    const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
-    if (inputName === null) return;
-
-    let displaySignature = "(............................................................................)";
-    if (inputName.trim() !== "") {
-      displaySignature = `(นาย ${inputName.trim()})`;
-    }
-
-    isExporting = true;
-    try {
-      generateAreaPdfReport(filtered, displaySignature);
-    } catch (err) {
-      console.error("Area PDF generation error:", err);
-      alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
-    } finally {
-      setTimeout(() => { isExporting = false; }, 800);
-    }
-  }
-
-  function triggerSpotExport() {
-    if (isExporting) return;
-    const filtered = getFilteredSpotRecords();
-    if (!filtered || filtered.length === 0) {
-      alert('⚠️ ไม่พบข้อมูลตรวจวัดแบบจุด (Spot) ในอาคารที่เลือก กรุณาเลือกอาคารในตัวกรองด้านบน');
-      return;
-    }
-
-    const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
-    if (inputName === null) return;
-
-    let displaySignature = "(............................................................................)";
-    if (inputName.trim() !== "") {
-      displaySignature = `(นาย ${inputName.trim()})`;
-    }
-
-    isExporting = true;
-    try {
-      generateSpotPdfReport(filtered, displaySignature);
-    } catch (err) {
-      console.error("Spot PDF generation error:", err);
-      alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
-    } finally {
-      setTimeout(() => { isExporting = false; }, 800);
-    }
-  }
-
-  // ผูกเข้ากับ window ให้เรียกใช้งานตรงได้กรณีจำเป็น
-  window.exportAreaPdf = triggerAreaExport;
-  window.exportSpotPdf = triggerSpotExport;
 
   function getSelectedBuildings() {
     return Array.from(document.querySelectorAll('.bld-checkbox:checked')).map(cb => cb.value.trim());
@@ -219,7 +219,7 @@
       applyFilters();
     } catch (err) {
       console.error("Fetch data error:", err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ (ตรวจสอบการเชื่อมต่อ GAS)</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบสิทธิ์การ Deploy GAS (ต้องเป็น Anyone)</td></tr>';
     }
   }
 
@@ -604,7 +604,7 @@
               <th style="width: 10%;">ค่าที่วัดได้ (Lux)<br>พื้นที่ 1</th>
               <th style="width: 8%;">เกณฑ์ (Lux)</th>
               <th style="width: 9%;">ผลประเมิน</th>
-              <th style="width: 13%;">ข้อเสนอแนะและวิธีปรับปรุง</th>
+              <th style="width: 13%;">หมายเหตุ</th>
             </tr>
           </thead>
           <tbody>
