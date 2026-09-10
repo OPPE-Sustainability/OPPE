@@ -98,7 +98,7 @@
 
         let displaySignature = "(............................................................................)";
         if (inputName.trim() !== "") {
-          displaySignature = `(นาย ${inputName.trim()})`;
+          displaySignature = `( ${inputName.trim()})`;
         }
 
         isExporting = true;
@@ -135,7 +135,7 @@
 
         let displaySignature = "(............................................................................)";
         if (inputName.trim() !== "") {
-          displaySignature = `(นาย ${inputName.trim()})`;
+          displaySignature = `( ${inputName.trim()})`;
         }
 
         isExporting = true;
