@@ -158,7 +158,7 @@
   </div>
 
   <!-- Private Gate สำหรับหน้าตรวจวัดแสง (เข้าถึงเฉพาะเจ้าหน้าที่ EHS) -->
-  <div id="lightDashboardGateModal" class="login-gate-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 59, 130, 0.5); backdrop-filter: blur(6px); z-index: 99999; align-items: center; justify-content: center;">
+  <!-- <div id="lightDashboardGateModal" class="login-gate-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 59, 130, 0.5); backdrop-filter: blur(6px); z-index: 99999; align-items: center; justify-content: center;">
     <div style="background: white; border-radius: 12px; padding: 28px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.2);">
       <div style="font-size: 32px; margin-bottom: 8px;">🔒</div>
       <h3 style="margin: 0 0 6px 0; color: #0f172a;">เข้าสู่ระบบส่วนตรวจวัดแสง (รหัสผ่าน OPPE)</h3>
@@ -174,7 +174,7 @@
         <button type="button" onclick="window.navigateTo('home')" style="background: none; border: none; color: #64748b; font-size: 12px; cursor: pointer;">← กลับสู่หน้าหลักสาธารณะ</button>
       </div>
     </div>
-  </div>
+  </div> -->
 
   <script>
     async function loadComponent(elementId, filePath) {
@@ -192,7 +192,7 @@
     // 1. State Navigation Controller ป้องกัน Race Condition และดัก Private Gate
     window.navigateTo = function(pageId) {
       // ดักตรวจสิทธิ์เฉพาะหน้าตรวจวัดแสง (light)
-      if (pageId === 'light') {
+     /* if (pageId === 'light') {
         const isAuthorized = (typeof window.checkLightAccess === 'function') 
           ? window.checkLightAccess() 
           : (sessionStorage.getItem("light_dash_authorized") === "true");
@@ -206,7 +206,7 @@
           }
           return; // หยุดการทำงาน ไม่เปิดหน้า Dashboard แสง
         }
-      }
+      } */
 
       // สลับหน้าจอ Active
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));

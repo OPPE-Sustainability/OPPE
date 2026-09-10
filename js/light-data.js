@@ -5,7 +5,8 @@
   const EHS_ACCESS_KEY = "OPPE"; 
 
   window.checkLightAccess = function () {
-    return sessionStorage.getItem("light_dash_authorized") === "true";
+    // return sessionStorage.getItem("light_dash_authorized") === "true";
+    return true; // ปิดการตรวจสอบสิทธิ์สำหรับ DEV
   };
 
   window.verifyLightGateKey = function (e) {

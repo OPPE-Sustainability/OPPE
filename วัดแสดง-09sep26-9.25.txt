@@ -1,0 +1,1447 @@
+// ==============Code.gs========================
+// 1. WEB APP & API ROUTING (doGet)
+// =================================================================
+
+function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) ? e.parameter.action.trim() : "";
+
+  // 1.1 สรุปสถิติรายอาคารสำหรับ PWA Dashboard
+  if (action === "getBuildingStats") {
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var areaSheet = ss.getSheetByName("Database_Area");
+      var summary = {};
+
+      if (areaSheet && areaSheet.getLastRow() > 1) {
+        var values = areaSheet.getRange(2, 1, areaSheet.getLastRow() - 1, 20).getDisplayValues();
+        var roomMap = {};
+
+        for (var i = 0; i < values.length; i++) {
+          var bld = (values[i][8] || "").trim(); // Col I: อาคาร
+          var room = (values[i][9] || "").trim(); // Col J: ห้อง
+          var ev = (values[i][17] || "").trim(); // Col R: ผลประเมิน
+          if (!bld || !room) continue;
+
+          var key = bld + "___" + room;
+          if (!roomMap[key]) roomMap[key] = { bld: bld, isPass: true };
+          if (ev.indexOf("ไม่ผ่าน") !== -1) roomMap[key].isPass = false;
+        }
+
+        for (var rKey in roomMap) {
+          var b = roomMap[rKey].bld;
+          if (!summary[b]) summary[b] = { passRooms: 0, failRooms: 0, totalRooms: 0 };
+          summary[b].totalRooms++;
+          if (roomMap[rKey].isPass) summary[b].passRooms++;
+          else summary[b].failRooms++;
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify(summary)).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // 1.2 ส่งข้อมูลตรวจวัดแบบพื้นที่ (Database_Area)
+  if (action === "getAreaSummary") {
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName("Database_Area");
+      if (!sheet || sheet.getLastRow() <= 1) {
+        return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var lastRow = sheet.getLastRow();
+      var numRows = Math.min(lastRow - 1, 200);
+      var data = sheet.getRange(lastRow - numRows + 1, 1, numRows, 20).getDisplayValues().reverse();
+
+      var result = data.map(function(r) {
+        return {
+          timestamp: r[0], date: r[1], time: r[2], weather: r[3],
+          equipment: r[4], serialNo: r[5], calDate: r[6],
+          department: r[7], building: r[8], room: r[9],
+          pointCode: r[10], task: r[11], pattern: r[12],
+          pointLux: Number(r[13]) || 0,
+          standardLux: r[14], minLux: r[15],
+          measuredLux: Number(r[16]) || 0,
+          evaluation: r[17], recommendation: r[18], inspectorEmail: r[19]
+        };
+      });
+
+      return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // 1.3 ส่งข้อมูลตรวจวัดเฉพาะจุด (Database_Spot)
+  if (action === "getSpotSummary") {
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName("Database_Spot");
+      if (!sheet || sheet.getLastRow() <= 1) {
+        return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var lastRow = sheet.getLastRow();
+      var numRows = Math.min(lastRow - 1, 200);
+      var data = sheet.getRange(lastRow - numRows + 1, 1, numRows, 19).getDisplayValues().reverse();
+
+      var result = data.map(function(r) {
+        return {
+          timestamp: r[0], date: r[1], time: r[2], weather: r[3],
+          equipment: r[4], serialNo: r[5], calDate: r[6],
+          department: r[7], building: r[8], room: r[9],
+          workerName: r[10], task: r[11],
+          luxArea1: Number(r[12]) || 0,
+          luxArea2: Number(r[13]) || 0,
+          luxArea3: Number(r[14]) || 0,
+          standardLux: r[15],
+          evaluation: r[16], recommendation: r[17], inspectorEmail: r[18]
+        };
+      });
+
+      return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle('ระบบบันทึกผลการตรวจวัดแสงสว่าง ISO 45001')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// =================================================================
+// 2. DATA SAVING LOGIC
+// =================================================================
+
+function evaluateAreaPassFail(areaAvgLux, pointValues, stdLuxStr, minLuxStr) {
+  var isPass = true;
+  stdLuxStr = (stdLuxStr || "").toString().trim();
+  minLuxStr = (minLuxStr || "").toString().trim();
+
+  if (stdLuxStr.indexOf(">") !== -1) {
+    var threshold = parseFloat(stdLuxStr.replace(">", "")) || 2400;
+    if (areaAvgLux < threshold) isPass = false;
+  } else if (stdLuxStr.indexOf("-") !== -1 && !stdLuxStr.startsWith("-")) {
+    var parts = stdLuxStr.split("-");
+    var minVal = parseFloat(parts[0]) || 0;
+    var maxVal = parseFloat(parts[1]) || 99999;
+    if (areaAvgLux < minVal || areaAvgLux > maxVal) isPass = false;
+  } else {
+    var numStd = parseFloat(stdLuxStr) || 0;
+    if (areaAvgLux < numStd) isPass = false;
+  }
+
+  if (minLuxStr !== "" && minLuxStr !== "-") {
+    var numMin = parseFloat(minLuxStr);
+    if (!isNaN(numMin) && numMin > 0) {
+      for (var i = 0; i < pointValues.length; i++) {
+        if (pointValues[i] < numMin) { isPass = false; break; }
+      }
+    }
+  }
+  return isPass ? "ผ่าน" : "ไม่ผ่าน";
+}
+
+// 2.1 บันทึกข้อมูลแบบพื้นที่ (Database_Area)
+function saveAreaBatchData(records) {
+  try {
+    if (!records) throw new Error("ไม่พบชุดข้อมูลที่ส่งมา");
+    if (!Array.isArray(records)) records = [records];
+    if (records.length === 0) throw new Error("ชุดข้อมูลว่างเปล่า");
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) throw new Error("ไม่สามารถเชื่อมต่อ Google Spreadsheet ได้");
+
+    var sheet = ss.getSheetByName("Database_Area");
+    if (!sheet) {
+      sheet = ss.insertSheet("Database_Area");
+      sheet.appendRow([
+        "Timestamp", "วันที่ตรวจวัด", "เวลาที่เริ่มวัด", "สภาพอากาศ", 
+        "เครื่องมือที่ใช้", "หมายเลขเครื่อง", "วันที่สอบเทียบล่าสุด", 
+        "ส่วนงาน/คณะ", "ชื่ออาคาร", "เลขห้อง", 
+        "รหัสจุดตรวจวัด", "ลักษณะพื้นที่การทำงาน", "รูปแบบการเก็บข้อมูล",
+        "ค่าที่วัดได้รายจุด (Lux)", "ค่ามาตรฐาน (Lux)", "จุดที่ความเข้มแสงต่ำสุด (Lux)", 
+        "ค่าเฉลี่ยรวมพื้นที่ (Lux)", "ผลการประเมิน", "หมายเหตุ", "ผู้ตรวจวัด (Email)"
+      ]);
+      sheet.getRange("A1:T1").setFontWeight("bold").setBackground("#d9ead3");
+      sheet.setFrozenRows(1);
+    }
+
+    var mainData = [];
+    var timestamp = new Date();
+    var userEmail = Session.getActiveUser().getEmail() || "Field Inspector (Open Form)";
+
+    for (var i = 0; i < records.length; i++) {
+      var rec = records[i];
+      var areaAvgLux = parseFloat(rec.measuredLux) || 0;
+      var rawData = typeof rec.rawData === "string" ? JSON.parse(rec.rawData || "{}") : (rec.rawData || {});
+      var pId = String(rec.patternId || "1");
+      var subPoints = [];
+
+      if (pId === "1" || pId === "8") {
+        var count = parseInt(rawData.pointCount || "0");
+        var prefix = (pId === "1") ? "r-" : "E-";
+        for (var p = 1; p <= count; p++) {
+          var v1 = parseFloat(rawData[prefix + p + '_1'] || 0);
+          var v2 = parseFloat(rawData[prefix + p + '_2'] || 0);
+          var v3 = parseFloat(rawData[prefix + p + '_3'] || 0);
+          subPoints.push({ code: prefix + p, val: Number(((v1 + v2 + v3) / 3).toFixed(2)) });
+        }
+      } else {
+        var ptList = [];
+        if (pId === "2") ptList = ['P-1', 'P-2', 'Q-1', 'Q-2', 'Q-3', 'Q-4', 'R-1', 'R-2', 'R-3', 'R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'T-1', 'T-2', 'T-3', 'T-4'];
+        else if (pId === "3") ptList = ['P-1', 'P-2', 'P-3', 'P-4'];
+        else if (pId === "4") ptList = ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'q-7', 'q-8', 'p-1', 'p-2'];
+        else if (pId === "5") ptList = ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 't-3', 't-4', 'p-1', 'p-2'];
+        else if (pId === "6") ptList = ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'p-1', 'p-2'];
+        else if (pId === "7") ptList = ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 'p-1'];
+
+        ptList.forEach(function(pt) {
+          var v1 = parseFloat(rawData[pt + '_1'] || 0);
+          var v2 = parseFloat(rawData[pt + '_2'] || 0);
+          var v3 = parseFloat(rawData[pt + '_3'] || 0);
+          subPoints.push({ code: pt, val: Number(((v1 + v2 + v3) / 3).toFixed(2)) });
+        });
+      }
+
+      var ptVals = subPoints.map(function(sp) { return sp.val; });
+      var evalStatus = evaluateAreaPassFail(areaAvgLux, ptVals, rec.standardLux, rec.minLux);
+
+      subPoints.forEach(function(sp) {
+        mainData.push([
+          timestamp, rec.date, rec.time, rec.weather,
+          rec.equipment, rec.serialNo, rec.calDate,
+          rec.department, rec.building, rec.room,
+          sp.code, rec.task, rec.pattern,
+          sp.val, rec.standardLux, rec.minLux,
+          areaAvgLux, evalStatus, rec.controlMeasure || "-", userEmail
+        ]);
+      });
+    }
+
+    if (mainData.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, mainData.length, mainData[0].length).setValues(mainData);
+    }
+    return "บันทึกข้อมูลแบบพื้นที่สำเร็จ (" + mainData.length + " จุดตรวจวัด)";
+  } catch (err) {
+    throw new Error("ข้อผิดพลาดบน Server: " + err.message);
+  }
+}
+
+// 2.2 บันทึกข้อมูลแบบจุดบุคคล (Database_Spot)
+function saveSpotBatchData(records) {
+  try {
+    if (!records) throw new Error("ไม่พบชุดข้อมูลที่ส่งมา");
+    if (!Array.isArray(records)) records = [records];
+    if (records.length === 0) throw new Error("ชุดข้อมูลว่างเปล่า");
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) throw new Error("ไม่สามารถเชื่อมต่อ Google Spreadsheet ได้");
+
+    var sheet = ss.getSheetByName("Database_Spot");
+    if (!sheet) {
+      sheet = ss.insertSheet("Database_Spot");
+      sheet.appendRow([
+        "Timestamp", "วันที่ตรวจวัด", "เวลาที่เริ่มวัด", "สภาพอากาศ", 
+        "เครื่องมือที่ใช้", "หมายเลขเครื่อง", "วันที่สอบเทียบล่าสุด", 
+        "ส่วนงาน/คณะ", "ชื่ออาคาร", "เลขห้อง/พื้นที่", 
+        "ชื่อ-นามสกุลลูกจ้าง (SEG)", "ลักษณะงาน/ตำแหน่งหน้าที่", 
+        "จุดทำงาน: พื้นที่ 1 (Lux)", "แสงสว่างโดยรอบ: พื้นที่ 2 (Lux)", "แสงสว่างโดยรอบ: พื้นที่ 3 (Lux)", 
+        "ค่ามาตรฐาน (Lux)", "ผลการประเมิน", "ข้อเสนอแนะและวิธีปรับปรุง", "ผู้ตรวจวัด (Email)"
+      ]);
+      sheet.getRange("A1:S1").setFontWeight("bold").setBackground("#cfe2f3");
+      sheet.setFrozenRows(1);
+    }
+
+    var rows = [];
+    var timestamp = new Date();
+    var userEmail = Session.getActiveUser().getEmail() || "Field Inspector (Spot)";
+
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      var lux1 = parseFloat(r.luxArea1) || 0;
+      var stdLux = parseFloat(r.standardLux) || 0;
+      var evaluation = (lux1 >= stdLux) ? "ผ่าน" : "ไม่ผ่าน";
+
+      rows.push([
+        timestamp, r.date, r.time, r.weather,
+        r.equipment, r.serialNo, r.calDate,
+        r.department, r.building, r.room,
+        r.workerName, r.task,
+        lux1, parseFloat(r.luxArea2) || 0, parseFloat(r.luxArea3) || 0,
+        r.standardLux, evaluation, r.recommendation || "-", userEmail
+      ]);
+    }
+
+    if (rows.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    }
+    return "บันทึกผลการตรวจวัดแบบจุดสำเร็จ (" + rows.length + " คน/จุด)";
+  } catch (err) {
+    throw new Error("ข้อผิดพลาดบน Server: " + err.message);
+  }
+}
+
+// =================================================================
+// 3. VIEW & EDIT DATA LOGIC (Database_Area & Database–ปรับแก้)
+// =================================================================
+
+function getExistingLocations() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Database_Area") || ss.getSheetByName("Database");
+  if (!sheet || sheet.getLastRow() <= 1) return {};
+
+  var data = sheet.getRange(2, 8, sheet.getLastRow() - 1, 3).getDisplayValues();
+  var tree = {};
+
+  for (var i = 0; i < data.length; i++) {
+    var dept = (data[i][0] || "").trim();
+    var bld = (data[i][1] || "").trim();
+    var room = (data[i][2] || "").trim();
+
+    if (!dept || !bld || !room) continue;
+
+    if (!tree[dept]) tree[dept] = {};
+    if (!tree[dept][bld]) tree[dept][bld] = [];
+    if (tree[dept][bld].indexOf(room) === -1) {
+      tree[dept][bld].push(room);
+    }
+  }
+  return tree;
+}
+
+function getRoomDetailsForEdit(dept, bld, room) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Database_Area") || ss.getSheetByName("Database");
+  if (!sheet || sheet.getLastRow() <= 1) return { error: "ไม่พบฐานข้อมูล" };
+
+  var lastRow = sheet.getLastRow();
+  var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getDisplayValues();
+  var roomRows = [];
+
+  for (var i = 0; i < data.length; i++) {
+    if ((data[i][7] || "").trim() === dept &&
+        (data[i][8] || "").trim() === bld &&
+        (data[i][9] || "").trim() === room) {
+      roomRows.push(data[i]);
+    }
+  }
+
+  if (roomRows.length === 0) return { error: "ไม่พบข้อมูลห้องที่เลือก" };
+
+  var first = roomRows[0];
+  var pointsList = roomRows.map(function(r) {
+    return {
+      pointCode: r[10] || "-",
+      pointLux: r[13] || r[14] || "0"
+    };
+  });
+
+  return {
+    date: first[1],
+    time: first[2],
+    weather: first[3],
+    equipment: first[4],
+    serialNo: first[5],
+    calDate: first[6],
+    department: first[7],
+    building: first[8],
+    room: first[9],
+    task: first[11],
+    patternText: first[12],
+    standardLux: first[14] || first[15],
+    minLux: first[15] || first[16] || "-",
+    measuredLux: first[16] || first[17] || "0",
+    evaluation: first[17] || first[18],
+    recommendation: first[18] || first[19] || "-",
+    pointsList: pointsList,
+    fullRows: roomRows
+  };
+}
+
+function saveToDatabaseAdjusted(roomPayload, newRecommendation) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetName = "Database–ปรับแก้";
+  var sheet = ss.getSheetByName(sheetName);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow([
+      "Timestamp_ปรับแก้", "วันที่ตรวจวัด", "เวลาที่เริ่มวัด", "สภาพอากาศ", 
+      "เครื่องมือที่ใช้", "หมายเลขเครื่อง", "วันที่สอบเทียบล่าสุด", 
+      "ส่วนงาน/คณะ", "ชื่ออาคาร", "เลขห้อง", 
+      "รหัสจุดตรวจวัด", "ลักษณะพื้นที่การทำงาน", "รูปแบบการเก็บข้อมูล",
+      "ค่าที่วัดได้รายจุด (Lux)", "ค่ามาตรฐาน (Lux)", "จุดที่ความเข้มแสงต่ำสุด (Lux)", 
+      "ค่าเฉลี่ยรวมพื้นที่ (Lux)", "ผลการประเมิน", "ข้อเสนอแนะ/หมายเหตุ (ปรับแก้)",
+      "ผู้ปรับปรุง (Email)"
+    ]);
+    sheet.getRange("A1:T1").setFontWeight("bold").setBackground("#ffe599");
+    sheet.setFrozenRows(1);
+  }
+
+  var rows = roomPayload.fullRows || [];
+  if (rows.length === 0) return "ไม่พบข้อมูลสำหรับจัดเก็บ";
+
+  var activeUser = Session.getActiveUser().getEmail() || "Field Inspector (Editor)";
+  var timestamp = new Date();
+  var rowsToAppend = [];
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    rowsToAppend.push([
+      timestamp, r[1], r[2], r[3], r[4], r[5], r[6],
+      r[7], r[8], r[9], r[10], r[11], r[12],
+      r[13], r[14], r[15], r[16], r[17],
+      newRecommendation || "-",
+      activeUser
+    ]);
+  }
+
+  sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAppend.length, rowsToAppend[0].length).setValues(rowsToAppend);
+  return "บันทึกข้อเสนอแนะลงชีต 「Database–ปรับแก้」 สำเร็จ (" + rowsToAppend.length + " จุด)";
+}
+////////////////////////////////////////////////////////////////////
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ระบบตรวจวัดความเข้มแสงสว่าง ISO 45001</title>
+    <style>
+      body { font-family: 'Sarabun', Arial, sans-serif; padding: 15px; background-color: #f4f7f6; margin: 0; }
+      .container { max-width: 780px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+      h2 { text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+      h3 { color: #2980b9; margin-top: 20px; margin-bottom: 10px; font-size: 16px; border-left: 4px solid #2980b9; padding-left: 8px; }
+      label { font-weight: bold; display: block; margin-top: 10px; font-size: 13px; }
+      input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+      input[readonly], textarea[readonly] { background-color: #f1f5f9; color: #334155; cursor: not-allowed; border-color: #cbd5e1; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+      .required { color: red; }
+
+      .tab-bar { display: flex; border-bottom: 2px solid #cbd5e1; margin-bottom: 20px; gap: 4px; }
+      .tab-btn { flex: 1; padding: 12px 6px; background: none; border: none; font-size: 14px; font-weight: bold; color: #64748b; cursor: pointer; text-align: center; border-bottom: 3px solid transparent; transition: 0.2s; }
+      .tab-btn.active { color: #1769e0; border-bottom-color: #1769e0; }
+
+      .spot-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; margin-top: 15px; }
+      .spot-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; }
+      
+      .pattern-box { background-color: #eef2f5; padding: 15px; border-radius: 6px; margin-top: 15px; border: 1px dashed #bdc3c7; }
+      .pattern-box h4 { margin-top: 0; color: #34495e; text-align: center; font-size: 14px; }
+      .avg-result { text-align: center; margin-top: 15px; font-size: 16px; font-weight: bold; color: #d35400; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e67e22; }
+
+      .table-wrapper { max-height: 380px; overflow-y: auto; margin-top: 10px; border: 1px solid #bdc3c7; border-radius: 4px; background: white; }
+      .pattern-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .pattern-table th, .pattern-table td { border: 1px solid #ddd; padding: 5px; text-align: center; }
+      .pattern-table thead th { position: sticky; top: 0; background-color: #e2e8f0; z-index: 1; }
+      .pattern-table input { margin-top: 0; padding: 4px; text-align: center; width: 100%; font-size: 12px; }
+
+      .calculation-summary { background: #fff; border: 1px solid #3498db; border-radius: 4px; padding: 12px; margin-top: 15px; font-size: 13px; }
+      .calculation-summary span { font-weight: bold; color: #2980b9; }
+
+      .btn-add-row { background-color: #3498db; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+      .btn-remove-row { background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 8px; margin-left: 5px; }
+
+      .btn-submit-area { width: 100%; padding: 14px; margin-top: 20px; background-color: #16a34a; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+      .btn-submit-spot { width: 100%; padding: 14px; margin-top: 20px; background-color: #2563eb; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+      .btn-submit-edit { width: 100%; padding: 14px; margin-top: 20px; background-color: #d97706; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+      .btn-add-worker { background: #0284c7; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>ระบบตรวจวัดความเข้มแสงสว่าง (ISO 45001)</h2>
+
+      <!-- 3 Navigation Tabs -->
+      <div class="tab-bar">
+        <button type="button" class="tab-btn active" id="tabBtnArea" onclick="switchMainTab('area')">
+          🏢 1. วัดบนพื้นที่ (Area)
+        </button>
+        <button type="button" class="tab-btn" id="tabBtnSpot" onclick="switchMainTab('spot')">
+          👤 2. วัดแบบจุด (Spot)
+        </button>
+        <button type="button" class="tab-btn" id="tabBtnEdit" onclick="switchMainTab('edit')">
+          🔍 3. ค้นหา / แก้ไขข้อเสนอแนะ
+        </button>
+      </div>
+
+      <!-- ข้อมูลการตรวจวัดทั่วไป (สำหรับแท็บ 1 และ 2) -->
+      <div id="commonInfoSection" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+        <h3 style="margin-top:0;">ข้อมูลการตรวจวัดทั่วไป</h3>
+        <div class="grid-2">
+          <div><label>วันที่ตรวจวัด: <span class="required">*</span></label><input type="date" id="commonDate" required></div>
+          <div><label>เวลาที่เริ่มวัด: <span class="required">*</span></label><input type="time" id="commonTime" required></div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label>สภาพอากาศ: <span class="required">*</span></label>
+            <select id="commonWeather" required>
+              <option value="แจ่มใส">แจ่มใส</option>
+              <option value="มีเมฆมาก">มีเมฆมาก</option>
+              <option value="ฝนตก">ฝนตก</option>
+              <option value="ไม่มีผลกระทบ (พื้นที่ปิด)">ไม่มีผลกระทบ (พื้นที่ปิด)</option>
+            </select>
+          </div>
+          <div>
+            <label>ส่วนงาน / คณะ: <span class="required">*</span></label>
+            <select id="commonDept" required>
+              <option value="กองกายภาพและสิ่งแวดล้อม">กองกายภาพและสิ่งแวดล้อม</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label>ชื่ออาคาร: <span class="required">*</span></label>
+            <select id="commonBld" required>
+              <option value="">-- เลือกอาคาร --</option>
+              <option value="อาคารศาลายา">อาคารศาลายา</option>
+              <option value="อาคารเพาะชำ">อาคารเพาะชำ</option>
+              <option value="อาคารภูมิทัศน์และสิ่งแวดล้อม">อาคารภูมิทัศน์และสิ่งแวดล้อม</option>
+              <option value="อาคารอเนกประสงค์">อาคารอเนกประสงค์</option>
+              <option value="สถานีไฟฟ้าย่อย">สถานีไฟฟ้าย่อย</option>
+              <option value="อาคารระบบบำบัดน้ำเสียรวม">อาคารระบบบำบัดน้ำเสียรวม</option>
+              <option value="ศูนย์การเรียนรู้มหิดล">ศูนย์การเรียนรู้มหิดล</option>
+              <option value="อาคารสิริวิทยา">อาคารสิริวิทยา</option>
+              <option value="มหิดลสิทธาคาร">มหิดลสิทธาคาร</option>
+            </select>
+          </div>
+          <div><label>เลขห้อง / พื้นที่: <span class="required">*</span></label><input type="text" id="commonRoom" placeholder="เช่น 1002, โถงทางเดิน" required></div>
+        </div>
+        <div class="grid-2">
+          <div><label>เครื่องมือตรวจวัด:</label><input type="text" id="commonEquip" value="Lux Meter"></div>
+          <div><label>หมายเลขเครื่อง (S/N):</label><input type="text" id="commonSerial" placeholder="เช่น LX-001"></div>
+        </div>
+        <label>วันที่สอบเทียบล่าสุด:</label><input type="date" id="commonCalDate">
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- TAB 1: บันทึกตรวจวัดบนพื้นที่ (Area) -->
+      <!-- ========================================================= -->
+      <div id="sectionArea">
+        <h3>รายละเอียดการตรวจวัดบนพื้นที่</h3>
+        
+        <label>ลักษณะพื้นที่การทำงาน: <span class="required">*</span></label>
+        <select id="areaTaskSelect" onchange="onAreaTaskChange()" required>
+          <option value="">-- เลือกลักษณะพื้นที่ หรือ งาน --</option>
+          <optgroup label="ตารางที่ 1: ทางสัญจรและพื้นที่ทั่วไป">
+            <option value="ทางออกฉุกเฉิน, เส้นทางหนีไฟ" data-lux="10" data-min="-">ทางออกฉุกเฉิน, เส้นทางหนีไฟ, บันไดหนีไฟ (10 Lux | ต่ำสุด -)</option>
+            <option value="ภายนอกอาคาร, ลานจอดรถ, ทางเดิน" data-lux="50" data-min="25">ภายนอกอาคาร, ลานจอดรถ, ทางเดิน (50 Lux | ต่ำสุด 25 Lux)</option>
+            <option value="ประตูทางเข้าใหญ่" data-lux="50" data-min="-">ประตูทางเข้าใหญ่ (50 Lux | ต่ำสุด -)</option>
+            <option value="ห้องพักฟื้น, ห้องพักผ่อน" data-lux="50" data-min="25">ห้องพักฟื้น, ห้องพักผ่อน (50 Lux | ต่ำสุด 25 Lux)</option>
+            <option value="ภายในอาคาร, ทางเดิน, บันได, ลิฟต์" data-lux="100" data-min="50">ภายในอาคาร, ทางเดิน, บันได, ทางเข้าโถง, ลิฟต์ (100 Lux | ต่ำสุด 50 Lux)</option>
+            <option value="ป้อมยาม, ห้องสุขา, ลอบบี้, ห้องเก็บของ" data-lux="100" data-min="25">ป้อมยาม, ห้องสุขา, อาบน้ำ, ลอบบี้, ห้องเก็บของ (100 Lux | ต่ำสุด 25 Lux)</option>
+            <option value="โรงอาหาร, ห้องปรุงอาหาร, ตรวจรักษา" data-lux="300" data-min="150">โรงอาหาร, ห้องปรุงอาหาร, ตรวจรักษา (300 Lux | ต่ำสุด 150 Lux)</option>
+          </optgroup>
+          <optgroup label="ตารางที่ 2: พื้นที่สำนักงานและการผลิต">
+            <option value="ห้องเก็บวัตถุดิบ, ห้องอบซักรีด" data-lux="100" data-min="50">ห้องเก็บวัตถุดิบ, ห้องอบซักรีด (100 Lux | ต่ำสุด 50 Lux)</option>
+            <option value="ลานขนถ่าย, คลังสินค้า, โกดัง, ห้องควบคุม" data-lux="200" data-min="100">ลานขนถ่าย, คลังสินค้า, โกดัง, ห้องควบคุม (200 Lux | ต่ำสุด 100 Lux)</option>
+            <option value="ห้องสำนักงาน, ประชุม, อบรม, ถ่ายเอกสาร" data-lux="300" data-min="150">ห้องสำนักงาน, ประชุม, อบรม, ถ่ายเอกสาร (300 Lux | ต่ำสุด 150 Lux)</option>
+            <option value="เตรียมผลิต, บรรจุภัณฑ์, บริเวณเครื่องจักร" data-lux="300" data-min="150">เตรียมผลิต, บรรจุภัณฑ์, บริเวณเครื่องจักร, ทาสี (300 Lux | ต่ำสุด 150 Lux)</option>
+          </optgroup>
+          <optgroup label="ตารางที่ 3: งานที่ต้องใช้สายตามองเฉพาะจุด">
+            <option value="งานหยาบ (ประกอบ/นับ/งานชิ้นใหญ่)" data-lux="200-300" data-min="-">งานหยาบ (ประกอบ/นับ/งานชิ้นใหญ่) (มาตรฐาน 200-300 Lux)</option>
+            <option value="งานละเอียดเล็กน้อย (งานไม้/รับจ่ายเสื้อผ้า)" data-lux="300-400" data-min="-">งานละเอียดเล็กน้อย (งานไม้/รับจ่ายเสื้อผ้า) (มาตรฐาน 300-400 Lux)</option>
+            <option value="งานประจำออฟฟิศ (เขียน/พิมพ์/บันทึกข้อมูล)" data-lux="400-500" data-min="-">งานประจำออฟฟิศ (เขียน/พิมพ์/บันทึกข้อมูล) (มาตรฐาน 400-500 Lux)</option>
+            <option value="งานละเอียดปานกลาง (ระบายสี/พ่นสี/ตรวจอาหาร)" data-lux="500-600" data-min="-">งานละเอียดปานกลาง (ระบายสี/พ่นสี/ตรวจอาหาร) (มาตรฐาน 500-600 Lux)</option>
+            <option value="งานละเอียดสูง (ปรับเทียบอุปกรณ์/ย้อมสี)" data-lux="700-800" data-min="-">งานละเอียดสูง (ปรับเทียบอุปกรณ์/ย้อมสี) (มาตรฐาน 700-800 Lux)</option>
+            <option value="งานใช้สายตามาก (ตรวจสอบตัดเย็บ/เทียบสีเข้ม)" data-lux="800-1200" data-min="-">งานใช้สายตามาก (ตรวจสอบตัดเย็บ/เทียบสีเข้ม) (มาตรฐาน 800-1200 Lux)</option>
+            <option value="งานละเอียดสูงมาก (ตรวจชิ้นส่วนเล็ก/ซ่อมสิ่งทอ)" data-lux="1200-1600" data-min="-">งานละเอียดสูงมาก (ตรวจชิ้นส่วนเล็ก/ซ่อมสิ่งทอ) (มาตรฐาน 1200-1600 Lux)</option>
+            <option value="งานละเอียดสูงเป็นพิเศษ (ผ่าตัด/เจียระไน)" data-lux=">2400" data-min="-">งานละเอียดสูงเป็นพิเศษ (ผ่าตัด/ทันตกรรม/เจียระไน) (มาตรฐาน >2400 Lux)</option>
+          </optgroup>
+        </select>
+
+        <div class="grid-2">
+          <div><label>ค่ามาตรฐาน (Lux):</label><input type="text" id="areaStdLux" readonly></div>
+          <div><label>จุดความเข้มต่ำสุด (Lux):</label><input type="text" id="areaMinLux" readonly></div>
+        </div>
+
+        <label>รูปแบบการเก็บข้อมูลแสงบนพื้นที่: <span class="required">*</span></label>
+        <select id="areaPatternSelect" onchange="generateAreaPatternMask()" required>
+          <option value="">-- เลือกรูปแบบการตรวจวัด --</option>
+          <option value="1">รูปแบบที่ 1 : ตรวจวัดพื้นที่ทั่วไป ตรวจวัดแสงเฉลี่ยของพื้นที่</option>
+          <option value="2">รูปแบบที่ 2.1 : พื้นที่รูปทรงแน่นอน โคมไฟ 2 แถวขึ้นไป ช่องไฟเท่ากัน</option>
+          <option value="3">รูปแบบที่ 2.2 : พื้นที่รูปทรงแน่นอน ติดตั้งชุดโคมไฟเพียง 1 ดวง ที่กลางห้อง</option>
+          <option value="4">รูปแบบที่ 2.3 : พื้นที่รูปทรงแน่นอน ติดตั้งชุดโคมไฟ 1 แถว ชุดโคมไฟแยกกัน</option>
+          <option value="5">รูปแบบที่ 2.4 : พื้นที่รูปทรงแน่นอน โคมไฟตั้งแต่ 2 แถวขึ้นไป ติดตั้งต่อกัน</option>
+          <option value="6">รูปแบบที่ 2.5 : พื้นที่รูปทรงแน่นอน โคมไฟเพียง 1 แถว ติดตั้งต่อกัน</option>
+          <option value="7">รูปแบบที่ 2.6 : พื้นที่รูปทรงแน่นอน เพดานเป็นแบบกระจายแสงเต็มพื้นที่</option>
+          <option value="8">รูปแบบที่ 3 : ตรวจวัดพื้นที่ทั่วไป วัดแสงสำหรับพื้นที่ทางหนีไฟของอาคาร</option>
+        </select>
+
+        <div id="areaPatternMask" class="pattern-box" style="display: none;">
+          <h4 id="areaPatternTitle">หน้ากากกรอกข้อมูล</h4>
+          
+          <div id="customPattern1Div" style="display: none;"></div>
+          <div id="customPattern2Div" style="display: none;"></div>
+          <div id="customPattern3Div" style="display: none;"></div>
+          <div id="customPattern4Div" style="display: none;"></div>
+          <div id="customPattern5Div" style="display: none;"></div>
+          <div id="customPattern6Div" style="display: none;"></div>
+          <div id="customPattern7Div" style="display: none;"></div>
+          <div id="customPattern8Div" style="display: none;"></div>
+
+          <div class="avg-result">
+            ค่าเฉลี่ยพื้นที่: <span id="areaAvgLuxValue">0.00</span> Lux
+          </div>
+          <input type="hidden" id="areaFinalMeasuredLux" value="0">
+        </div>
+
+        <label>หมายเหตุ / ข้อเสนอแนะ:</label>
+        <input type="text" id="areaRecommendation" placeholder="ระบุแนวทางแก้ไขหรือข้อเสนอแนะ">
+
+        <button type="button" class="btn-submit-area" onclick="submitAreaForm()">
+          💾 บันทึกลงชีต 「Database_Area」
+        </button>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- TAB 2: บันทึกตรวจวัดแบบจุดบุคคล (Spot - รูปแบบ 4) -->
+      <!-- ========================================================= -->
+      <div id="sectionSpot" style="display: none;">
+        <h3>รายชื่อลูกจ้างและตำแหน่งงานที่ตรวจวัดเฉพาะจุด (Spot - รูปแบบที่ 4)</h3>
+        
+        <div id="spotWorkersList"></div>
+
+        <button type="button" class="btn-add-worker" onclick="addSpotWorkerRow()">
+          + เพิ่มลูกจ้าง / จุดตรวจวัดถัดไป
+        </button>
+
+        <button type="button" class="btn-submit-spot" onclick="submitSpotForm()">
+          💾 บันทึกลงชีต 「Database_Spot」
+        </button>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- TAB 3: ค้นหา / เรียกดู / แก้ไขข้อเสนอแนะ (View & Edit) -->
+      <!-- ========================================================= -->
+      <div id="sectionEdit" style="display: none;">
+        <div style="background: #eef2f5; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; margin-bottom: 15px;">
+          <h4 style="margin: 0 0 10px 0; color: #1e293b;">🔍 ค้นหาห้องตรวจวัดจากฐานข้อมูล</h4>
+          
+          <div>
+            <label>ส่วนงาน / คณะ:</label>
+            <select id="editFilterDept" onchange="onEditDeptChange()">
+              <option value="">-- เลือกส่วนงาน --</option>
+            </select>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label>ชื่ออาคาร:</label>
+              <select id="editFilterBld" onchange="onEditBldChange()" disabled>
+                <option value="">-- เลือกอาคาร --</option>
+              </select>
+            </div>
+            <div>
+              <label>เลขห้อง:</label>
+              <select id="editFilterRoom" onchange="loadRoomDataForEditing()" disabled>
+                <option value="">-- เลือกเลขห้อง --</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="editLoadingStatus" style="display:none; text-align:center; padding: 15px; font-weight: bold; color: #3498db;">
+          ⏳ กำลังดึงข้อมูลการวัดและประวัติเดิม...
+        </div>
+
+        <div id="editFormContent" style="display: none;">
+          <div style="background: #ffffff; border: 2px solid #3498db; border-radius: 8px; padding: 18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px;">
+              <h4 style="margin: 0; color: #2980b9; font-size: 15px;">📋 ข้อมูลการตรวจวัดภาคสนามเดิม (Read-only)</h4>
+              <span id="dispEditEvalBadge" style="padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 12px;"></span>
+            </div>
+            
+            <div class="grid-2">
+              <div><label>วันที่ตรวจวัด:</label><input type="text" id="dispEditDate" readonly></div>
+              <div><label>เวลาที่ตรวจวัด:</label><input type="text" id="dispEditTime" readonly></div>
+            </div>
+
+            <div class="grid-2">
+              <div><label>สภาพอากาศ:</label><input type="text" id="dispEditWeather" readonly></div>
+              <div><label>ลักษณะงาน:</label><input type="text" id="dispEditTask" readonly></div>
+            </div>
+
+            <div class="grid-2">
+              <div><label>เกณฑ์มาตรฐาน (Lux):</label><input type="text" id="dispEditStd" readonly></div>
+              <div><label>จุดความเข้มต่ำสุด (Lux):</label><input type="text" id="dispEditMin" readonly></div>
+            </div>
+
+            <div style="margin-top: 15px;">
+              <label style="color: #2c3e50;">ตารางบันทึกค่าความสว่างรายจุด:</label>
+              <div class="table-wrapper">
+                <table class="pattern-table">
+                  <thead><tr><th>รหัสจุด</th><th>ค่าความสว่างที่วัดได้ (Lux)</th></tr></thead>
+                  <tbody id="editPointsTbody"></tbody>
+                </table>
+              </div>
+              
+              <div style="text-align:center; font-size:16px; font-weight:bold; color:#d97706; background:#fff7ed; padding:8px; border-radius:4px; border:1px solid #fdba74; margin-top:10px;">
+                ค่าเฉลี่ยพื้นที่: <span id="dispEditAreaAvg">0.00</span> Lux
+              </div>
+            </div>
+
+            <div style="margin-top: 18px; border-top: 1px dashed #cbd5e1; padding-top: 12px;">
+              <label style="font-size: 14px; color: #b91c1c;">📝 ข้อเสนอแนะ / แนวทางการปรับปรุงแก้ไข (ระบุเพิ่มเติม): <span class="required">*</span></label>
+              <textarea id="editNewRecommendation" rows="3" placeholder="ระบุข้อเสนอแนะ เช่น เพิ่มชุดโคมไฟบริเวณโต๊ะปฏิบัติงาน หรือทำความสะอาดฝาครอบโคม"></textarea>
+            </div>
+
+            <button type="button" class="btn-submit-edit" id="btnSaveAdjusted" onclick="submitAdjustedData()">
+              💾 บันทึกข้อเสนอแนะลงชีต 「Database–ปรับแก้」
+            </button>
+            <div id="editSaveMsg" style="margin-top: 8px; font-weight: bold; text-align: center;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- JAVASCRIPT CONTROLLER -->
+    <!-- ========================================================= -->
+    <script>
+      let spotWorkerCount = 0;
+      let locationTree = {};
+      let currentRoomPayload = null;
+
+      const areaPatternConfigs = {
+        "1": { title: "ตรวจวัดพื้นที่ทั่วไป ตรวจวัดแสงเฉลี่ยของพื้นที่", type: "custom_1" },
+        "2": { title: "พื้นที่รูปทรงแน่นอน โคมไฟ 2 แถวขึ้นไป", type: "custom_2" },
+        "3": { title: "พื้นที่รูปทรงแน่นอน โคมไฟเพียง 1 ดวง", type: "custom_3" },
+        "4": { title: "พื้นที่รูปทรงแน่นอน โคมไฟ 1 แถว ชุดโคมไฟแยกกัน", type: "custom_4" },
+        "5": { title: "พื้นที่รูปทรงแน่นอน โคมไฟตั้งแต่ 2 แถวขึ้นไป ติดตั้งต่อกัน", type: "custom_5" },
+        "6": { title: "พื้นที่รูปทรงแน่นอน โคมไฟเพียง 1 แถว ติดตั้งต่อกัน", type: "custom_6" },
+        "7": { title: "พื้นที่รูปทรงแน่นอน เพดานกระจายแสงเต็มพื้นที่", type: "custom_7" },
+        "8": { title: "ตรวจวัดพื้นที่ทั่วไป วัดแสงสำหรับพื้นที่ทางหนีไฟของอาคาร", type: "custom_8" }
+      };
+
+      function switchMainTab(tab) {
+        document.getElementById('tabBtnArea').classList.toggle('active', tab === 'area');
+        document.getElementById('tabBtnSpot').classList.toggle('active', tab === 'spot');
+        document.getElementById('tabBtnEdit').classList.toggle('active', tab === 'edit');
+
+        document.getElementById('commonInfoSection').style.display = (tab === 'edit') ? 'none' : 'block';
+        document.getElementById('sectionArea').style.display = (tab === 'area') ? 'block' : 'none';
+        document.getElementById('sectionSpot').style.display = (tab === 'spot') ? 'block' : 'none';
+        document.getElementById('sectionEdit').style.display = (tab === 'edit') ? 'block' : 'none';
+
+        if (tab === 'spot' && spotWorkerCount === 0) {
+          addSpotWorkerRow();
+        } else if (tab === 'edit') {
+          loadLocationTreeDropdown();
+        }
+      }
+
+      function onAreaTaskChange() {
+        const sel = document.getElementById('areaTaskSelect');
+        const opt = sel.options[sel.selectedIndex];
+        document.getElementById('areaStdLux').value = opt ? opt.getAttribute('data-lux') : '';
+        document.getElementById('areaMinLux').value = opt ? opt.getAttribute('data-min') : '';
+      }
+
+      function hideAllAreaPatterns() {
+        for (let i = 1; i <= 8; i++) {
+          let el = document.getElementById("customPattern" + i + "Div");
+          if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+        }
+      }
+
+      function updateRowAvg(rowClass, displayId) {
+        var inputs = document.querySelectorAll(rowClass);
+        var sum = 0, count = 0;
+        inputs.forEach(function(inp) { var v = parseFloat(inp.value); if (!isNaN(v)) { sum += v; count++; } });
+        var avg = (count > 0) ? (sum / count) : 0;
+        if(document.getElementById(displayId)) document.getElementById(displayId).innerText = avg.toFixed(2);
+        return avg;
+      }
+
+      function getGroupAvg(groupClass) {
+        var inputs = document.querySelectorAll(groupClass);
+        var sum = 0, count = 0;
+        inputs.forEach(function(inp) { var v = parseFloat(inp.value); if (!isNaN(v)) { sum += v; count++; } });
+        return (count > 0) ? (sum / count) : 0;
+      }
+
+      function generateAreaPatternMask() {
+        var patternVal = document.getElementById("areaPatternSelect").value;
+        var maskBox = document.getElementById("areaPatternMask");
+        var title = document.getElementById("areaPatternTitle");
+
+        hideAllAreaPatterns();
+        document.getElementById("areaAvgLuxValue").innerText = "0.00";
+        document.getElementById("areaFinalMeasuredLux").value = "0";
+
+        if (!patternVal) { maskBox.style.display = 'none'; return; }
+
+        var config = areaPatternConfigs[patternVal];
+        title.innerText = "หน้ากากข้อมูล: " + config.title;
+
+        if (config.type === "custom_1") {
+          window.pattern1Count = 1;
+          var div = document.getElementById("customPattern1Div");
+          div.style.display = 'block';
+          div.innerHTML = `
+            <div class="table-wrapper"><table class="pattern-table">
+              <thead><tr><th style="width: 20%;">จุด</th><th style="width: 20%;">ครั้งที่ 1</th><th style="width: 20%;">ครั้งที่ 2</th><th style="width: 20%;">ครั้งที่ 3</th><th style="width: 20%;">เฉลี่ย</th></tr></thead>
+              <tbody id="pattern1Tbody">
+                <tr><td><strong>r-1</strong></td>
+                <td><input type="number" step="any" class="p1-row-r-1" oninput="calculatePattern1()" required></td>
+                <td><input type="number" step="any" class="p1-row-r-1" oninput="calculatePattern1()" required></td>
+                <td><input type="number" step="any" class="p1-row-r-1" oninput="calculatePattern1()" required></td>
+                <td id="avg1_r-1" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>
+              </tbody>
+            </table></div>
+            <div>
+              <button type="button" class="btn-add-row" onclick="addPattern1Row()">+ เพิ่มจุดตรวจวัด (r)</button>
+              <button type="button" class="btn-remove-row" onclick="removePattern1Row()">- ลบจุดล่าสุด</button>
+            </div>
+            <div class="calculation-summary"><div style="text-align:center; font-size:11px; color:#7f8c8d;">สูตร: ผลรวมความเข้มแสงสว่างทุกจุด (r) / จำนวนจุดตรวจวัดทั้งหมด r(n)</div></div>
+          `;
+        } 
+        else if (config.type === "custom_8") {
+          window.pattern8Count = 1;
+          var div = document.getElementById("customPattern8Div");
+          div.style.display = 'block';
+          div.innerHTML = `
+            <div class="table-wrapper"><table class="pattern-table">
+              <thead><tr><th style="width: 20%;">จุด</th><th style="width: 20%;">e1 (ซ้าย)</th><th style="width: 20%;">e2 (กึ่งกลาง)</th><th style="width: 20%;">e3 (ขวา)</th><th style="width: 20%;">เฉลี่ย</th></tr></thead>
+              <tbody id="pattern8Tbody">
+                <tr><td><strong>E-1</strong></td>
+                <td><input type="number" step="any" class="p8-row-E-1" oninput="calculatePattern8()" required></td>
+                <td><input type="number" step="any" class="p8-row-E-1" oninput="calculatePattern8()" required></td>
+                <td><input type="number" step="any" class="p8-row-E-1" oninput="calculatePattern8()" required></td>
+                <td id="avg8_E-1" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>
+              </tbody>
+            </table></div>
+            <div>
+              <button type="button" class="btn-add-row" onclick="addPattern8Row()">+ เพิ่มจุดตรวจวัด (E)</button>
+              <button type="button" class="btn-remove-row" onclick="removePattern8Row()">- ลบจุดล่าสุด</button>
+            </div>
+            <div class="calculation-summary"><div style="text-align:center; font-size:11px; color:#7f8c8d;">สูตร: ผลรวมความเข้มแสงสว่างทุกจุด (E) / จำนวนจุดตรวจวัดทั้งหมด E(n)</div></div>
+          `;
+        }
+        else if (config.type === "custom_2") {
+          var div = document.getElementById("customPattern2Div");
+          div.style.display = 'block';
+          var html = `<div class="grid-2"><div><label>จำนวนหลอดไฟต่อแถว (N):</label><input type="number" id="val_N" min="1" oninput="calculatePattern2()" required></div><div><label>จำนวนแถว (M):</label><input type="number" id="val_M" min="1" oninput="calculatePattern2()" required></div></div><div class="table-wrapper"><table class="pattern-table"><thead><tr><th>จุด</th><th>ครั้งที่ 1</th><th>ครั้งที่ 2</th><th>ครั้งที่ 3</th><th>เฉลี่ย</th></tr></thead><tbody>`;
+          var ptList = ['P-1', 'P-2', 'Q-1', 'Q-2', 'Q-3', 'Q-4', 'R-1', 'R-2', 'R-3', 'R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'T-1', 'T-2', 'T-3', 'T-4'];
+          ptList.forEach(function(pt) {
+            var grp = pt.split('-')[0]; 
+            html += `<tr><td><strong>${pt}</strong></td>
+              <td><input type="number" step="any" class="p2-rep p2-group-${grp} p2-row-${pt}" oninput="calculatePattern2()" required></td>
+              <td><input type="number" step="any" class="p2-rep p2-group-${grp} p2-row-${pt}" oninput="calculatePattern2()" required></td>
+              <td><input type="number" step="any" class="p2-rep p2-group-${grp} p2-row-${pt}" oninput="calculatePattern2()" required></td>
+              <td id="avg_${pt}" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>`;
+          });
+          html += `</tbody></table></div><div class="calculation-summary"><div style="text-align:center; margin-bottom:8px; border-bottom:1px solid #ccc; padding-bottom:5px;"><strong>ค่าเฉลี่ยแยกตามตัวแปรหลัก (Lux)</strong></div><div class="grid-2"><div>ค่า R (8 จุด): <span id="disp_R">0.00</span></div><div>ค่า Q (4 จุด): <span id="disp_Q">0.00</span></div><div>ค่า T (4 จุด): <span id="disp_T">0.00</span></div><div>ค่า P (2 จุด): <span id="disp_P">0.00</span></div></div><div style="margin-top:8px; font-size:11px; color:#7f8c8d; text-align:center;">สูตร: [ R(N-1)(M-1) + Q(N-1) + T(M-1) + P ] / (N × M)</div></div>`;
+          div.innerHTML = html;
+        }
+        else if (config.type === "custom_3") {
+          var div = document.getElementById("customPattern3Div");
+          div.style.display = 'block';
+          var html = `<div class="table-wrapper"><table class="pattern-table"><thead><tr><th>จุด</th><th>ครั้งที่ 1</th><th>ครั้งที่ 2</th><th>ครั้งที่ 3</th><th>เฉลี่ย</th></tr></thead><tbody>`;
+          ['P-1', 'P-2', 'P-3', 'P-4'].forEach(function(pt) {
+            html += `<tr><td><strong>${pt}</strong></td>
+              <td><input type="number" step="any" class="p3-row-${pt}" oninput="calculatePattern3()" required></td>
+              <td><input type="number" step="any" class="p3-row-${pt}" oninput="calculatePattern3()" required></td>
+              <td><input type="number" step="any" class="p3-row-${pt}" oninput="calculatePattern3()" required></td>
+              <td id="avg3_${pt}" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>`;
+          });
+          html += `</tbody></table></div><div class="calculation-summary"><div style="text-align:center; font-size:11px; color:#7f8c8d;">สูตร: ( P1 + P2 + P3 + P4 ) / 4</div></div>`;
+          div.innerHTML = html;
+        }
+        else if (config.type === "custom_4") {
+          var div = document.getElementById("customPattern4Div");
+          div.style.display = 'block';
+          var html = `<div><label>จำนวนหลอดไฟ (N):</label><input type="number" id="val4_N" min="1" oninput="calculatePattern4()" required></div><div class="table-wrapper"><table class="pattern-table"><thead><tr><th>จุด</th><th>ครั้งที่ 1</th><th>ครั้งที่ 2</th><th>ครั้งที่ 3</th><th>เฉลี่ย</th></tr></thead><tbody>`;
+          ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'q-7', 'q-8', 'p-1', 'p-2'].forEach(function(pt) {
+            var grp = pt.split('-')[0];
+            html += `<tr><td><strong>${pt.toUpperCase()}</strong></td>
+              <td><input type="number" step="any" class="p4-rep p4-group-${grp} p4-row-${pt}" oninput="calculatePattern4()" required></td>
+              <td><input type="number" step="any" class="p4-rep p4-group-${grp} p4-row-${pt}" oninput="calculatePattern4()" required></td>
+              <td><input type="number" step="any" class="p4-rep p4-group-${grp} p4-row-${pt}" oninput="calculatePattern4()" required></td>
+              <td id="avg4_${pt}" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>`;
+          });
+          html += `</tbody></table></div><div class="calculation-summary"><div class="grid-2"><div>ค่า Q (8 จุด): <span id="disp4_Q">0.00</span></div><div>ค่า P (2 จุด): <span id="disp4_P">0.00</span></div></div><div style="margin-top:8px; font-size:11px; color:#7f8c8d; text-align:center;">สูตร: [ Q(N-1) + P ] / N</div></div>`;
+          div.innerHTML = html;
+        }
+        else if (config.type === "custom_5") {
+          var div = document.getElementById("customPattern5Div");
+          div.style.display = 'block';
+          var html = `<div class="grid-2"><div><label>จำนวนหลอดไฟต่อแถว (N):</label><input type="number" id="val5_N" min="1" oninput="calculatePattern5()" required></div><div><label>จำนวนแถว (M):</label><input type="number" id="val5_M" min="1" oninput="calculatePattern5()" required></div></div><div class="table-wrapper"><table class="pattern-table"><thead><tr><th>จุด</th><th>ครั้งที่ 1</th><th>ครั้งที่ 2</th><th>ครั้งที่ 3</th><th>เฉลี่ย</th></tr></thead><tbody>`;
+          ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 't-3', 't-4', 'p-1', 'p-2'].forEach(function(pt) {
+            var grp = pt.split('-')[0];
+            html += `<tr><td><strong>${pt.toUpperCase()}</strong></td>
+              <td><input type="number" step="any" class="p5-rep p5-group-${grp} p5-row-${pt}" oninput="calculatePattern5()" required></td>
+              <td><input type="number" step="any" class="p5-rep p5-group-${grp} p5-row-${pt}" oninput="calculatePattern5()" required></td>
+              <td><input type="number" step="any" class="p5-rep p5-group-${grp} p5-row-${pt}" oninput="calculatePattern5()" required></td>
+              <td id="avg5_${pt}" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>`;
+          });
+          html += `</tbody></table></div><div class="calculation-summary"><div style="text-align:center; font-size:11px; color:#7f8c8d;">สูตร: [ R(N-1)(M-1) + Q(N+1) + T(M+1) + P ] / (N × M)</div></div>`;
+          div.innerHTML = html;
+        }
+        else if (config.type === "custom_6") {
+          var div = document.getElementById("customPattern6Div");
+          div.style.display = 'block';
+          var html = `<div><label>จำนวนหลอดไฟ (N):</label><input type="number" id="val6_N" min="1" oninput="calculatePattern6()" required></div><div class="table-wrapper"><table class="pattern-table"><thead><tr><th>จุด</th><th>ครั้งที่ 1</th><th>ครั้งที่ 2</th><th>ครั้งที่ 3</th><th>เฉลี่ย</th></tr></thead><tbody>`;
+          ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'p-1', 'p-2'].forEach(function(pt) {
+            var grp = pt.split('-')[0];
+            html += `<tr><td><strong>${pt.toUpperCase()}</strong></td>
+              <td><input type="number" step="any" class="p6-rep p6-group-${grp} p6-row-${pt}" oninput="calculatePattern6()" required></td>
+              <td><input type="number" step="any" class="p6-rep p6-group-${grp} p6-row-${pt}" oninput="calculatePattern6()" required></td>
+              <td><input type="number" step="any" class="p6-rep p6-group-${grp} p6-row-${pt}" oninput="calculatePattern6()" required></td>
+              <td id="avg6_${pt}" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>`;
+          });
+          html += `</tbody></table></div><div class="calculation-summary"><div style="text-align:center; font-size:11px; color:#7f8c8d;">สูตร: [ Q(N) + P ] / (N + 1)</div></div>`;
+          div.innerHTML = html;
+        }
+        else if (config.type === "custom_7") {
+          var div = document.getElementById("customPattern7Div");
+          div.style.display = 'block';
+          var html = `<div class="grid-2"><div><label>ความยาวห้อง (L) เมตร:</label><input type="number" id="val7_L" min="0.1" step="0.1" oninput="calculatePattern7()" required></div><div><label>ความกว้างห้อง (W) เมตร:</label><input type="number" id="val7_W" min="0.1" step="0.1" oninput="calculatePattern7()" required></div></div><div class="table-wrapper"><table class="pattern-table"><thead><tr><th>จุด</th><th>ครั้งที่ 1</th><th>ครั้งที่ 2</th><th>ครั้งที่ 3</th><th>เฉลี่ย</th></tr></thead><tbody>`;
+          ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 'p-1'].forEach(function(pt) {
+            var grp = pt.split('-')[0];
+            html += `<tr><td><strong>${pt.toUpperCase()}</strong></td>
+              <td><input type="number" step="any" class="p7-rep p7-group-${grp} p7-row-${pt}" oninput="calculatePattern7()" required></td>
+              <td><input type="number" step="any" class="p7-rep p7-group-${grp} p7-row-${pt}" oninput="calculatePattern7()" required></td>
+              <td><input type="number" step="any" class="p7-rep p7-group-${grp} p7-row-${pt}" oninput="calculatePattern7()" required></td>
+              <td id="avg7_${pt}" style="font-weight:bold; background:#f4f7f6;">0.00</td></tr>`;
+          });
+          html += `</tbody></table></div><div class="calculation-summary"><div style="text-align:center; font-size:11px; color:#7f8c8d;">สูตร: [ R(L-8)(W-8) + 8Q(L-8) + 8T(W-8) + 64P ] / (W × L)</div></div>`;
+          div.innerHTML = html;
+        }
+        maskBox.style.display = 'block';
+      }
+
+      function addPattern1Row() {
+        window.pattern1Count = (window.pattern1Count || 1) + 1;
+        var i = window.pattern1Count;
+        var tbody = document.getElementById("pattern1Tbody");
+        var tr = document.createElement("tr");
+        tr.innerHTML = `<td><strong>r-${i}</strong></td>
+            <td><input type="number" step="any" class="p1-row-r-${i}" oninput="calculatePattern1()" required></td>
+            <td><input type="number" step="any" class="p1-row-r-${i}" oninput="calculatePattern1()" required></td>
+            <td><input type="number" step="any" class="p1-row-r-${i}" oninput="calculatePattern1()" required></td>
+            <td id="avg1_r-${i}" style="font-weight:bold; background:#f4f7f6;">0.00</td>`;
+        tbody.appendChild(tr);
+        calculatePattern1();
+      }
+
+      function removePattern1Row() {
+        if(window.pattern1Count > 1) {
+            var tbody = document.getElementById("pattern1Tbody");
+            tbody.removeChild(tbody.lastElementChild);
+            window.pattern1Count--;
+            calculatePattern1();
+        } else {
+            alert("ต้องมีจุดตรวจวัดอย่างน้อย 1 จุด");
+        }
+      }
+
+      function addPattern8Row() {
+        window.pattern8Count = (window.pattern8Count || 1) + 1;
+        var i = window.pattern8Count;
+        var tbody = document.getElementById("pattern8Tbody");
+        var tr = document.createElement("tr");
+        tr.innerHTML = `<td><strong>E-${i}</strong></td>
+            <td><input type="number" step="any" class="p8-row-E-${i}" oninput="calculatePattern8()" required></td>
+            <td><input type="number" step="any" class="p8-row-E-${i}" oninput="calculatePattern8()" required></td>
+            <td><input type="number" step="any" class="p8-row-E-${i}" oninput="calculatePattern8()" required></td>
+            <td id="avg8_E-${i}" style="font-weight:bold; background:#f4f7f6;">0.00</td>`;
+        tbody.appendChild(tr);
+        calculatePattern8();
+      }
+
+      function removePattern8Row() {
+        if(window.pattern8Count > 1) {
+            var tbody = document.getElementById("pattern8Tbody");
+            tbody.removeChild(tbody.lastElementChild);
+            window.pattern8Count--;
+            calculatePattern8();
+        } else {
+            alert("ต้องมีจุดตรวจวัดอย่างน้อย 1 จุด");
+        }
+      }
+
+      function calculatePattern1() {
+        var totalSum = 0;
+        for (var i = 1; i <= window.pattern1Count; i++) {
+           totalSum += updateRowAvg('.p1-row-r-' + i, 'avg1_r-' + i);
+        }
+        var totalAvg = (window.pattern1Count > 0) ? (totalSum / window.pattern1Count) : 0;
+        document.getElementById("areaAvgLuxValue").innerText = totalAvg.toFixed(2);
+        document.getElementById("areaFinalMeasuredLux").value = totalAvg.toFixed(2);
+      }
+
+      function calculatePattern8() {
+        var totalSum = 0;
+        for (var i = 1; i <= window.pattern8Count; i++) {
+           totalSum += updateRowAvg('.p8-row-E-' + i, 'avg8_E-' + i);
+        }
+        var totalAvg = (window.pattern8Count > 0) ? (totalSum / window.pattern8Count) : 0;
+        document.getElementById("areaAvgLuxValue").innerText = totalAvg.toFixed(2);
+        document.getElementById("areaFinalMeasuredLux").value = totalAvg.toFixed(2);
+      }
+
+      function calculatePattern2() {
+        var N = parseFloat(document.getElementById('val_N').value) || 0;
+        var M = parseFloat(document.getElementById('val_M').value) || 0;
+        ['P-1', 'P-2', 'Q-1', 'Q-2', 'Q-3', 'Q-4', 'R-1', 'R-2', 'R-3', 'R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'T-1', 'T-2', 'T-3', 'T-4'].forEach(function(pt) { updateRowAvg('.p2-row-' + pt, 'avg_' + pt); });
+        var R = getGroupAvg('.p2-group-R'), Q = getGroupAvg('.p2-group-Q'), T = getGroupAvg('.p2-group-T'), P = getGroupAvg('.p2-group-P');
+        document.getElementById('disp_R').innerText = R.toFixed(2); document.getElementById('disp_Q').innerText = Q.toFixed(2); document.getElementById('disp_T').innerText = T.toFixed(2); document.getElementById('disp_P').innerText = P.toFixed(2);
+        var totalAvg = 0; if (N > 0 && M > 0) totalAvg = ((R * (N - 1) * (M - 1)) + (Q * (N - 1)) + (T * (M - 1)) + P) / (N * M);
+        document.getElementById("areaAvgLuxValue").innerText = totalAvg.toFixed(2); document.getElementById("areaFinalMeasuredLux").value = totalAvg.toFixed(2);
+      }
+
+      function calculatePattern3() {
+        var totalSum = 0;
+        ['P-1', 'P-2', 'P-3', 'P-4'].forEach(function(pt) { totalSum += updateRowAvg('.p3-row-' + pt, 'avg3_' + pt); });
+        var finalAvg = totalSum / 4;
+        document.getElementById("areaAvgLuxValue").innerText = finalAvg.toFixed(2); document.getElementById("areaFinalMeasuredLux").value = finalAvg.toFixed(2);
+      }
+
+      function calculatePattern4() {
+        var N = parseFloat(document.getElementById('val4_N').value) || 0;
+        ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'q-7', 'q-8', 'p-1', 'p-2'].forEach(function(pt) { updateRowAvg('.p4-row-' + pt, 'avg4_' + pt); });
+        var Q = getGroupAvg('.p4-group-q'), P = getGroupAvg('.p4-group-p');
+        document.getElementById('disp4_Q').innerText = Q.toFixed(2); document.getElementById('disp4_P').innerText = P.toFixed(2);
+        var totalAvg = 0; if (N > 0) totalAvg = ((Q * (N - 1)) + P) / N; 
+        document.getElementById("areaAvgLuxValue").innerText = totalAvg.toFixed(2); document.getElementById("areaFinalMeasuredLux").value = totalAvg.toFixed(2);
+      }
+
+      function calculatePattern5() {
+        var N = parseFloat(document.getElementById('val5_N').value) || 0;
+        var M = parseFloat(document.getElementById('val5_M').value) || 0;
+        ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 't-3', 't-4', 'p-1', 'p-2'].forEach(function(pt) { updateRowAvg('.p5-row-' + pt, 'avg5_' + pt); });
+        var R = getGroupAvg('.p5-group-r'), Q = getGroupAvg('.p5-group-q'), T = getGroupAvg('.p5-group-t'), P = getGroupAvg('.p5-group-p');
+        var totalAvg = 0; if (N > 0 && M > 0) totalAvg = ((R * (N - 1) * (M - 1)) + (Q * (N + 1)) + (T * (M + 1)) + P) / (N * M);
+        document.getElementById("areaAvgLuxValue").innerText = totalAvg.toFixed(2); document.getElementById("areaFinalMeasuredLux").value = totalAvg.toFixed(2);
+      }
+
+      function calculatePattern6() {
+        var N = parseFloat(document.getElementById('val6_N').value) || 0;
+        ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'p-1', 'p-2'].forEach(function(pt) { updateRowAvg('.p6-row-' + pt, 'avg6_' + pt); });
+        var Q = getGroupAvg('.p6-group-q'), P = getGroupAvg('.p6-group-p');
+        var totalAvg = 0; if (N >= 0) totalAvg = ((Q * N) + P) / (N + 1);
+        document.getElementById("areaAvgLuxValue").innerText = totalAvg.toFixed(2); document.getElementById("areaFinalMeasuredLux").value = totalAvg.toFixed(2);
+      }
+
+      function calculatePattern7() {
+        var L = parseFloat(document.getElementById('val7_L').value) || 0;
+        var W = parseFloat(document.getElementById('val7_W').value) || 0;
+        ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 'p-1'].forEach(function(pt) { updateRowAvg('.p7-row-' + pt, 'avg7_' + pt); });
+        var R = getGroupAvg('.p7-group-r'), Q = getGroupAvg('.p7-group-q'), T = getGroupAvg('.p7-group-t'), P = getGroupAvg('.p7-group-p');
+        var totalAvg = 0; if (L > 0 && W > 0) totalAvg = ((R * (L - 8) * (W - 8)) + (8 * Q * (L - 8)) + (8 * T * (W - 8)) + (64 * P)) / (W * L);
+        document.getElementById("areaAvgLuxValue").innerText = totalAvg.toFixed(2); document.getElementById("areaFinalMeasuredLux").value = totalAvg.toFixed(2);
+      }
+
+      function submitAreaForm() {
+        const btn = document.querySelector('.btn-submit-area');
+        const date = document.getElementById('commonDate').value;
+        const bld = document.getElementById('commonBld').value;
+        const room = document.getElementById('commonRoom').value;
+        const pId = document.getElementById('areaPatternSelect').value;
+        const measLux = parseFloat(document.getElementById('areaFinalMeasuredLux').value) || 0;
+
+        if (!date || !bld || !room || !pId) {
+          alert('⚠️ กรุณากรอกวันที่ อาคาร เลขห้อง และเลือกรูปแบบการตรวจวัด');
+          return;
+        }
+        if (measLux <= 0) {
+          alert('⚠️ กรุณากรอกตัวเลขและคำนวณค่าแสงก่อนทำการบันทึก');
+          return;
+        }
+
+        var rawDataObj = {};
+        if (pId === "1") {
+          rawDataObj.pointCount = window.pattern1Count;
+          for (var i = 1; i <= window.pattern1Count; i++) {
+            var inp = document.querySelectorAll('.p1-row-r-' + i);
+            rawDataObj['r-' + i + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj['r-' + i + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj['r-' + i + '_3'] = inp[2] ? inp[2].value : "0";
+          }
+        } else if (pId === "8") {
+          rawDataObj.pointCount = window.pattern8Count;
+          for (var i = 1; i <= window.pattern8Count; i++) {
+            var inp = document.querySelectorAll('.p8-row-E-' + i);
+            rawDataObj['E-' + i + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj['E-' + i + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj['E-' + i + '_3'] = inp[2] ? inp[2].value : "0";
+          }
+        } else if (pId === "2") {
+          rawDataObj.N = document.getElementById('val_N').value;
+          rawDataObj.M = document.getElementById('val_M').value;
+          ['P-1', 'P-2', 'Q-1', 'Q-2', 'Q-3', 'Q-4', 'R-1', 'R-2', 'R-3', 'R-4', 'R-5', 'R-6', 'R-7', 'R-8', 'T-1', 'T-2', 'T-3', 'T-4'].forEach(function(pt) {
+            var inp = document.querySelectorAll('.p2-row-' + pt);
+            rawDataObj[pt + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj[pt + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj[pt + '_3'] = inp[2] ? inp[2].value : "0";
+          });
+        } else if (pId === "3") {
+          ['P-1', 'P-2', 'P-3', 'P-4'].forEach(function(pt) {
+            var inp = document.querySelectorAll('.p3-row-' + pt);
+            rawDataObj[pt + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj[pt + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj[pt + '_3'] = inp[2] ? inp[2].value : "0";
+          });
+        } else if (pId === "4") {
+          rawDataObj.N = document.getElementById('val4_N').value;
+          ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'q-7', 'q-8', 'p-1', 'p-2'].forEach(function(pt) {
+            var inp = document.querySelectorAll('.p4-row-' + pt);
+            rawDataObj[pt + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj[pt + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj[pt + '_3'] = inp[2] ? inp[2].value : "0";
+          });
+        } else if (pId === "5") {
+          rawDataObj.N = document.getElementById('val5_N').value;
+          rawDataObj.M = document.getElementById('val5_M').value;
+          ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 't-3', 't-4', 'p-1', 'p-2'].forEach(function(pt) {
+            var inp = document.querySelectorAll('.p5-row-' + pt);
+            rawDataObj[pt + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj[pt + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj[pt + '_3'] = inp[2] ? inp[2].value : "0";
+          });
+        } else if (pId === "6") {
+          rawDataObj.N = document.getElementById('val6_N').value;
+          ['q-1', 'q-2', 'q-3', 'q-4', 'q-5', 'q-6', 'p-1', 'p-2'].forEach(function(pt) {
+            var inp = document.querySelectorAll('.p6-row-' + pt);
+            rawDataObj[pt + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj[pt + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj[pt + '_3'] = inp[2] ? inp[2].value : "0";
+          });
+        } else if (pId === "7") {
+          rawDataObj.L = document.getElementById('val7_L').value;
+          rawDataObj.W = document.getElementById('val7_W').value;
+          ['r-1', 'r-2', 'r-3', 'r-4', 'q-1', 'q-2', 't-1', 't-2', 'p-1'].forEach(function(pt) {
+            var inp = document.querySelectorAll('.p7-row-' + pt);
+            rawDataObj[pt + '_1'] = inp[0] ? inp[0].value : "0";
+            rawDataObj[pt + '_2'] = inp[1] ? inp[1].value : "0";
+            rawDataObj[pt + '_3'] = inp[2] ? inp[2].value : "0";
+          });
+        }
+
+        const payload = [{
+          date: date,
+          time: document.getElementById('commonTime').value,
+          weather: document.getElementById('commonWeather').value,
+          equipment: document.getElementById('commonEquip').value,
+          serialNo: document.getElementById('commonSerial').value,
+          calDate: document.getElementById('commonCalDate').value,
+          department: document.getElementById('commonDept').value,
+          building: bld,
+          room: room,
+          task: document.getElementById('areaTaskSelect').value,
+          standardLux: document.getElementById('areaStdLux').value,
+          minLux: document.getElementById('areaMinLux').value,
+          patternId: pId,
+          pattern: document.getElementById('areaPatternSelect').selectedOptions[0].text,
+          measuredLux: measLux,
+          rawData: JSON.stringify(rawDataObj),
+          controlMeasure: document.getElementById('areaRecommendation').value
+        }];
+
+        btn.disabled = true;
+        btn.innerText = "⏳ กำลังบันทึกข้อมูลเข้าชีต...";
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            alert(res);
+            location.reload();
+          })
+          .withFailureHandler(function(err) {
+            alert("❌ ไม่สามารถบันทึกได้: " + err.message);
+            btn.disabled = false;
+            btn.innerText = "💾 บันทึกลงชีต 「Database_Area」";
+          })
+          .saveAreaBatchData(payload);
+      }
+
+      // ---------------------------------------------------------
+      // SPOT CONTROLLER (รูปแบบที่ 4)
+      // ---------------------------------------------------------
+      function addSpotWorkerRow() {
+        spotWorkerCount++;
+        const id = spotWorkerCount;
+        const container = document.getElementById('spotWorkersList');
+        const card = document.createElement('div');
+        card.className = 'spot-card';
+        card.id = `spotWorker_${id}`;
+        card.innerHTML = `
+          <div class="spot-header">
+            <strong>ลูกจ้างลำดับที่ ${id}</strong>
+            <button type="button" onclick="document.getElementById('spotWorker_${id}').remove()" style="color:red; background:none; border:none; cursor:pointer;">ลบ</button>
+          </div>
+          <div class="grid-2">
+            <div><label>ชื่อ-นามสกุลลูกจ้าง (SEG):</label><input type="text" class="sw-name" required placeholder="นาย/นาง/น.ส."></div>
+            <div>
+              <label>ลักษณะงานเฉพาะจุด:</label>
+              <select class="sw-task" onchange="onSpotTaskChange(${id})">
+                <option value="งานประจำออฟฟิศ (เขียน/พิมพ์/บันทึกข้อมูล)" data-lux="400">งานคอมพิวเตอร์/ออฟฟิศ (400 Lux)</option>
+                <option value="งานหยาบ (ประกอบ/นับ/งานชิ้นใหญ่)" data-lux="200">งานหยาบ (200 Lux)</option>
+                <option value="งานละเอียดปานกลาง (ระบายสี/ตรวจอาหาร)" data-lux="500">งานละเอียดปานกลาง (500 Lux)</option>
+                <option value="งานละเอียดสูง (ปรับเทียบอุปกรณ์/ย้อมสี)" data-lux="700">งานละเอียดสูง (700 Lux)</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div><label>เกณฑ์มาตรฐาน (Lux):</label><input type="text" class="sw-std" value="400" readonly></div>
+            <div><label>ข้อเสนอแนะเฉพาะจุด:</label><input type="text" class="sw-rec" placeholder="ระบุถ้าไม่ผ่านเกณฑ์"></div>
+          </div>
+
+          <div style="margin-top:10px; background:#fff; padding:10px; border-radius:4px; border:1px solid #e2e8f0;">
+            <label style="color:#0369a1; font-weight:bold;">1) จุดทำงานหลัก (พื้นที่ 1 - หน้าโต๊ะ/ชิ้นงาน):</label>
+            <div class="grid-3">
+              <input type="number" step="any" class="sw-w1" placeholder="ครั้งที่ 1" oninput="calcSpot(${id})">
+              <input type="number" step="any" class="sw-w2" placeholder="ครั้งที่ 2" oninput="calcSpot(${id})">
+              <input type="number" step="any" class="sw-w3" placeholder="ครั้งที่ 3" oninput="calcSpot(${id})">
+            </div>
+            <div style="font-size:12px; font-weight:bold; color:#0369a1; margin-top:2px;">เฉลี่ยพื้นที่ 1: <span class="sw-avg1">0.00</span> Lux</div>
+
+            <label style="color:#475569; margin-top:8px;">2) แสงสว่างโดยรอบ (พื้นที่ 2 - ด้านข้าง 1 เมตร):</label>
+            <div class="grid-3">
+              <input type="number" step="any" class="sw-s1-1" placeholder="ครั้งที่ 1" oninput="calcSpot(${id})">
+              <input type="number" step="any" class="sw-s1-2" placeholder="ครั้งที่ 2" oninput="calcSpot(${id})">
+              <input type="number" step="any" class="sw-s1-3" placeholder="ครั้งที่ 3" oninput="calcSpot(${id})">
+            </div>
+            <div style="font-size:12px; color:#64748b;">เฉลี่ยพื้นที่ 2: <span class="sw-avg2">0.00</span> Lux</div>
+
+            <label style="color:#475569; margin-top:8px;">3) แสงสว่างโดยรอบ (พื้นที่ 3 - ด้านหลัง/ทางเดิน):</label>
+            <div class="grid-3">
+              <input type="number" step="any" class="sw-s2-1" placeholder="ครั้งที่ 1" oninput="calcSpot(${id})">
+              <input type="number" step="any" class="sw-s2-2" placeholder="ครั้งที่ 2" oninput="calcSpot(${id})">
+              <input type="number" step="any" class="sw-s2-3" placeholder="ครั้งที่ 3" oninput="calcSpot(${id})">
+            </div>
+            <div style="font-size:12px; color:#64748b;">เฉลี่ยพื้นที่ 3: <span class="sw-avg3">0.00</span> Lux</div>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+
+      function onSpotTaskChange(id) {
+        const card = document.getElementById(`spotWorker_${id}`);
+        const sel = card.querySelector('.sw-task');
+        card.querySelector('.sw-std').value = sel.options[sel.selectedIndex].getAttribute('data-lux');
+      }
+
+      function calcSpot(id) {
+        const card = document.getElementById(`spotWorker_${id}`);
+        const avg = (c1, c2, c3) => {
+          const v1 = parseFloat(card.querySelector(c1).value) || 0;
+          const v2 = parseFloat(card.querySelector(c2).value) || 0;
+          const v3 = parseFloat(card.querySelector(c3).value) || 0;
+          return ((v1 + v2 + v3) / 3).toFixed(2);
+        };
+        card.querySelector('.sw-avg1').innerText = avg('.sw-w1', '.sw-w2', '.sw-w3');
+        card.querySelector('.sw-avg2').innerText = avg('.sw-s1-1', '.sw-s1-2', '.sw-s1-3');
+        card.querySelector('.sw-avg3').innerText = avg('.sw-s2-1', '.sw-s2-2', '.sw-s2-3');
+      }
+
+      function submitSpotForm() {
+        const btn = document.querySelector('.btn-submit-spot');
+        const date = document.getElementById('commonDate').value;
+        const bld = document.getElementById('commonBld').value;
+        const room = document.getElementById('commonRoom').value;
+        const cards = document.querySelectorAll('.spot-card');
+        if (!date || !bld || !room || cards.length === 0) {
+          alert('⚠️ กรุณากรอกวันที่ อาคาร ห้อง และข้อมูลลูกจ้างอย่างน้อย 1 คน');
+          return;
+        }
+
+        const records = [];
+        cards.forEach(card => {
+          records.push({
+            date: date, time: document.getElementById('commonTime').value,
+            weather: document.getElementById('commonWeather').value,
+            equipment: document.getElementById('commonEquip').value,
+            serialNo: document.getElementById('commonSerial').value,
+            calDate: document.getElementById('commonCalDate').value,
+            department: document.getElementById('commonDept').value,
+            building: bld, room: room,
+            workerName: card.querySelector('.sw-name').value,
+            task: card.querySelector('.sw-task').value,
+            luxArea1: card.querySelector('.sw-avg1').innerText,
+            luxArea2: card.querySelector('.sw-avg2').innerText,
+            luxArea3: card.querySelector('.sw-avg3').innerText,
+            standardLux: card.querySelector('.sw-std').value,
+            recommendation: card.querySelector('.sw-rec').value
+          });
+        });
+
+        btn.disabled = true;
+        btn.innerText = "⏳ กำลังบันทึกข้อมูลจุด...";
+
+        google.script.run
+          .withSuccessHandler(res => { alert(res); location.reload(); })
+          .withFailureHandler(err => {
+            alert("❌ ไม่สามารถบันทึกได้: " + err.message);
+            btn.disabled = false;
+            btn.innerText = "💾 บันทึกลงชีต 「Database_Spot」";
+          })
+          .saveSpotBatchData(records);
+      }
+
+      // ---------------------------------------------------------
+      // VIEW & EDIT CONTROLLER
+      // ---------------------------------------------------------
+      function loadLocationTreeDropdown() {
+        const deptSel = document.getElementById("editFilterDept");
+        deptSel.innerHTML = '<option value="">⏳ กำลังดึงรายชื่อจาก Database...</option>';
+
+        google.script.run
+          .withSuccessHandler(tree => {
+            locationTree = tree || {};
+            deptSel.innerHTML = '<option value="">-- เลือกส่วนงาน --</option>';
+            for (let dept in locationTree) {
+              const opt = document.createElement("option");
+              opt.value = dept; opt.textContent = dept;
+              deptSel.appendChild(opt);
+            }
+          })
+          .getExistingLocations();
+      }
+
+      function onEditDeptChange() {
+        const dept = document.getElementById("editFilterDept").value;
+        const bldSel = document.getElementById("editFilterBld");
+        const roomSel = document.getElementById("editFilterRoom");
+
+        bldSel.innerHTML = '<option value="">-- เลือกอาคาร --</option>';
+        roomSel.innerHTML = '<option value="">-- เลือกเลขห้อง --</option>';
+        roomSel.disabled = true;
+
+        if (!dept || !locationTree[dept]) {
+          bldSel.disabled = true;
+          return;
+        }
+
+        for (let bld in locationTree[dept]) {
+          const opt = document.createElement("option");
+          opt.value = bld; opt.textContent = bld;
+          bldSel.appendChild(opt);
+        }
+        bldSel.disabled = false;
+      }
+
+      function onEditBldChange() {
+        const dept = document.getElementById("editFilterDept").value;
+        const bld = document.getElementById("editFilterBld").value;
+        const roomSel = document.getElementById("editFilterRoom");
+
+        roomSel.innerHTML = '<option value="">-- เลือกเลขห้อง --</option>';
+
+        if (!dept || !bld || !locationTree[dept] || !locationTree[dept][bld]) {
+          roomSel.disabled = true;
+          return;
+        }
+
+        const rooms = locationTree[dept][bld];
+        rooms.forEach(r => {
+          const opt = document.createElement("option");
+          opt.value = r; opt.textContent = r;
+          roomSel.appendChild(opt);
+        });
+        roomSel.disabled = false;
+      }
+
+      function loadRoomDataForEditing() {
+        const dept = document.getElementById("editFilterDept").value;
+        const bld = document.getElementById("editFilterBld").value;
+        const room = document.getElementById("editFilterRoom").value;
+        const loader = document.getElementById("editLoadingStatus");
+        const content = document.getElementById("editFormContent");
+
+        if (!dept || !bld || !room) {
+          content.style.display = 'none';
+          return;
+        }
+
+        loader.style.display = 'block';
+        content.style.display = 'none';
+
+        google.script.run
+          .withSuccessHandler(payload => {
+            loader.style.display = 'none';
+            if (!payload || payload.error) {
+              alert(payload.error || "ไม่พบข้อมูลห้องที่เลือก");
+              return;
+            }
+
+            currentRoomPayload = payload;
+
+            document.getElementById("dispEditDate").value = payload.date || "-";
+            document.getElementById("dispEditTime").value = payload.time || "-";
+            document.getElementById("dispEditWeather").value = payload.weather || "-";
+            document.getElementById("dispEditTask").value = payload.task || "-";
+            document.getElementById("dispEditStd").value = payload.standardLux || "-";
+            document.getElementById("dispEditMin").value = payload.minLux || "-";
+            document.getElementById("dispEditAreaAvg").innerText = payload.measuredLux || "0.00";
+            document.getElementById("editNewRecommendation").value = payload.recommendation && payload.recommendation !== "-" ? payload.recommendation : "";
+
+            const badge = document.getElementById("dispEditEvalBadge");
+            const isPass = payload.evaluation === "ผ่าน";
+            badge.innerText = isPass ? "🟢 ผ่านเกณฑ์" : "🔴 ไม่ผ่านเกณฑ์";
+            badge.style.background = isPass ? "#dcfce7" : "#fee2e2";
+            badge.style.color = isPass ? "#16a34a" : "#dc2626";
+
+            const tbody = document.getElementById("editPointsTbody");
+            tbody.innerHTML = '';
+            (payload.pointsList || []).forEach(pt => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td><strong>${pt.pointCode}</strong></td>
+                <td style="font-weight:bold; color:#0284c7;">${pt.pointLux}</td>
+              `;
+              tbody.appendChild(tr);
+            });
+
+            content.style.display = 'block';
+          })
+          .withFailureHandler(err => {
+            loader.style.display = 'none';
+            alert("ดึงข้อมูลล้มเหลว: " + err.message);
+          })
+          .getRoomDetailsForEdit(dept, bld, room);
+      }
+
+      function submitAdjustedData() {
+        if (!currentRoomPayload) return;
+
+        const newRec = document.getElementById("editNewRecommendation").value.trim();
+        if (!newRec) {
+          alert("กรุณากรอกข้อเสนอแนะหรือแนวทางการปรับปรุงก่อนทำการบันทึก");
+          document.getElementById("editNewRecommendation").focus();
+          return;
+        }
+
+        const btn = document.getElementById("btnSaveAdjusted");
+        const msg = document.getElementById("editSaveMsg");
+        btn.disabled = true;
+        btn.innerText = "⏳ กำลังบันทึกลง Database–ปรับแก้...";
+        msg.innerText = "";
+
+        google.script.run
+          .withSuccessHandler(res => {
+            btn.disabled = false;
+            btn.innerText = "💾 บันทึกข้อเสนอแนะลงชีต 「Database–ปรับแก้」";
+            msg.style.color = "#16a34a";
+            msg.innerText = "✅ " + res;
+            alert(res);
+          })
+          .withFailureHandler(err => {
+            btn.disabled = false;
+            btn.innerText = "💾 บันทึกข้อเสนอแนะลงชีต 「Database–ปรับแก้」";
+            msg.style.color = "#dc2626";
+            msg.innerText = "❌ เกิดข้อผิดพลาด: " + err.message;
+            alert("บันทึกไม่สำเร็จ: " + err.message);
+          })
+          .saveToDatabaseAdjusted(currentRoomPayload, newRec);
+      }
+    </script>
+  </body>
+</html>
