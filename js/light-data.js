@@ -69,29 +69,6 @@
   }
 
   function bindFilterEvents() {
-  // พิมพ์รายงานแบบจุดบุคคล
-    const btnSpotPdf = e.target.closest('#btnExportSpotPdf');
-    if (btnSpotPdf) {
-      e.preventDefault();
-      if (isExporting) return;
-      const filtered = getFilteredSpotRecords();
-      if (filtered.length === 0) { alert('ไม่พบข้อมูลตรวจวัดแบบจุด (Spot)'); return; }
-
-      // --- เพิ่มหน้าต่างให้กรอกชื่อตรงนี้ ---
-      let inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
-      if (inputName === null) return; // หากผู้ใช้กด "ยกเลิก" (Cancel) ให้หยุดการ Export
-
-      let displaySignature = "(............................................................................)";
-      if (inputName.trim() !== "") {
-        // จัดรูปแบบคำนำหน้าเป็น "นาย" ตามรูปแบบเอกสาร
-        displaySignature = `(นาย ${inputName.trim()})`;
-      }
-
-      isExporting = true;
-      try { generateSpotPdfReport(filtered, displaySignature); }
-      finally { setTimeout(() => { isExporting = false; }, 1500); }
-      return;
-    }
     if (window.__isLightEventsBound) return;
     window.__isLightEventsBound = true;
 
@@ -115,28 +92,46 @@
         return;
       }
 
-      // พิมพ์รายงานแบบพื้นที่
+      // พิมพ์รายงานแบบพื้นที่ (Area)
       const btnAreaPdf = e.target.closest('#btnExportAreaPdf');
       if (btnAreaPdf) {
         e.preventDefault();
         if (isExporting) return;
         const filtered = getFilteredAreaRecords();
         if (filtered.length === 0) { alert('ไม่พบข้อมูลตรวจวัดแบบพื้นที่'); return; }
+        
+        let inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+        if (inputName === null) return; 
+
+        let displaySignature = "(............................................................................)";
+        if (inputName.trim() !== "") {
+          displaySignature = `(นาย ${inputName.trim()})`;
+        }
+
         isExporting = true;
-        try { generateAreaPdfReport(filtered); }
+        try { generateAreaPdfReport(filtered, displaySignature); }
         finally { setTimeout(() => { isExporting = false; }, 1500); }
         return;
       }
 
-      // พิมพ์รายงานแบบจุดบุคคล
+      // พิมพ์รายงานแบบจุดบุคคล (Spot)
       const btnSpotPdf = e.target.closest('#btnExportSpotPdf');
       if (btnSpotPdf) {
         e.preventDefault();
         if (isExporting) return;
         const filtered = getFilteredSpotRecords();
         if (filtered.length === 0) { alert('ไม่พบข้อมูลตรวจวัดแบบจุด (Spot)'); return; }
+
+        let inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+        if (inputName === null) return; 
+
+        let displaySignature = "(............................................................................)";
+        if (inputName.trim() !== "") {
+          displaySignature = `(นาย ${inputName.trim()})`;
+        }
+
         isExporting = true;
-        try { generateSpotPdfReport(filtered); }
+        try { generateSpotPdfReport(filtered, displaySignature); }
         finally { setTimeout(() => { isExporting = false; }, 1500); }
         return;
       }
@@ -351,7 +346,7 @@
 // -------------------------------------------------------------
   // REPORT 1: PDF รายงานแบบตรวจวัดพื้นที่ (Area Report - แยกตามอาคาร)
   // -------------------------------------------------------------
-  function generateAreaPdfReport(records) {
+  function generateAreaPdfReport(records,displaySignature = "(.......................)") {
     function formatDateTime(item) {
       const timePart = item.time || (item.timestamp ? item.timestamp.toString().substring(11, 16) : "");
       let datePart = item.date || "";
@@ -541,7 +536,7 @@
         <div class="sig-row">
           <div class="sig-box">
             <div>ลงชื่อ.....................................................................</div>
-            <div style="margin-top: 3px;">(............................................................................)</div>
+            <div style="margin-top: 3px;">${displaySignature}</div>
             <div>ผู้ดำเนินการตรวจวัด</div>
           </div>
           <div class="sig-box">
@@ -558,33 +553,10 @@
   }
 
 
-  function printFrameContent(html) {
-    let oldFrame = document.getElementById('pdfPrintFrame');
-    if (oldFrame) oldFrame.remove();
-
-    const frame = document.createElement('iframe');
-    frame.id = 'pdfPrintFrame';
-    frame.style.position = 'fixed';
-    frame.style.width = '0';
-    frame.style.height = '0';
-    frame.style.border = '0';
-    document.body.appendChild(frame);
-
-    const doc = frame.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    setTimeout(() => {
-      frame.contentWindow.focus();
-      frame.contentWindow.print();
-    }, 450);
-  }
-
 // -------------------------------------------------------------
   // REPORT 2: PDF รายงานแบบตรวจวัดเฉพาะจุด (Spot Report) - แยกตามอาคาร
   // -------------------------------------------------------------
-  function generateSpotPdfReport(records, displaySignature) { // <-- รับค่าชื่อตรงนี้
+  function generateSpotPdfReport(records, displaySignature= "(...................................)") { // <-- รับค่าชื่อตรงนี้
     const sample = records[0] || {};
     const equipName = (sample.equipment && sample.equipment !== "-") ? sample.equipment : "Lux Meter";
     const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
@@ -722,7 +694,7 @@
           <div class="sig-box">
             <div>ลงชื่อ.....................................................................</div>
             <div style="margin-top: 3px;">${displaySignature}</div> <!-- นำค่าที่กรอกมาแสดงตรงนี้ -->
-            <div>ผู้ดำเนินการตรวจวัดและวิเคราะห์สภาวะการทำงาน</div>
+            <div>ผู้ดำเนินการตรวจวัด</div>
           </div>
           <div class="sig-box">
             <div>ลงชื่อ.....................................................................</div>
@@ -764,50 +736,7 @@
   }
 
 
-  function printFrameContent(html) {
-    let oldFrame = document.getElementById('pdfPrintFrame');
-    if (oldFrame) oldFrame.remove();
 
-    const frame = document.createElement('iframe');
-    frame.id = 'pdfPrintFrame';
-    frame.style.position = 'fixed';
-    frame.style.width = '0';
-    frame.style.height = '0';
-    frame.style.border = '0';
-    document.body.appendChild(frame);
 
-    const doc = frame.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    setTimeout(() => {
-      frame.contentWindow.focus();
-      frame.contentWindow.print();
-    }, 450);
-  }
-
-  function printFrameContent(html) {
-    let oldFrame = document.getElementById('pdfPrintFrame');
-    if (oldFrame) oldFrame.remove();
-
-    const frame = document.createElement('iframe');
-    frame.id = 'pdfPrintFrame';
-    frame.style.position = 'fixed';
-    frame.style.width = '0';
-    frame.style.height = '0';
-    frame.style.border = '0';
-    document.body.appendChild(frame);
-
-    const doc = frame.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    setTimeout(() => {
-      frame.contentWindow.focus();
-      frame.contentWindow.print();
-    }, 450);
-  }
 
 })();
