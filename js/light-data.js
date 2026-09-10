@@ -511,7 +511,6 @@
                 <th>ยี่ห้อ/รุ่น</th>
                 <th>หมายเลขเครื่อง (Serial Number)</th>
                 <th>มาตรฐานเครื่องตรวจวัด</th>
-                <th>ค่าการปรับศูนย์ (Zeroing)</th>
                 <th>วัน/เดือน/ปี (ปรับเทียบความถูกต้อง)</th>
               </tr>
             </thead>
@@ -521,7 +520,6 @@
                 <td style="text-align:center;">${equipName}</td>
                 <td style="text-align:center;">${serialNum}</td>
                 <td style="text-align:center;">CIE Standard / ISO 45001</td>
-                <td style="text-align:center;">0.0 Lux (สมบูรณ์)</td>
                 <td style="text-align:center;">${calibDate}</td>
               </tr>
             </tbody>
@@ -600,8 +598,8 @@
               <th style="width: 5%;">ลำดับ</th>
               <th style="width: 14%;">วันเวลาตรวจวัด</th>
               <th style="width: 18%;">ชื่อ-นามสกุลของลูกจ้าง (SEG)</th>
-              <th style="width: 23%;">ลักษณะงาน / พื้นที่</th>
-              <th style="width: 10%;">ค่าที่วัดได้ (Lux)<br>พื้นที่ 1</th>
+              <th style="width: 23%;">พื้นที่ / ลักษณะงาน</th>
+              <th style="width: 10%;">ค่าเฉลี่ยที่วัดได้</th>
               <th style="width: 8%;">เกณฑ์ (Lux)</th>
               <th style="width: 9%;">ผลประเมิน</th>
               <th style="width: 13%;">หมายเหตุ</th>
