@@ -643,7 +643,6 @@
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
               <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
-              <div style="font-size: 10.5pt; color: #334155;">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</div>
             </div>
           </div>
         </div>
