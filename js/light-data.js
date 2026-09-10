@@ -449,15 +449,15 @@
               <th rowspan="2" style="width: 17%;">สถานที่ตรวจวัด<br><span style="font-size:9pt; font-weight:normal;">(เลขห้อง/รหัสจุดตรวจวัด)</span></th>
               <th rowspan="2" style="width: 16%;">ลักษณะงาน</th>
               <th colspan="2" style="width: 14%;">ความเข้มของแสงสว่าง (Lux)</th>
-              <th colspan="2" style="width: 15%;">ค่าความเข้มของแสงสว่างมาตรฐาน (Lux)</th>
+              <th colspan="2" style="width: 15%;">เกณฑ์มาตรฐาน</th>
               <th rowspan="2" style="width: 8%;">ผลประเมิน</th>
               <th rowspan="2" style="width: 12%;">หมายเหตุ</th>
             </tr>
             <tr>
               <th style="width: 7%;">ค่าที่วัดได้</th>
               <th style="width: 7%;">ค่าเฉลี่ย</th>
-              <th style="width: 8%;">เกณฑ์มาตรฐาน</th>
-              <th style="width: 7%;">จุดความเข้มต่ำสุด</th>
+              <th style="width: 10%;">ค่าเฉลี่ยความเข้มของแสง (Lux)</th>
+              <th style="width: 12%;">จุดที่ความเข้มของแสงสว่างต่ำสุด(Lux)</th>
             </tr>
           </thead>
           <tbody>
