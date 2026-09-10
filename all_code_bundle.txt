@@ -888,7 +888,36 @@ async function loadAirData(gasUrl) {
       const btnArea = target.closest('#btnExportAreaPdf');
       if (btnArea) {
         e.preventDefault();
-        triggerAreaExport();
+        if (isExporting) return;
+
+        if (!areaRecords || areaRecords.length === 0) {
+          alert("⚠️ ยังไม่สามารถดึงข้อมูลจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง Web App API หรือลองรีเฟรชหน้าเว็บ");
+          return;
+        }
+
+        const filtered = getFilteredAreaRecords();
+        if (!filtered || filtered.length === 0) {
+          alert('⚠️ กรุณาทำเครื่องหมายเลือกอาคารที่ต้องการออกรายงานอย่างน้อย 1 อาคาร');
+          return;
+        }
+
+        const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+        if (inputName === null) return;
+
+        let displaySignature = "(............................................................................)";
+        if (inputName.trim() !== "") {
+          displaySignature = `( ${inputName.trim()})`;
+        }
+
+        isExporting = true;
+        try {
+          generateAreaPdfReport(filtered, displaySignature);
+        } catch (err) {
+          console.error("Area PDF generation error:", err);
+          alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
+        } finally {
+          setTimeout(() => { isExporting = false; }, 800);
+        }
         return;
       }
 
@@ -896,69 +925,40 @@ async function loadAirData(gasUrl) {
       const btnSpot = target.closest('#btnExportSpotPdf');
       if (btnSpot) {
         e.preventDefault();
-        triggerSpotExport();
+        if (isExporting) return;
+
+        if (!spotRecords || spotRecords.length === 0) {
+          alert("⚠️ ยังไม่สามารถดึงข้อมูลแบบจุดจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง Web App API หรือลองรีเฟรชหน้าเว็บ");
+          return;
+        }
+
+        const filtered = getFilteredSpotRecords();
+        if (!filtered || filtered.length === 0) {
+          alert('⚠️ กรุณาทำเครื่องหมายเลือกอาคารที่ต้องการออกรายงานอย่างน้อย 1 อาคาร');
+          return;
+        }
+
+        const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
+        if (inputName === null) return;
+
+        let displaySignature = "(............................................................................)";
+        if (inputName.trim() !== "") {
+          displaySignature = `( ${inputName.trim()})`;
+        }
+
+        isExporting = true;
+        try {
+          generateSpotPdfReport(filtered, displaySignature);
+        } catch (err) {
+          console.error("Spot PDF generation error:", err);
+          alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
+        } finally {
+          setTimeout(() => { isExporting = false; }, 800);
+        }
         return;
       }
     });
   }
-
-  function triggerAreaExport() {
-    if (isExporting) return;
-    const filtered = getFilteredAreaRecords();
-    if (!filtered || filtered.length === 0) {
-      alert('⚠️ ไม่พบข้อมูลตรวจวัดแบบพื้นที่ในอาคารที่เลือก กรุณาเลือกอาคารในตัวกรองด้านบน');
-      return;
-    }
-
-    const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
-    if (inputName === null) return;
-
-    let displaySignature = "(............................................................................)";
-    if (inputName.trim() !== "") {
-      displaySignature = `(นาย ${inputName.trim()})`;
-    }
-
-    isExporting = true;
-    try {
-      generateAreaPdfReport(filtered, displaySignature);
-    } catch (err) {
-      console.error("Area PDF generation error:", err);
-      alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
-    } finally {
-      setTimeout(() => { isExporting = false; }, 800);
-    }
-  }
-
-  function triggerSpotExport() {
-    if (isExporting) return;
-    const filtered = getFilteredSpotRecords();
-    if (!filtered || filtered.length === 0) {
-      alert('⚠️ ไม่พบข้อมูลตรวจวัดแบบจุด (Spot) ในอาคารที่เลือก กรุณาเลือกอาคารในตัวกรองด้านบน');
-      return;
-    }
-
-    const inputName = prompt("กรุณาระบุชื่อ-นามสกุล ผู้ดำเนินการตรวจวัด (ไม่ต้องใส่คำนำหน้า):\n(หากกดตกลงโดยไม่กรอกข้อความ ระบบจะแสดงเป็นเส้นประ)", "");
-    if (inputName === null) return;
-
-    let displaySignature = "(............................................................................)";
-    if (inputName.trim() !== "") {
-      displaySignature = `(นาย ${inputName.trim()})`;
-    }
-
-    isExporting = true;
-    try {
-      generateSpotPdfReport(filtered, displaySignature);
-    } catch (err) {
-      console.error("Spot PDF generation error:", err);
-      alert("เกิดข้อผิดพลาดในการสร้างเอกสาร: " + err.message);
-    } finally {
-      setTimeout(() => { isExporting = false; }, 800);
-    }
-  }
-
-  // ผูกเข้ากับ window ให้เรียกใช้งานตรงได้กรณีจำเป็น
-  window.exportAreaPdf = triggerAreaExport;
-  window.exportSpotPdf = triggerSpotExport;
 
   function getSelectedBuildings() {
     return Array.from(document.querySelectorAll('.bld-checkbox:checked')).map(cb => cb.value.trim());
@@ -1027,7 +1027,7 @@ async function loadAirData(gasUrl) {
       applyFilters();
     } catch (err) {
       console.error("Fetch data error:", err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">โหลดข้อมูลไม่สำเร็จ (ตรวจสอบการเชื่อมต่อ GAS)</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบสิทธิ์การ Deploy GAS (ต้องเป็น Anyone)</td></tr>';
     }
   }
 
@@ -1257,15 +1257,15 @@ async function loadAirData(gasUrl) {
               <th rowspan="2" style="width: 17%;">สถานที่ตรวจวัด<br><span style="font-size:9pt; font-weight:normal;">(เลขห้อง/รหัสจุดตรวจวัด)</span></th>
               <th rowspan="2" style="width: 16%;">ลักษณะงาน</th>
               <th colspan="2" style="width: 14%;">ความเข้มของแสงสว่าง (Lux)</th>
-              <th colspan="2" style="width: 15%;">ค่าความเข้มของแสงสว่างมาตรฐาน (Lux)</th>
+              <th colspan="2" style="width: 15%;">เกณฑ์มาตรฐาน</th>
               <th rowspan="2" style="width: 8%;">ผลประเมิน</th>
               <th rowspan="2" style="width: 12%;">หมายเหตุ</th>
             </tr>
             <tr>
               <th style="width: 7%;">ค่าที่วัดได้</th>
               <th style="width: 7%;">ค่าเฉลี่ย</th>
-              <th style="width: 8%;">เกณฑ์มาตรฐาน</th>
-              <th style="width: 7%;">จุดความเข้มต่ำสุด</th>
+              <th style="width: 10%;">ค่าเฉลี่ยความเข้มของแสง (Lux)</th>
+              <th style="width: 12%;">จุดที่ความเข้มของแสงสว่างต่ำสุด(Lux)</th>
             </tr>
           </thead>
           <tbody>
@@ -1319,7 +1319,6 @@ async function loadAirData(gasUrl) {
                 <th>ยี่ห้อ/รุ่น</th>
                 <th>หมายเลขเครื่อง (Serial Number)</th>
                 <th>มาตรฐานเครื่องตรวจวัด</th>
-                <th>ค่าการปรับศูนย์ (Zeroing)</th>
                 <th>วัน/เดือน/ปี (ปรับเทียบความถูกต้อง)</th>
               </tr>
             </thead>
@@ -1329,7 +1328,6 @@ async function loadAirData(gasUrl) {
                 <td style="text-align:center;">${equipName}</td>
                 <td style="text-align:center;">${serialNum}</td>
                 <td style="text-align:center;">CIE Standard / ISO 45001</td>
-                <td style="text-align:center;">0.0 Lux (สมบูรณ์)</td>
                 <td style="text-align:center;">${calibDate}</td>
               </tr>
             </tbody>
@@ -1343,7 +1341,7 @@ async function loadAirData(gasUrl) {
           <strong>หมายเหตุ:</strong>
           <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
           <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
-          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไขในภายหลัง</div>
         </div>
 
         <div class="sig-row">
@@ -1408,11 +1406,11 @@ async function loadAirData(gasUrl) {
               <th style="width: 5%;">ลำดับ</th>
               <th style="width: 14%;">วันเวลาตรวจวัด</th>
               <th style="width: 18%;">ชื่อ-นามสกุลของลูกจ้าง (SEG)</th>
-              <th style="width: 23%;">ลักษณะงาน / พื้นที่</th>
-              <th style="width: 10%;">ค่าที่วัดได้ (Lux)<br>พื้นที่ 1</th>
+              <th style="width: 23%;">พื้นที่ / ลักษณะงาน</th>
+              <th style="width: 10%;">ค่าเฉลี่ยที่วัดได้</th>
               <th style="width: 8%;">เกณฑ์ (Lux)</th>
               <th style="width: 9%;">ผลประเมิน</th>
-              <th style="width: 13%;">ข้อเสนอแนะและวิธีปรับปรุง</th>
+              <th style="width: 13%;">หมายเหตุ</th>
             </tr>
           </thead>
           <tbody>
@@ -1453,7 +1451,6 @@ async function loadAirData(gasUrl) {
             <img src="Mahidol_U.png" alt="Mahidol Logo" class="mu-logo" onerror="this.style.display='none'">
             <div>
               <div class="org-title">รายงานผลตรวจวัดความเข้มแสงสว่าง (Illumination Management Report)</div>
-              <div style="font-size: 10.5pt; color: #334155;">กองกายภาพและสิ่งแวดล้อม มหาวิทยาลัยมหิดล</div>
             </div>
           </div>
         </div>
@@ -1487,9 +1484,9 @@ async function loadAirData(gasUrl) {
 
         <div class="notes-box">
           <strong>หมายเหตุ:</strong>
-          <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งดวงไฟ แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
+          <div>1) พื้นที่ตรวจวัดให้แนบแผนผังพื้นที่ที่ดำเนินการตรวจวัด ระบุตำแหน่งที่นั่ง แหล่งแสงธรรมชาติเป็นเอกสารแนบ</div>
           <div>2) ผลการประเมินใช้เกณฑ์มาตรฐานความปลอดภัยตามกฎกระทรวงฯ พ.ศ. 2559</div>
-          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไข</div>
+          <div>3) กรณีไม่เป็นไปตามเกณฑ์มาตรฐาน ให้ระบุข้อเสนอแนะและวิธีการปรับปรุงแก้ไขในถายหลัง</div>
         </div>
 
         <div class="sig-row">
@@ -1501,7 +1498,7 @@ async function loadAirData(gasUrl) {
           <div class="sig-box">
             <div>ลงชื่อ.....................................................................</div>
             <div style="margin-top: 3px;">(............................................................................)</div>
-            <div>ผู้บริหาร / ผู้มีอำนาจกระทำการแทน</div>
+            <div>ผู้ตรวจสอบและรับรองผล</div>
           </div>
         </div>
       </body>
