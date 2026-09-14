@@ -210,3 +210,30 @@ async function loadAirData(gasUrl) {
     if (document.getElementById('lblStatus')) document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
   }
 }
+
+// วางต่อท้ายในไฟล์ js/aqi-chart.js
+
+async function fetchAndRelayAirData(gasUrl) {
+  const APM_URL = "https://mahidol.ac.th/aqireport/data/APM.json";
+
+  try {
+    // 1. เบราว์เซอร์ดึงข้อมูลจาก Mahidol โดยตรง (ไม่ติดบล็อก Akamai 403)
+    const response = await fetch(APM_URL);
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const airData = await response.json();
+
+    // 2. ส่งข้อมูลที่ดึงได้ไปซิงค์ลง Google Sheets และสั่งยิง Push
+    await fetch(gasUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action: "sync_air_data",
+        airData: airData
+      })
+    });
+    console.log("Air data synced and relayed to Apps Script.");
+  } catch (err) {
+    console.warn("Relay to Apps Script skipped:", err);
+  }
+}
