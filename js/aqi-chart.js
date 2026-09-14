@@ -133,7 +133,6 @@ function renderAqiChart(historyData) {
 
 async function loadAirData(gasUrl) {
   try {
-    // ใส่ timestamp ต่อท้าย URL เพื่อบังคับให้ดึงข้อมูลสดใหม่จาก Google Sheets เสมอ ห้ามใช้ Cache
     const freshUrl = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
     const res = await fetch(freshUrl, { cache: 'no-store' });
     const data = await res.json();
@@ -143,26 +142,25 @@ async function loadAirData(gasUrl) {
       return;
     }
 
-    // ฟังก์ชันช่วยแปลงเวลาให้เป็น Timestamp (ms) ที่เชื่อถือได้
-    const getTimestamp = (item) => {
-      // 1. ลองแปลงจาก Date_Time_AQI ก่อน (เช่น "2026-09-14 13:32:00")
+    // แปลงสตริงวันที่เป็น Timestamp (ms) อย่างถูกต้องทั้งแบบมี T และแบบเว้นวรรค
+    const parseItemDate = (item) => {
       if (item.Date_Time_AQI) {
-        const cleanDateStr = item.Date_Time_AQI.toString().replace(/^'/, '').replace(/-/g, '/');
-        const parsed = Date.parse(cleanDateStr);
-        if (!isNaN(parsed)) return parsed;
+        let str = item.Date_Time_AQI.toString().replace(/^'/, '').trim();
+        // แปลง "2026-09-14 14:23:50" ให้เป็น "2026-09-14T14:23:50"
+        if (str.includes(' ') && !str.includes('T')) {
+          str = str.replace(' ', 'T');
+        }
+        const timeVal = Date.parse(str);
+        if (!isNaN(timeVal)) return timeVal;
       }
-      // 2. ถ้าไม่ได้ ให้แปลงจาก Date_Time_AQI_Unix
-      let u = Number(item.Date_Time_AQI_Unix);
-      if (!isNaN(u) && u > 0) {
-        return u < 1e11 ? u * 1000 : u;
-      }
-      return 0;
+      const u = Number(item.Date_Time_AQI_Unix) || 0;
+      return u < 1e11 ? u * 1000 : u;
     };
 
-    // จัดเรียงลำดับจากเวลาเก่าไปใหม่
-    data.sort((a, b) => getTimestamp(a) - getTimestamp(b));
+    // จัดเรียงข้อมูลจากเวลาอดีตไปหาเวลาล่าสุดตามเวลาจริงของ Date_Time_AQI
+    data.sort((a, b) => parseItemDate(a) - parseItemDate(b));
 
-    // ดึงข้อมูลแถวล่าสุด
+    // ดึงแถวที่มีเวลาล่าสุดจริง (14:23:50)
     const latest = data[data.length - 1];
 
     const aqiVal = (latest.AQI !== "" && latest.AQI !== undefined) ? Math.round(Number(latest.AQI)) : 0;
@@ -172,23 +170,23 @@ async function loadAirData(gasUrl) {
     const mainPollutant = latest.AQI_NAME || 'PM2.5';
     const dateFormatted = formatFullDateTime(latest.Date_Time_AQI);
 
-    // 1. อัปเดตเวลาล่าสุด
+    // 1. อัปเดตเวลาล่าสุดบนหัวข้อ
     if (document.getElementById('lastUpdatedTime')) {
       document.getElementById('lastUpdatedTime').textContent = dateFormatted;
     }
 
-    // 2. อัปเดตหน้าแสดงผลหลัก (AQI View)
+    // 2. อัปเดตหน้าคุณภาพอากาศ (AQI Detail)
     if (document.getElementById('valAqi')) document.getElementById('valAqi').textContent = aqiVal;
     if (document.getElementById('valPm25')) document.getElementById('valPm25').textContent = pm25Val;
     if (document.getElementById('valPm10')) document.getElementById('valPm10').textContent = pm10Val;
     if (document.getElementById('valMainPollutant')) document.getElementById('valMainPollutant').textContent = mainPollutant;
     if (document.getElementById('valO3')) document.getElementById('valO3').textContent = `O3: ${o3Val} ppb`;
 
-    // 3. อัปเดตหน้าแรก (Home Overview)
+    // 3. อัปเดตหน้าหลัก (Home Overview)
     if (document.getElementById('homeValAqi')) document.getElementById('homeValAqi').textContent = aqiVal;
     if (document.getElementById('homeValPm25')) document.getElementById('homeValPm25').textContent = pm25Val;
 
-    // ประเมินสีและข้อความ
+    // ประเมินสีและข้อความแสดงสถานะ
     let statusText = "";
     let statusBg = "";
     let statusColor = "";
