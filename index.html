@@ -271,10 +271,10 @@
       if (typeof initPushNotification === 'function') initPushNotification(GAS_AQI_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_AQI_URL);
 
-      // เรียกฟังก์ชันดึง APM.json และซิงค์ลง Google Sheet
-      if (typeof fetchAndRelayAirData === 'function') {
+      // ลบหรือ Comment บรรทัด fetchAndRelayAirData ออก
+      /* if (typeof fetchAndRelayAirData === 'function') {
         fetchAndRelayAirData(GAS_AQI_URL);
-      }
+      } */
     }
 
     window.addEventListener('DOMContentLoaded', initApp);
