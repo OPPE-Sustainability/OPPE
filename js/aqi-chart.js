@@ -1,15 +1,13 @@
 // js/aqi-chart.js
 
-
 let aqiChartInstance = null;
 
-// แปลงรูปแบบเวลาสำหรับแกน X ของกราฟ (ดึงเฉพาะ HH:mm)
+// แปลงรูปแบบเวลาสำหรับแกน X ของกราฟ (HH:mm)
 function formatChartTime(item) {
   try {
     if (!item) return '';
     const dateStr = item.Date_Time_AQI ? item.Date_Time_AQI.toString().replace(/^'/, '').trim() : '';
 
-    // กรณีมีช่องว่าง เช่น "2026-09-14 13:19:00" หรือ "9/14/2026 13:19"
     if (dateStr.includes(' ')) {
       const parts = dateStr.split(' ');
       const timePart = parts[1] || '';
@@ -19,11 +17,10 @@ function formatChartTime(item) {
       }
     }
 
-    // กรณีอิงจาก Unix Timestamp (แปลงตัวเลขวิทย์เป็นตัวเลขปกติก่อน)
     let rawUnix = item.Date_Time_AQI_Unix ? item.Date_Time_AQI_Unix.toString().replace(/^'/, '').trim() : '';
     let unixNum = Number(rawUnix);
     if (!isNaN(unixNum) && unixNum > 0) {
-      if (unixNum < 1e11) unixNum *= 1000; // หากเป็นวินาที ให้แปลงเป็น ms
+      if (unixNum < 1e11) unixNum *= 1000;
       const d = new Date(unixNum);
       if (!isNaN(d.getTime())) {
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -136,7 +133,9 @@ function renderAqiChart(historyData) {
 
 async function loadAirData(gasUrl) {
   try {
-    const res = await fetch(gasUrl);
+    // ใส่ timestamp ต่อท้าย URL เพื่อบังคับให้ดึงข้อมูลสดใหม่จาก Google Sheets เสมอ ห้ามใช้ Cache
+    const freshUrl = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+    const res = await fetch(freshUrl, { cache: 'no-store' });
     const data = await res.json();
 
     if (!data || data.length === 0 || data.error) {
@@ -144,40 +143,52 @@ async function loadAirData(gasUrl) {
       return;
     }
 
-    // จัดเรียงข้อมูลตามเวลา
-    data.sort((a, b) => {
-      const tA = Number(a.Date_Time_AQI_Unix) || 0;
-      const tB = Number(b.Date_Time_AQI_Unix) || 0;
-      return tA - tB;
-    });
+    // ฟังก์ชันช่วยแปลงเวลาให้เป็น Timestamp (ms) ที่เชื่อถือได้
+    const getTimestamp = (item) => {
+      // 1. ลองแปลงจาก Date_Time_AQI ก่อน (เช่น "2026-09-14 13:32:00")
+      if (item.Date_Time_AQI) {
+        const cleanDateStr = item.Date_Time_AQI.toString().replace(/^'/, '').replace(/-/g, '/');
+        const parsed = Date.parse(cleanDateStr);
+        if (!isNaN(parsed)) return parsed;
+      }
+      // 2. ถ้าไม่ได้ ให้แปลงจาก Date_Time_AQI_Unix
+      let u = Number(item.Date_Time_AQI_Unix);
+      if (!isNaN(u) && u > 0) {
+        return u < 1e11 ? u * 1000 : u;
+      }
+      return 0;
+    };
 
-    // ดึงแถวล่าสุด
+    // จัดเรียงลำดับจากเวลาเก่าไปใหม่
+    data.sort((a, b) => getTimestamp(a) - getTimestamp(b));
+
+    // ดึงข้อมูลแถวล่าสุด
     const latest = data[data.length - 1];
 
-    const aqiVal = Math.round(Number(latest.AQI)) || 0;
-    const pm25Val = latest.PM_25 !== "" ? Number(latest.PM_25).toFixed(1) : '-';
-    const pm10Val = latest.PM_10 !== "" ? Number(latest.PM_10).toFixed(1) : '-';
+    const aqiVal = (latest.AQI !== "" && latest.AQI !== undefined) ? Math.round(Number(latest.AQI)) : 0;
+    const pm25Val = (latest.PM_25 !== "" && latest.PM_25 !== undefined) ? Number(latest.PM_25).toFixed(1) : '-';
+    const pm10Val = (latest.PM_10 !== "" && latest.PM_10 !== undefined) ? Number(latest.PM_10).toFixed(1) : '-';
     const o3Val = latest.O3 ? Number(latest.O3).toFixed(1) : '-';
     const mainPollutant = latest.AQI_NAME || 'PM2.5';
     const dateFormatted = formatFullDateTime(latest.Date_Time_AQI);
 
-    // 1. อัปเดตวันที่และเวลาที่ตรวจวัดล่าสุด
+    // 1. อัปเดตเวลาล่าสุด
     if (document.getElementById('lastUpdatedTime')) {
       document.getElementById('lastUpdatedTime').textContent = dateFormatted;
     }
 
-    // 2. อัปเดตในหน้า AQI Detail
+    // 2. อัปเดตหน้าแสดงผลหลัก (AQI View)
     if (document.getElementById('valAqi')) document.getElementById('valAqi').textContent = aqiVal;
     if (document.getElementById('valPm25')) document.getElementById('valPm25').textContent = pm25Val;
     if (document.getElementById('valPm10')) document.getElementById('valPm10').textContent = pm10Val;
     if (document.getElementById('valMainPollutant')) document.getElementById('valMainPollutant').textContent = mainPollutant;
     if (document.getElementById('valO3')) document.getElementById('valO3').textContent = `O3: ${o3Val} ppb`;
 
-    // 3. อัปเดตไปยังหน้า Home Overview
+    // 3. อัปเดตหน้าแรก (Home Overview)
     if (document.getElementById('homeValAqi')) document.getElementById('homeValAqi').textContent = aqiVal;
     if (document.getElementById('homeValPm25')) document.getElementById('homeValPm25').textContent = pm25Val;
 
-    // ประเมินสีและข้อความสถานะตามเกณฑ์มาตรฐาน
+    // ประเมินสีและข้อความ
     let statusText = "";
     let statusBg = "";
     let statusColor = "";
@@ -220,56 +231,5 @@ async function loadAirData(gasUrl) {
   } catch (error) {
     console.error("ดึงข้อมูลจาก Google Sheets ล้มเหลว:", error);
     if (document.getElementById('lblStatus')) document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
-  }
-}
-
-
-
-
-
-async function fetchAndRelayAirData(gasUrl) {
-  // ดึงข้อมูลสถานี 79t: มหาวิทยาลัยมหิดล ศาลายา (กรมควบคุมมลพิษ)
-  const AIR4THAI_URL = "https://air4thai.pcd.go.th/services/getNewAQI_JSON.php?stationID=79t";
-
-  try {
-    const response = await fetch(AIR4THAI_URL);
-    if (!response.ok) throw new Error("HTTP Error " + response.status);
-    
-    const resData = await response.json();
-    if (!resData || !resData.LastUpdate) {
-      throw new Error("Invalid Air4Thai data format");
-    }
-
-    const last = resData.LastUpdate;
-    const aqiObj = last.AQI || {};
-
-    // แปลงโครงสร้างข้อมูลให้ตรงกับฟิลด์เดิมของตารางใน Google Sheet
-    const formattedData = [{
-      Date_Time_AQI_Unix: String(Math.floor(Date.now() / 1000)),
-      Date_Time_AQI: `${last.date} ${last.time}`,
-      AQI: aqiObj.aqi || 0,
-      PM_25: last.PM25 ? last.PM25.value : "0",
-      PM_10: last.PM10 ? last.PM10.value : "0",
-      O3: last.O3 ? last.O3.value : "",
-      CO: last.CO ? last.CO.value : "",
-      NO2: last.NO2 ? last.NO2.value : "",
-      SO2: last.SO2 ? last.SO2.value : "",
-      AQI_NAME: aqiObj.param || "PM2.5"
-    }];
-
-    // ส่งต่อไปบันทึกลง Google Sheet และยิง Push Notification
-    await fetch(gasUrl, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        action: "sync_air_data",
-        airData: formattedData
-      })
-    });
-
-    console.log("Air data from Salaya Station synced successfully.");
-  } catch (err) {
-    console.warn("Relay Air4Thai failed:", err);
   }
 }
