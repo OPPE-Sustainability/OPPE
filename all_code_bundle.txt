@@ -271,9 +271,14 @@
       });
 
       // ขั้นตอนที่ 4: ดึงข้อมูลคุณภาพอากาศเริ่มต้น
-      const GAS_AQI_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
+      const GAS_AQI_URL = "https://script.google.com/macros/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
       if (typeof initPushNotification === 'function') initPushNotification(GAS_AQI_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_AQI_URL);
+
+      // เรียกฟังก์ชันดึง APM.json และซิงค์ลง Google Sheet
+      if (typeof fetchAndRelayAirData === 'function') {
+        fetchAndRelayAirData(GAS_AQI_URL);
+      }
     }
 
     window.addEventListener('DOMContentLoaded', initApp);
@@ -767,6 +772,33 @@ async function loadAirData(gasUrl) {
   } catch (error) {
     console.error("ดึงข้อมูลจาก Google Sheets ล้มเหลว:", error);
     if (document.getElementById('lblStatus')) document.getElementById('lblStatus').textContent = "เชื่อมต่อล้มเหลว";
+  }
+}
+
+// วางต่อท้ายในไฟล์ js/aqi-chart.js
+
+async function fetchAndRelayAirData(gasUrl) {
+  const APM_URL = "https://mahidol.ac.th/aqireport/data/APM.json";
+
+  try {
+    // 1. เบราว์เซอร์ดึงข้อมูลจาก Mahidol โดยตรง (ไม่ติดบล็อก Akamai 403)
+    const response = await fetch(APM_URL);
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const airData = await response.json();
+
+    // 2. ส่งข้อมูลที่ดึงได้ไปซิงค์ลง Google Sheets และสั่งยิง Push
+    await fetch(gasUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action: "sync_air_data",
+        airData: airData
+      })
+    });
+    console.log("Air data synced and relayed to Apps Script.");
+  } catch (err) {
+    console.warn("Relay to Apps Script skipped:", err);
   }
 }
 

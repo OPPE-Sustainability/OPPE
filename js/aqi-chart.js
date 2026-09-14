@@ -211,29 +211,51 @@ async function loadAirData(gasUrl) {
   }
 }
 
-// วางต่อท้ายในไฟล์ js/aqi-chart.js
+
 
 async function fetchAndRelayAirData(gasUrl) {
-  const APM_URL = "https://mahidol.ac.th/aqireport/data/APM.json";
+  // ดึงข้อมูลสถานี 79t: มหาวิทยาลัยมหิดล ศาลายา (กรมควบคุมมลพิษ)
+  const AIR4THAI_URL = "https://air4thai.pcd.go.th/services/getNewAQI_JSON.php?stationID=79t";
 
   try {
-    // 1. เบราว์เซอร์ดึงข้อมูลจาก Mahidol โดยตรง (ไม่ติดบล็อก Akamai 403)
-    const response = await fetch(APM_URL);
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    const airData = await response.json();
+    const response = await fetch(AIR4THAI_URL);
+    if (!response.ok) throw new Error("HTTP Error " + response.status);
+    
+    const resData = await response.json();
+    if (!resData || !resData.LastUpdate) {
+      throw new Error("Invalid Air4Thai data format");
+    }
 
-    // 2. ส่งข้อมูลที่ดึงได้ไปซิงค์ลง Google Sheets และสั่งยิง Push
+    const last = resData.LastUpdate;
+    const aqiObj = last.AQI || {};
+
+    // แปลงโครงสร้างข้อมูลให้ตรงกับฟิลด์เดิมของตารางใน Google Sheet
+    const formattedData = [{
+      Date_Time_AQI_Unix: String(Math.floor(Date.now() / 1000)),
+      Date_Time_AQI: `${last.date} ${last.time}`,
+      AQI: aqiObj.aqi || 0,
+      PM_25: last.PM25 ? last.PM25.value : "0",
+      PM_10: last.PM10 ? last.PM10.value : "0",
+      O3: last.O3 ? last.O3.value : "",
+      CO: last.CO ? last.CO.value : "",
+      NO2: last.NO2 ? last.NO2.value : "",
+      SO2: last.SO2 ? last.SO2.value : "",
+      AQI_NAME: aqiObj.param || "PM2.5"
+    }];
+
+    // ส่งต่อไปบันทึกลง Google Sheet และยิง Push Notification
     await fetch(gasUrl, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
         action: "sync_air_data",
-        airData: airData
+        airData: formattedData
       })
     });
-    console.log("Air data synced and relayed to Apps Script.");
+
+    console.log("Air data from Salaya Station synced successfully.");
   } catch (err) {
-    console.warn("Relay to Apps Script skipped:", err);
+    console.warn("Relay Air4Thai failed:", err);
   }
 }
