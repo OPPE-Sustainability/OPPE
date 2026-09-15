@@ -127,13 +127,24 @@
 
         <!-- Page: Notification Center -->
         <section id="page-notifications" class="page-view">
-          <div class="page-header">
-            <h2 class="page-title">ศูนย์จัดการการแจ้งเตือน (Notifications)</h2>
-            <p class="page-subtitle">ลงทะเบียนรับ Push Notification สรุปสภาพแวดล้อมประจำวัน</p>
+          <!-- Hero Banner แสดงภาพ OPPE ขนาดใหญ่และเด่นชัด -->
+          <div class="card-surface" style="text-align: center; padding: 32px 20px; margin-bottom: 24px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+            <div style="display: inline-block; padding: 12px; background: #ffffff; border-radius: 24px; box-shadow: 0 12px 24px rgba(23, 105, 224, 0.12); margin-bottom: 16px;">
+              <img 
+                src="Picture/OPPE.png" 
+                alt="OPPE Logo" 
+                style="width: 140px; height: 140px; max-width: 100%; object-fit: contain; display: block;"
+                onerror="this.style.display='none'"
+              >
+            </div>
+            <h2 class="page-title" style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0;">ศูนย์จัดการการแจ้งเตือน (Notifications)</h2>
+            <p class="page-subtitle" style="font-size: 14px; color: #64748b; margin: 0 auto; max-width: 480px; line-height: 1.5;">
+              ลงทะเบียนรับ Push Notification สรุปรายงานคุณภาพอากาศและสภาพแวดล้อม ม.มหิดล ศาลายา แบบเรียลไทม์
+            </p>
           </div>
+
           <div class="card-surface" id="notificationCenterMount"></div>
         </section>
-      </main>
 
       <!-- Mobile Bottom Navigation Bar -->
       <nav id="mobileBottomNav" class="mobile-bottom-nav">
