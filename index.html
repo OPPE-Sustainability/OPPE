@@ -247,11 +247,11 @@
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      // ย้ายฟอร์มแจ้งเตือนไปยังแท็บ Notification Center
+// ย้ายการ์ดแจ้งเตือนไปยังแท็บ Notification Center อย่างถูกต้อง (ไม่สร้าง Element ซ้ำ)
       const formOriginal = document.getElementById('subscribeCardWrapper');
       const notifMount = document.getElementById('notificationCenterMount');
       if (formOriginal && notifMount) {
-        notifMount.innerHTML = formOriginal.innerHTML;
+        notifMount.appendChild(formOriginal);
       }
 
       // ขั้นตอนที่ 2: จัดลำดับโหลด Script โดยโหลด light-data.js ก่อนเพื่อให้ระบบสิทธิ์พร้อมทันที

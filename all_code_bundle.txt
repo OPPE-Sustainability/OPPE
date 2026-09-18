@@ -131,13 +131,24 @@
 
         <!-- Page: Notification Center -->
         <section id="page-notifications" class="page-view">
-          <div class="page-header">
-            <h2 class="page-title">ศูนย์จัดการการแจ้งเตือน (Notifications)</h2>
-            <p class="page-subtitle">ลงทะเบียนรับ Push Notification สรุปสภาพแวดล้อมประจำวัน</p>
+          <!-- Hero Banner แสดงภาพ OPPE ขนาดใหญ่และเด่นชัด -->
+          <div class="card-surface" style="text-align: center; padding: 32px 20px; margin-bottom: 24px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+            <div style="display: inline-block; padding: 12px; background: #ffffff; border-radius: 24px; box-shadow: 0 12px 24px rgba(23, 105, 224, 0.12); margin-bottom: 16px;">
+              <img 
+                src="Picture/OPPE.png" 
+                alt="OPPE Logo" 
+                style="width: 140px; height: 140px; max-width: 100%; object-fit: contain; display: block;"
+                onerror="this.style.display='none'"
+              >
+            </div>
+            <h2 class="page-title" style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0;">ศูนย์จัดการการแจ้งเตือน (Notifications)</h2>
+            <p class="page-subtitle" style="font-size: 14px; color: #64748b; margin: 0 auto; max-width: 480px; line-height: 1.5;">
+              ลงทะเบียนรับ Push Notification สรุปรายงานคุณภาพอากาศและสภาพแวดล้อม ม.มหิดล ศาลายา แบบเรียลไทม์
+            </p>
           </div>
+
           <div class="card-surface" id="notificationCenterMount"></div>
         </section>
-      </main>
 
       <!-- Mobile Bottom Navigation Bar -->
       <nav id="mobileBottomNav" class="mobile-bottom-nav">
@@ -697,7 +708,8 @@ function renderAqiChart(historyData) {
 
 async function loadAirData(gasUrl) {
   try {
-    const res = await fetch(gasUrl);
+    const freshUrl = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+    const res = await fetch(freshUrl, { cache: 'no-store' });
     const data = await res.json();
 
     if (!data || data.length === 0 || data.error) {
@@ -705,39 +717,51 @@ async function loadAirData(gasUrl) {
       return;
     }
 
-    // เรียงลำดับตามเวลาอย่างปลอดภัย
-    data.sort((a, b) => {
-      const tA = Number(a.Date_Time_AQI_Unix) || 0;
-      const tB = Number(b.Date_Time_AQI_Unix) || 0;
-      return tA - tB;
-    });
+    // แปลงสตริงวันที่เป็น Timestamp (ms) อย่างถูกต้องทั้งแบบมี T และแบบเว้นวรรค
+    const parseItemDate = (item) => {
+      if (item.Date_Time_AQI) {
+        let str = item.Date_Time_AQI.toString().replace(/^'/, '').trim();
+        // แปลง "2026-09-14 14:23:50" ให้เป็น "2026-09-14T14:23:50"
+        if (str.includes(' ') && !str.includes('T')) {
+          str = str.replace(' ', 'T');
+        }
+        const timeVal = Date.parse(str);
+        if (!isNaN(timeVal)) return timeVal;
+      }
+      const u = Number(item.Date_Time_AQI_Unix) || 0;
+      return u < 1e11 ? u * 1000 : u;
+    };
 
+    // จัดเรียงข้อมูลจากเวลาอดีตไปหาเวลาล่าสุดตามเวลาจริงของ Date_Time_AQI
+    data.sort((a, b) => parseItemDate(a) - parseItemDate(b));
+
+    // ดึงแถวที่มีเวลาล่าสุดจริง (14:23:50)
     const latest = data[data.length - 1];
 
-    const aqiVal = latest.AQI !== "" ? Math.round(Number(latest.AQI)) : 0;
+    const aqiVal = (latest.AQI !== "" && latest.AQI !== undefined) ? Math.round(Number(latest.AQI)) : 0;
     const pm25Val = (latest.PM_25 !== "" && latest.PM_25 !== undefined) ? Number(latest.PM_25).toFixed(1) : '-';
     const pm10Val = (latest.PM_10 !== "" && latest.PM_10 !== undefined) ? Number(latest.PM_10).toFixed(1) : '-';
     const o3Val = latest.O3 ? Number(latest.O3).toFixed(1) : '-';
     const mainPollutant = latest.AQI_NAME || 'PM2.5';
     const dateFormatted = formatFullDateTime(latest.Date_Time_AQI);
 
-    // 1. อัปเดตเวลาล่าสุด
+    // 1. อัปเดตเวลาล่าสุดบนหัวข้อ
     if (document.getElementById('lastUpdatedTime')) {
       document.getElementById('lastUpdatedTime').textContent = dateFormatted;
     }
 
-    // 2. อัปเดตหน้าแสดงผลหลัก
+    // 2. อัปเดตหน้าคุณภาพอากาศ (AQI Detail)
     if (document.getElementById('valAqi')) document.getElementById('valAqi').textContent = aqiVal;
     if (document.getElementById('valPm25')) document.getElementById('valPm25').textContent = pm25Val;
     if (document.getElementById('valPm10')) document.getElementById('valPm10').textContent = pm10Val;
     if (document.getElementById('valMainPollutant')) document.getElementById('valMainPollutant').textContent = mainPollutant;
     if (document.getElementById('valO3')) document.getElementById('valO3').textContent = `O3: ${o3Val} ppb`;
 
-    // 3. อัปเดต Home Overview
+    // 3. อัปเดตหน้าหลัก (Home Overview)
     if (document.getElementById('homeValAqi')) document.getElementById('homeValAqi').textContent = aqiVal;
     if (document.getElementById('homeValPm25')) document.getElementById('homeValPm25').textContent = pm25Val;
 
-    // ประเมินสีและข้อความ
+    // ประเมินสีและข้อความแสดงสถานะ
     let statusText = "";
     let statusBg = "";
     let statusColor = "";
@@ -774,7 +798,7 @@ async function loadAirData(gasUrl) {
     setStatusStyle(document.getElementById('lblStatus'));
     setStatusStyle(document.getElementById('homeLblStatus'));
 
-    // วาดกราฟเส้น
+    // วาดกราฟเส้น 24 ชั่วโมง
     renderAqiChart(data);
 
   } catch (error) {
