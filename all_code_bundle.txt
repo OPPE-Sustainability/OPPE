@@ -251,11 +251,11 @@
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-      // ย้ายฟอร์มแจ้งเตือนไปยังแท็บ Notification Center
+// ย้ายการ์ดแจ้งเตือนไปยังแท็บ Notification Center อย่างถูกต้อง (ไม่สร้าง Element ซ้ำ)
       const formOriginal = document.getElementById('subscribeCardWrapper');
       const notifMount = document.getElementById('notificationCenterMount');
       if (formOriginal && notifMount) {
-        notifMount.innerHTML = formOriginal.innerHTML;
+        notifMount.appendChild(formOriginal);
       }
 
       // ขั้นตอนที่ 2: จัดลำดับโหลด Script โดยโหลด light-data.js ก่อนเพื่อให้ระบบสิทธิ์พร้อมทันที
@@ -1592,33 +1592,58 @@ function initPushNotification(gasUrl) {
   const statusMsg = document.getElementById('status-msg');
   const userEmailInput = document.getElementById('userEmail');
 
-  // ดักจับการส่งฟอร์มลงทะเบียน
-  subscribeForm.addEventListener('submit', async () => {
-    const email = userEmailInput.value.trim();
-    if (!email) return;
+  if (!subscribeBtn) return;
+
+  // ฟังก์ชันหลักในการขอสิทธิ์และลงทะเบียน Token
+  const handleSubscription = async (e) => {
+    if (e) e.preventDefault();
+
+    const email = userEmailInput ? userEmailInput.value.trim() : '';
+    if (!email) {
+      if (statusMsg) {
+        statusMsg.className = 'error';
+        statusMsg.textContent = 'กรุณากรอกอีเมลก่อนเปิดรับการแจ้งเตือน';
+      }
+      if (userEmailInput) userEmailInput.focus();
+      return;
+    }
 
     subscribeBtn.disabled = true;
-    statusMsg.className = '';
-    statusMsg.textContent = 'กำลังลงทะเบียน...';
+    if (statusMsg) {
+      statusMsg.className = '';
+      statusMsg.textContent = 'กำลังขอสิทธิ์การแจ้งเตือน...';
+    }
 
     try {
+      // 1. ขอสิทธิ์แจ้งเตือนจากบราวเซอร์
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        statusMsg.className = 'error';
-        statusMsg.textContent = 'กรุณาเปิดสิทธิ์แจ้งเตือนในระบบของอุปกรณ์';
+        if (statusMsg) {
+          statusMsg.className = 'error';
+          statusMsg.textContent = 'กรุณากด "อนุญาต" (Allow) การแจ้งเตือนในระบบ';
+        }
         subscribeBtn.disabled = false;
         return;
       }
 
+      if (statusMsg) statusMsg.textContent = 'กำลังลงทะเบียน Service Worker...';
+
+      // 2. ตรวจสอบและลงทะเบียน Service Worker
       const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
       await navigator.serviceWorker.ready;
 
+      if (statusMsg) statusMsg.textContent = 'กำลังขอ FCM Token...';
+
+      // 3. ขอ FCM Token
       const currentToken = await messaging.getToken({
         vapidKey: VAPID_KEY,
         serviceWorkerRegistration: registration
       });
 
       if (currentToken) {
+        if (statusMsg) statusMsg.textContent = 'กำลังบันทึกลงฐานข้อมูล...';
+
+        // 4. ส่ง Token ไปบันทึกลง Google Sheets
         await fetch(gasUrl, {
           method: 'POST',
           mode: 'no-cors',
@@ -1626,19 +1651,32 @@ function initPushNotification(gasUrl) {
           body: JSON.stringify({ token: currentToken, email: email })
         });
 
-        statusMsg.className = 'success';
-        statusMsg.textContent = '✅ ลงทะเบียนสำเร็จ!';
+        if (statusMsg) {
+          statusMsg.className = 'success';
+          statusMsg.textContent = '✅ ลงทะเบียนสำเร็จ! เครื่องพร้อมรับการแจ้งเตือนแล้ว';
+        }
         subscribeBtn.textContent = 'เปิดแจ้งเตือนแล้ว';
-        userEmailInput.disabled = true;
+        if (userEmailInput) userEmailInput.disabled = true;
+      } else {
+        throw new Error('ไม่สามารถขอรับ FCM Token ได้');
       }
     } catch (err) {
-      statusMsg.className = 'error';
-      statusMsg.textContent = 'ข้อผิดพลาด: ' + err.message;
+      console.error('Subscription error:', err);
+      if (statusMsg) {
+        statusMsg.className = 'error';
+        statusMsg.textContent = 'ข้อผิดพลาด: ' + (err.message || err);
+      }
       subscribeBtn.disabled = false;
     }
-  });
+  };
 
-  // [ใส่คืนจุดที่ตกหล่น 1]: ดักจับข้อความขณะเปิดหน้าเว็บอยู่ (Foreground Push)
+  // ดักจับทั้งการ Submit ฟอร์ม และการคลิกปุ่มโดยตรง
+  if (subscribeForm) {
+    subscribeForm.addEventListener('submit', handleSubscription);
+  }
+  subscribeBtn.addEventListener('click', handleSubscription);
+
+  // ดักจับ Foreground Notification เมื่อเปิดแอปอยู่
   messaging.onMessage((payload) => {
     const title = payload.notification?.title || payload.data?.title || "🌿 รายงานคุณภาพอากาศ มหิดล";
     const body = payload.notification?.body || payload.data?.body || "";
@@ -1647,8 +1685,8 @@ function initPushNotification(gasUrl) {
       navigator.serviceWorker.ready.then((registration) => {
         registration.showNotification(title, {
           body: body,
-          icon: 'https://cosin789.github.io/PWA_AQI_ALERT/Icon_PWA.png',
-          badge: 'https://cosin789.github.io/PWA_AQI_ALERT/icon-192.png',
+          icon: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
+          badge: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
           tag: 'mahidol-aqi-daily',
           renotify: true
         });

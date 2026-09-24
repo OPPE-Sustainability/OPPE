@@ -159,13 +159,34 @@
   function getFilteredAreaRecords() {
     const selected = getSelectedBuildings();
     if (selected.length === 0) return [];
-    return areaRecords.filter(item => selected.includes((item.building || "").trim()));
+    let records = areaRecords.filter(item => selected.includes((item.building || "").trim()));
+    
+    // ตรวจสอบเงื่อนไขตัวกรองสถานะห้อง (ทั้งหมด / ผ่านเกณฑ์ / ต้องปรับปรุง)
+    const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
+    if (evalFilter !== 'all') {
+      const roomList = groupAreaByRoom(records);
+      const allowedRooms = new Set(
+        roomList.filter(r => evalFilter === 'pass' ? r.isPass : !r.isPass).map(r => `${r.building}___${r.room}`)
+      );
+      records = records.filter(item => allowedRooms.has(`${(item.building || "").trim()}___${(item.room || "").trim()}`));
+    }
+    return records;
   }
 
   function getFilteredSpotRecords() {
     const selected = getSelectedBuildings();
     if (selected.length === 0) return [];
-    return spotRecords.filter(item => selected.includes((item.building || "").trim()));
+    let records = spotRecords.filter(item => selected.includes((item.building || "").trim()));
+
+    // ตรวจสอบเงื่อนไขตัวกรองสถานะห้อง (ทั้งหมด / ผ่านเกณฑ์ / ต้องปรับปรุง)
+    const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
+    if (evalFilter !== 'all') {
+      records = records.filter(item => {
+        const isPass = checkIsPass(item);
+        return evalFilter === 'pass' ? isPass : !isPass;
+      });
+    }
+    return records;
   }
 
   function groupAreaByRoom(records) {
@@ -192,8 +213,9 @@
   }
 
   function applyFilters() {
-    const filteredArea = getFilteredAreaRecords();
-    const roomList = groupAreaByRoom(filteredArea);
+    const selected = getSelectedBuildings();
+    const rawAreaFiltered = areaRecords.filter(item => selected.includes((item.building || "").trim()));
+    const roomList = groupAreaByRoom(rawAreaFiltered);
 
     const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
     const filteredRooms = roomList.filter(r => {
@@ -203,7 +225,7 @@
     });
 
     updateSummaryCards(roomList);
-    updateBuildingTableAndChart(filteredArea);
+    updateBuildingTableAndChart(rawAreaFiltered);
     updateRoomTable(filteredRooms);
   }
 
@@ -379,6 +401,9 @@
     const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
     const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
 
+    const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
+    const noteColumnHeader = (evalFilter === 'fail') ? 'ข้อเสนอแนะ/แก้ไข' : 'หมายเหตุ';
+
     const groupedByBuilding = {};
     records.forEach(item => {
       const bld = (item.building || "ไม่ระบุอาคาร").trim();
@@ -451,7 +476,7 @@
               <th colspan="2" style="width: 14%;">ความเข้มของแสงสว่าง (Lux)</th>
               <th colspan="2" style="width: 15%;">เกณฑ์มาตรฐาน</th>
               <th rowspan="2" style="width: 8%;">ผลประเมิน</th>
-              <th rowspan="2" style="width: 12%;">หมายเหตุ</th>
+              <th rowspan="2" style="width: 12%;">${noteColumnHeader}</th>
             </tr>
             <tr>
               <th style="width: 7%;">ค่าที่วัดได้</th>
@@ -561,6 +586,9 @@
     const serialNum = (sample.serialNo && sample.serialNo !== "-") ? sample.serialNo : "-";
     const calibDate = (sample.calDate && sample.calDate !== "-") ? sample.calDate : "-";
 
+    const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
+    const noteColumnHeader = (evalFilter === 'fail') ? 'ข้อเสนอแนะ/แก้ไข' : 'หมายเหตุ';
+
     const groupedByBuilding = {};
     records.forEach(item => {
       const bld = (item.building || "ไม่ระบุอาคาร").trim();
@@ -602,7 +630,7 @@
               <th style="width: 10%;">ค่าเฉลี่ยที่วัดได้</th>
               <th style="width: 8%;">เกณฑ์ (Lux)</th>
               <th style="width: 9%;">ผลประเมิน</th>
-              <th style="width: 13%;">หมายเหตุ</th>
+              <th style="width: 13%;">${noteColumnHeader}</th>
             </tr>
           </thead>
           <tbody>
