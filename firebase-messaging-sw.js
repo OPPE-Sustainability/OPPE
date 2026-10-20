@@ -14,20 +14,19 @@ firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  // ⚡ ดักไว้: ถ้า payload มี notification มาแล้ว ระบบ OS จะแสดงให้อัตโนมัติอยู่แล้ว
-  // ห้ามเรียก self.registration.showNotification() ซ้ำ เพราะ iOS จะเด้งเบิ้ล 2 ครั้งทันที
+  // ป้องกันการเด้งแจ้งเตือนซ้ำ 2 รอบบน iOS:
+  // หาก Payload มีก้อน notification มาแล้ว ระบบ iOS/Browser จะแสดงแจ้งเตือนให้อัตโนมัติอยู่แล้ว
   if (payload.notification) {
     return;
   }
 
-  // กรณี Backend ส่งมาเฉพาะ data (ไม่มี notification) ค่อยสั่งแสดงเอง
   const title = payload.data?.title || "🌿 รายงานคุณภาพอากาศ มหิดล";
   const options = {
     body: payload.data?.body || "อัปเดตข้อมูลคุณภาพอากาศล่าสุด",
     icon: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
     badge: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
     tag: 'mahidol-aqi-daily',
-    renotify: true,
+    renotify: false,
     data: {
       url: payload.data?.url || 'https://oppe-sustainability.github.io/OPPE/'
     }

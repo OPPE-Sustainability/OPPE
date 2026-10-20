@@ -19,9 +19,12 @@ function initPushNotification(gasUrl) {
 
   if (!subscribeBtn) return;
 
+  let isSubmitting = false;
+
   // ฟังก์ชันหลักในการขอสิทธิ์และลงทะเบียน Token
   const handleSubscription = async (e) => {
     if (e) e.preventDefault();
+    if (isSubmitting || subscribeBtn.disabled) return;
 
     const email = userEmailInput ? userEmailInput.value.trim() : '';
     if (!email) {
@@ -33,6 +36,7 @@ function initPushNotification(gasUrl) {
       return;
     }
 
+    isSubmitting = true;
     subscribeBtn.disabled = true;
     if (statusMsg) {
       statusMsg.className = '';
@@ -48,6 +52,7 @@ function initPushNotification(gasUrl) {
           statusMsg.textContent = 'กรุณากด "อนุญาต" (Allow) การแจ้งเตือนในระบบ';
         }
         subscribeBtn.disabled = false;
+        isSubmitting = false;
         return;
       }
 
@@ -92,10 +97,12 @@ function initPushNotification(gasUrl) {
         statusMsg.textContent = 'ข้อผิดพลาด: ' + (err.message || err);
       }
       subscribeBtn.disabled = false;
+    } finally {
+      isSubmitting = false;
     }
   };
 
-  // ดักจับทั้งการ Submit ฟอร์ม และการคลิกปุ่มโดยตรง
+  // ดักจับทั้งการ Submit ฟอร์ม และการคลิกปุ่มโดยตรง (ป้องกันการยิงซ้ำด้วย isSubmitting)
   if (subscribeForm) {
     subscribeForm.addEventListener('submit', handleSubscription);
   }
@@ -113,7 +120,7 @@ function initPushNotification(gasUrl) {
           icon: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
           badge: 'https://oppe-sustainability.github.io/OPPE/icon-192.png',
           tag: 'mahidol-aqi-daily',
-          renotify: true
+          renotify: false
         });
       });
     }
