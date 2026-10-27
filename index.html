@@ -86,12 +86,12 @@
             <div class="kpi-card" onclick="window.navigateTo('light')">
               <span class="kpi-label">จุดตรวจแสงสะสม</span>
               <div class="kpi-value" id="homeStatTotal">--</div>
-              <span class="kpi-unit">จุดตรวจ</span>
+              <span class="kpi-unit">ห้องตรวจ</span>
             </div>
             <div class="kpi-card border-danger" onclick="window.navigateTo('light')">
               <span class="kpi-label">ต้องปรับปรุงแสง</span>
               <div class="kpi-value text-danger" id="homeStatFail">--</div>
-              <span class="kpi-unit">จุดเสี่ยง</span>
+              <span class="kpi-unit">ห้องเสี่ยง</span>
             </div>
           </div>
 
@@ -277,10 +277,11 @@
         });
       });
 
-      // ขั้นตอนที่ 4: ดึงข้อมูลคุณภาพอากาศเริ่มต้น
+      // ขั้นตอนที่ 4: ดึงข้อมูลคุณภาพอากาศและข้อมูลสรุปตรวจวัดแสงเริ่มต้น
       const GAS_AQI_URL = "https://script.google.com/macros/s/AKfycbyG1aEjY8weKwDRxyM2Wj_jO8UScw_wD7gcpgcKJzUjdYRykAQEs8VzVExlWqOtTY3NUA/exec";
       if (typeof initPushNotification === 'function') initPushNotification(GAS_AQI_URL);
       if (typeof loadAirData === 'function') loadAirData(GAS_AQI_URL);
+      if (typeof window.initLightDashboard === 'function') window.initLightDashboard();
 
       // ลบหรือ Comment บรรทัด fetchAndRelayAirData ออก
       /* if (typeof fetchAndRelayAirData === 'function') {

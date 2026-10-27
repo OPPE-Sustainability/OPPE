@@ -8,12 +8,20 @@
 
   let areaRecords = [];
   let spotRecords = [];
+  let serverBuildingStats = {};
   let buildingChartInstance = null;
   let isExporting = false;
+  let isFetching = false;
+  let hasLoadedOnce = false;
+  let lastFetchTime = 0;
 
   window.initLightDashboard = function () {
-    fetchDashboardData();
     bindFilterEvents();
+    if (!hasLoadedOnce || (Date.now() - lastFetchTime > 10000)) {
+      fetchDashboardData(false);
+    } else {
+      applyFilters();
+    }
   };
 
   function checkIsPass(item) {
@@ -48,6 +56,43 @@
     return pass;
   }
 
+  // ซิงค์รายชื่ออาคารจากฐานข้อมูลเข้ากับ Checkbox อัตโนมัติ (กรณีมีอาคารใหม่เพิ่มเข้ามา)
+  function syncBuildingCheckboxes() {
+    const group = document.getElementById('buildingCheckboxGroup');
+    if (!group) return;
+
+    const existing = new Set(
+      Array.from(group.querySelectorAll('.bld-checkbox')).map(cb => cb.value.trim())
+    );
+
+    const incoming = new Set();
+    Object.keys(serverBuildingStats || {}).forEach(b => {
+      if (b && b.trim()) incoming.add(b.trim());
+    });
+    (areaRecords || []).forEach(r => {
+      if (r && r.building && r.building.trim()) incoming.add(r.building.trim());
+    });
+    (spotRecords || []).forEach(r => {
+      if (r && r.building && r.building.trim()) incoming.add(r.building.trim());
+    });
+
+    incoming.forEach(bld => {
+      if (!existing.has(bld)) {
+        const label = document.createElement('label');
+        label.className = 'checkbox-item';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.className = 'bld-checkbox';
+        input.value = bld;
+        input.checked = true;
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(' ' + bld));
+        group.appendChild(label);
+        existing.add(bld);
+      }
+    });
+  }
+
   function bindFilterEvents() {
     if (window.__isLightEventsBound) return;
     window.__isLightEventsBound = true;
@@ -58,9 +103,29 @@
       }
     });
 
+    // รีเฟรชข้อมูลอัตโนมัติเมื่อผู้ใช้งานกรอกฟอร์มจากอีกแท็บแล้วสลับกลับมาหน้านี้
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && (Date.now() - lastFetchTime > 5000)) {
+        fetchDashboardData(false);
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      if (Date.now() - lastFetchTime > 5000) {
+        fetchDashboardData(false);
+      }
+    });
+
     document.addEventListener('click', e => {
       const target = e.target;
       if (!target) return;
+
+      const btnRefresh = target.closest('#btnRefreshLightData');
+      if (btnRefresh) {
+        e.preventDefault();
+        fetchDashboardData(true);
+        return;
+      }
 
       if (target.id === 'btnSelectAllBuildings') {
         e.preventDefault();
@@ -89,7 +154,7 @@
 
         const filtered = getFilteredAreaRecords();
         if (!filtered || filtered.length === 0) {
-          alert('⚠️ กรุณาทำเครื่องหมายเลือกอาคารที่ต้องการออกรายงานอย่างน้อย 1 อาคาร');
+          alert('⚠️ กรุณาทำเครื่องหมายเลือกอาคารที่มีข้อมูลการตรวจวัดแบบพื้นที่อย่างน้อย 1 อาคาร');
           return;
         }
 
@@ -156,21 +221,92 @@
     return Array.from(document.querySelectorAll('.bld-checkbox:checked')).map(cb => cb.value.trim());
   }
 
+  // จัดกลุ่มแบบพื้นที่เป็นรายห้อง (1 ห้องต่อ 1 อาคาร โดยยึดผลการตรวจวัดครั้งล่าสุดของห้องนั้นเสมอ)
+  function groupAreaByRoom(records) {
+    const map = {};
+    const orderedKeys = [];
+
+    (records || []).forEach(item => {
+      const bld = (item.building || "").trim();
+      const room = (item.room || "").trim();
+      const date = (item.date || "").trim();
+      const ptCode = (item.pointCode || "").toString().trim();
+      const avgKey = item.measuredLux !== undefined ? String(item.measuredLux) : "";
+      if (!bld || !room) return;
+
+      const key = `${bld}___${room}`;
+      if (!map[key]) {
+        map[key] = {
+          building: bld,
+          room: room,
+          date: date,
+          time: item.time || "",
+          timestamp: item.timestamp || "",
+          task: item.task || "-",
+          standardLux: item.standardLux || "-",
+          minLux: item.minLux || "-",
+          measuredLux: item.measuredLux || 0,
+          recommendation: item.recommendation || "-",
+          isPass: true,
+          points: [],
+          _seenPoints: new Set(),
+          _avgKey: avgKey,
+          _completed: false
+        };
+        orderedKeys.push(key);
+      }
+
+      const entry = map[key];
+      if (entry._completed) return;
+
+      // หากเจอรหัสจุดซ้ำ หรือวันที่/ค่าเฉลี่ยเป็นคนละรอบ แปลว่าเป็นข้อมูลการวัดครั้งเก่าในอดีตของห้องเดิม ให้ข้ามทันที
+      const isDuplicatePoint = ptCode && ptCode !== "-" && entry._seenPoints.has(ptCode);
+      const isDifferentBatch = (date !== entry.date) || (avgKey !== entry._avgKey);
+
+      if (entry.points.length > 0 && (isDuplicatePoint || isDifferentBatch)) {
+        entry._completed = true;
+        return;
+      }
+
+      if (ptCode && ptCode !== "-") {
+        entry._seenPoints.add(ptCode);
+      }
+      entry.points.push(item);
+      if (!checkIsPass(item)) {
+        entry.isPass = false;
+      }
+    });
+
+    return orderedKeys.map(k => {
+      const r = map[k];
+      // เรียงลำดับจุดย่อยกลับจากจุดแรกไปจุดสุดท้าย (เช่น r-1, r-2, ...)
+      r.points.reverse();
+      delete r._seenPoints;
+      delete r._avgKey;
+      delete r._completed;
+      return r;
+    });
+  }
+
   function getFilteredAreaRecords() {
     const selected = getSelectedBuildings();
     if (selected.length === 0) return [];
-    let records = areaRecords.filter(item => selected.includes((item.building || "").trim()));
-    
+    const rawFiltered = areaRecords.filter(item => selected.includes((item.building || "").trim()));
+    const roomList = groupAreaByRoom(rawFiltered);
+
     // ตรวจสอบเงื่อนไขตัวกรองสถานะห้อง (ทั้งหมด / ผ่านเกณฑ์ / ต้องปรับปรุง)
     const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
-    if (evalFilter !== 'all') {
-      const roomList = groupAreaByRoom(records);
-      const allowedRooms = new Set(
-        roomList.filter(r => evalFilter === 'pass' ? r.isPass : !r.isPass).map(r => `${r.building}___${r.room}`)
-      );
-      records = records.filter(item => allowedRooms.has(`${(item.building || "").trim()}___${(item.room || "").trim()}`));
-    }
-    return records;
+    const filteredRooms = roomList.filter(r => {
+      if (evalFilter === 'pass') return r.isPass;
+      if (evalFilter === 'fail') return !r.isPass;
+      return true;
+    });
+
+    const out = [];
+    filteredRooms.forEach(r => {
+      r.points.forEach(pt => out.push(pt));
+    });
+    return out;
   }
 
   function getFilteredSpotRecords() {
@@ -178,7 +314,6 @@
     if (selected.length === 0) return [];
     let records = spotRecords.filter(item => selected.includes((item.building || "").trim()));
 
-    // ตรวจสอบเงื่อนไขตัวกรองสถานะห้อง (ทั้งหมด / ผ่านเกณฑ์ / ต้องปรับปรุง)
     const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
     if (evalFilter !== 'all') {
       records = records.filter(item => {
@@ -189,33 +324,44 @@
     return records;
   }
 
-  function groupAreaByRoom(records) {
-    const map = {};
-    (records || []).forEach(item => {
-      const bld = (item.building || "").trim();
-      const room = (item.room || "").trim();
-      const date = (item.date || "").trim();
-      if (!bld || !room) return;
-
-      const key = `${bld}___${date}___${room}`;
-      if (!map[key]) {
-        map[key] = {
-          building: bld, room: room, date: date,
-          task: item.task || "-", standardLux: item.standardLux || "-",
-          minLux: item.minLux || "-", measuredLux: item.measuredLux || 0,
-          isPass: true, points: []
-        };
-      }
-      map[key].points.push(item);
-      if (!checkIsPass(item)) map[key].isPass = false;
+  // รวมสถิติรายอาคารจากข้อมูล Area (พร้อมดึงจาก getBuildingStats เสริมหาก GAS ยังติดลิมิต 200 แถวเดิม)
+  function computeBuildingRoomStats(selectedBuildings, areaRoomList) {
+    const stats = {};
+    selectedBuildings.forEach(b => {
+      stats[b] = { total: 0, pass: 0, fail: 0 };
     });
-    return Object.values(map);
+
+    (areaRoomList || []).forEach(r => {
+      if (stats[r.building]) {
+        stats[r.building].total++;
+        if (r.isPass) stats[r.building].pass++;
+        else stats[r.building].fail++;
+      }
+    });
+
+    // กรณี GAS ฝั่ง Server ยังไม่ได้อัปเดตปลดลิมิต 200 แถว ให้ดึงยอดรวมรายอาคารจาก getBuildingStats มาแสดงให้ครบทุกอาคารทันที
+    const isLegacy200Cap = areaRecords.length === 200;
+    if (isLegacy200Cap && serverBuildingStats && typeof serverBuildingStats === 'object') {
+      selectedBuildings.forEach(b => {
+        const srv = serverBuildingStats[b];
+        if (srv && typeof srv.totalRooms === 'number' && srv.totalRooms > stats[b].total) {
+          stats[b] = {
+            total: srv.totalRooms,
+            pass: srv.passRooms || 0,
+            fail: srv.failRooms || 0
+          };
+        }
+      });
+    }
+
+    return stats;
   }
 
   function applyFilters() {
     const selected = getSelectedBuildings();
     const rawAreaFiltered = areaRecords.filter(item => selected.includes((item.building || "").trim()));
     const roomList = groupAreaByRoom(rawAreaFiltered);
+    const buildingStatsMap = computeBuildingRoomStats(selected, roomList);
 
     const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
     const filteredRooms = roomList.filter(r => {
@@ -224,60 +370,101 @@
       return true;
     });
 
-    updateSummaryCards(roomList);
-    updateBuildingTableAndChart(rawAreaFiltered);
-    updateRoomTable(filteredRooms);
+    updateSummaryCards(buildingStatsMap, selected);
+    updateBuildingTableAndChart(buildingStatsMap, selected);
+    updateRoomTable(filteredRooms, buildingStatsMap, selected);
   }
 
-  async function fetchDashboardData() {
+  async function fetchDashboardData(isManualRefresh) {
+    if (isFetching) return;
+    isFetching = true;
+
+    const btnRefresh = document.getElementById('btnRefreshLightData');
     const tbody = document.getElementById('lightTableBody');
+    if (isManualRefresh && btnRefresh) {
+      btnRefresh.disabled = true;
+      btnRefresh.textContent = '⏳ กำลังอัปเดต...';
+    }
+
     try {
-      const [areaRes, spotRes] = await Promise.all([
-        fetch(`${LIGHT_API_URL}?action=getAreaSummary`),
-        fetch(`${LIGHT_API_URL}?action=getSpotSummary`)
+      const ts = Date.now();
+      const fetchOpts = { cache: 'no-store' };
+
+      const [statsRes, areaRes, spotRes] = await Promise.all([
+        fetch(`${LIGHT_API_URL}?action=getBuildingStats&_t=${ts}`, fetchOpts),
+        fetch(`${LIGHT_API_URL}?action=getAreaSummary&_t=${ts}`, fetchOpts),
+        fetch(`${LIGHT_API_URL}?action=getSpotSummary&_t=${ts}`, fetchOpts)
       ]);
-      areaRecords = (await areaRes.json()) || [];
-      spotRecords = (await spotRes.json()) || [];
+
+      const statsJson = await statsRes.json();
+      const areaJson = await areaRes.json();
+      const spotJson = await spotRes.json();
+
+      if (statsJson && !statsJson.error) {
+        serverBuildingStats = statsJson;
+      }
+      areaRecords = Array.isArray(areaJson) ? areaJson : [];
+      spotRecords = Array.isArray(spotJson) ? spotJson : [];
+
+      hasLoadedOnce = true;
+      lastFetchTime = Date.now();
+
+      syncBuildingCheckboxes();
       applyFilters();
     } catch (err) {
       console.error("Fetch data error:", err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบสิทธิ์การ Deploy GAS (ต้องเป็น Anyone)</td></tr>';
+      if (tbody && !hasLoadedOnce) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบสิทธิ์การ Deploy GAS (ต้องเป็น Anyone)</td></tr>';
+      }
+    } finally {
+      isFetching = false;
+      if (btnRefresh) {
+        btnRefresh.disabled = false;
+        btnRefresh.textContent = '🔄 รีเฟรชข้อมูล';
+      }
     }
   }
 
-  function updateSummaryCards(allRooms) {
-    let pass = 0, fail = 0;
-    allRooms.forEach(r => { if (r.isPass) pass++; else fail++; });
-
-    if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = allRooms.length;
-    if (document.getElementById('statPass')) document.getElementById('statPass').textContent = pass;
-    if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
-    if (document.getElementById('homeStatTotal')) document.getElementById('homeStatTotal').textContent = allRooms.length;
-    if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = fail;
-  }
-
-  function updateBuildingTableAndChart(filteredArea) {
-    const tbody = document.getElementById('buildingSummaryTbody');
-    const canvas = document.getElementById('buildingLightChart');
-
-    const selected = getSelectedBuildings();
-    const stats = {};
-    selected.forEach(b => { stats[b] = { total: 0, pass: 0, fail: 0 }; });
-
-    const rooms = groupAreaByRoom(filteredArea);
-    rooms.forEach(r => {
-      if (stats[r.building]) {
-        stats[r.building].total++;
-        if (r.isPass) stats[r.building].pass++;
-        else stats[r.building].fail++;
+  function updateSummaryCards(buildingStatsMap, selected) {
+    let total = 0, pass = 0, fail = 0;
+    selected.forEach(b => {
+      const s = buildingStatsMap[b];
+      if (s) {
+        total += s.total;
+        pass += s.pass;
+        fail += s.fail;
       }
     });
 
-    const active = selected.filter(b => stats[b].total > 0);
+    if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = total;
+    if (document.getElementById('statPass')) document.getElementById('statPass').textContent = pass;
+    if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
+
+    // อัปเดตการ์ดหน้าแรก (Home) โดยใช้ผลรวมของทุกอาคารในระบบเสมอ
+    const allCheckboxes = Array.from(document.querySelectorAll('.bld-checkbox')).map(cb => cb.value.trim());
+    const allRooms = groupAreaByRoom(areaRecords);
+    const allStatsMap = computeBuildingRoomStats(allCheckboxes, allRooms);
+    let homeTotal = 0, homeFail = 0;
+    allCheckboxes.forEach(b => {
+      if (allStatsMap[b]) {
+        homeTotal += allStatsMap[b].total;
+        homeFail += allStatsMap[b].fail;
+      }
+    });
+
+    if (document.getElementById('homeStatTotal')) document.getElementById('homeStatTotal').textContent = homeTotal;
+    if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = homeFail;
+  }
+
+  function updateBuildingTableAndChart(stats, selected) {
+    const tbody = document.getElementById('buildingSummaryTbody');
+    const canvas = document.getElementById('buildingLightChart');
+
+    const active = selected.filter(b => stats[b] && stats[b].total > 0);
 
     if (tbody) {
       if (active.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลในอาคารที่เลือก</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลการตรวจวัดแบบพื้นที่ในอาคารที่เลือก</td></tr>';
       } else {
         tbody.innerHTML = active.map(b => {
           const s = stats[b];
@@ -296,7 +483,8 @@
       }
     }
 
-    if (canvas && typeof Chart !== 'undefined') {
+    // วาดกราฟเฉพาะเมื่อหน้าตรวจวัดแสงแสดงผลอยู่บนจอ (เพื่อให้ขนาด Canvas คำนวณได้ถูกต้อง)
+    if (canvas && typeof Chart !== 'undefined' && canvas.offsetParent !== null) {
       const ctx = canvas.getContext('2d');
       if (buildingChartInstance) {
         buildingChartInstance.destroy();
@@ -339,12 +527,17 @@
     }
   }
 
-  function updateRoomTable(filteredRooms) {
+  function updateRoomTable(filteredRooms, buildingStatsMap, selected) {
     const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
 
     if (!filteredRooms || filteredRooms.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
+      const hasTruncatedServerRooms = areaRecords.length === 200 && selected.some(b => buildingStatsMap[b] && buildingStatsMap[b].total > 0);
+      if (hasTruncatedServerRooms) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ℹ️ สถิติรายอาคารด้านบนแสดงครบแล้ว (หากต้องการดูรายละเอียดรายห้องย้อนหลังทั้งหมด กรุณาอัปเดตโค้ด GAS เพื่อปลดลิมิต 200 แถว)</td></tr>';
+      } else {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
+      }
       return;
     }
 
@@ -415,22 +608,17 @@
 
     Object.keys(groupedByBuilding).forEach(bldName => {
       const bldRecords = groupedByBuilding[bldName];
-      const groupedRoom = {};
-      bldRecords.forEach(item => {
-        const roomKey = `${item.date || ''}_${item.room || ''}`;
-        if (!groupedRoom[roomKey]) groupedRoom[roomKey] = [];
-        groupedRoom[roomKey].push(item);
-      });
+      const roomsInBuilding = groupAreaByRoom(bldRecords);
 
       let areaRowsHtml = "";
       let rowIndex = 1;
 
-      Object.keys(groupedRoom).forEach(roomKey => {
-        const points = groupedRoom[roomKey];
+      roomsInBuilding.forEach(roomObj => {
+        const points = roomObj.points;
         const count = points.length;
         const first = points[0];
         const dateTimeStr = formatDateTime(first);
-        const isPass = checkIsPass(first);
+        const isPass = roomObj.isPass;
 
         points.forEach((pt, idx) => {
           const locationStr = `${pt.room || "-"}/${pt.pointCode || "r-" + (idx + 1)}`;
