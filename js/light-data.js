@@ -1,6 +1,9 @@
 // js/light-data.js
 (function () {
   const LIGHT_API_URL = "https://script.google.com/macros/s/AKfycbyn5cMl8TJFzSEbJt89uyhnoJN7mwwLJ9ehM4RIbSx4zCpiCUjCq3rLtAREjv6puv89xA/exec";
+  const LIGHT_SHEET_ID = "1DGrpsmCsGjHvY9elJu9GV6PPeuw5M80GkG2QG2MB3ZA";
+  const GID_DATABASE_AREA = "1272062601";
+  const GID_DATABASE_SPOT = "1402451252";
 
   window.checkLightAccess = function () {
     return true;
@@ -17,12 +20,86 @@
 
   window.initLightDashboard = function () {
     bindFilterEvents();
-    if (!hasLoadedOnce || (Date.now() - lastFetchTime > 10000)) {
-      fetchDashboardData(false);
-    } else {
+    // หากเคยโหลดข้อมูลแล้ว ให้เรนเดอร์ตารางและกราฟทันทีโดยไม่ต้องรอโหลดรอบใหม่
+    if (hasLoadedOnce) {
       applyFilters();
     }
+    if (!hasLoadedOnce || (Date.now() - lastFetchTime > 10000)) {
+      fetchDashboardData(false);
+    }
   };
+
+  function cleanCell(val) {
+    if (val === undefined || val === null) return "";
+    return val.toString().replace(/^"|"$/g, "").trim();
+  }
+
+  // แปลงข้อมูล TSV จากชีต Database_Area ให้ตรงกับโครงสร้าง API ทุกคอลัมน์ (ไม่มีลิมิต 200 แถว)
+  function parseAreaTsv(tsvText) {
+    if (!tsvText) return [];
+    const lines = tsvText.split(/\r?\n/).filter(line => line.trim() !== "");
+    if (lines.length <= 1) return [];
+
+    const dataLines = lines.slice(1).reverse(); // เรียงแถวล่าสุดขึ้นก่อน
+    return dataLines.map(line => {
+      const r = line.split("\t");
+      return {
+        timestamp: cleanCell(r[0]),
+        date: cleanCell(r[1]),
+        time: cleanCell(r[2]),
+        weather: cleanCell(r[3]),
+        equipment: cleanCell(r[4]),
+        serialNo: cleanCell(r[5]),
+        calDate: cleanCell(r[6]),
+        department: cleanCell(r[7]),
+        building: cleanCell(r[8]),
+        room: cleanCell(r[9]),
+        pointCode: cleanCell(r[10]),
+        task: cleanCell(r[11]),
+        pattern: cleanCell(r[12]),
+        pointLux: Number(cleanCell(r[13])) || 0,
+        standardLux: cleanCell(r[14]),
+        minLux: cleanCell(r[15]),
+        measuredLux: Number(cleanCell(r[16])) || 0,
+        evaluation: cleanCell(r[17]),
+        recommendation: cleanCell(r[18]),
+        inspectorEmail: cleanCell(r[19])
+      };
+    }).filter(item => item.building && item.room);
+  }
+
+  // แปลงข้อมูล TSV จากชีต Database_Spot ให้ตรงกับโครงสร้าง API ทุกคอลัมน์
+  function parseSpotTsv(tsvText) {
+    if (!tsvText) return [];
+    const lines = tsvText.split(/\r?\n/).filter(line => line.trim() !== "");
+    if (lines.length <= 1) return [];
+
+    const dataLines = lines.slice(1).reverse();
+    return dataLines.map(line => {
+      const r = line.split("\t");
+      return {
+        timestamp: cleanCell(r[0]),
+        date: cleanCell(r[1]),
+        time: cleanCell(r[2]),
+        weather: cleanCell(r[3]),
+        equipment: cleanCell(r[4]),
+        serialNo: cleanCell(r[5]),
+        calDate: cleanCell(r[6]),
+        department: cleanCell(r[7]),
+        building: cleanCell(r[8]),
+        room: cleanCell(r[9]),
+        workerName: cleanCell(r[10]),
+        task: cleanCell(r[11]),
+        luxArea1: Number(cleanCell(r[12])) || 0,
+        luxArea2: Number(cleanCell(r[13])) || 0,
+        luxArea3: Number(cleanCell(r[14])) || 0,
+        standardLux: cleanCell(r[15]),
+        evaluation: cleanCell(r[16]),
+        recommendation: cleanCell(r[17]),
+        inspectorEmail: cleanCell(r[18])
+      };
+    }).filter(item => item.building);
+  }
 
   function checkIsPass(item) {
     if (!item) return false;
@@ -148,7 +225,7 @@
         if (isExporting) return;
 
         if (!areaRecords || areaRecords.length === 0) {
-          alert("⚠️ ยังไม่สามารถดึงข้อมูลจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง Web App API หรือลองรีเฟรชหน้าเว็บ");
+          alert("⚠️ ยังไม่สามารถดึงข้อมูลจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึงหรือลองรีเฟรชหน้าเว็บ");
           return;
         }
 
@@ -185,7 +262,7 @@
         if (isExporting) return;
 
         if (!spotRecords || spotRecords.length === 0) {
-          alert("⚠️ ยังไม่สามารถดึงข้อมูลแบบจุดจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง Web App API หรือลองรีเฟรชหน้าเว็บ");
+          alert("⚠️ ยังไม่สามารถดึงข้อมูลแบบจุดจากระบบ Google Sheets ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึงหรือลองรีเฟรชหน้าเว็บ");
           return;
         }
 
@@ -279,7 +356,6 @@
 
     return orderedKeys.map(k => {
       const r = map[k];
-      // เรียงลำดับจุดย่อยกลับจากจุดแรกไปจุดสุดท้าย (เช่น r-1, r-2, ...)
       r.points.reverse();
       delete r._seenPoints;
       delete r._avgKey;
@@ -294,7 +370,6 @@
     const rawFiltered = areaRecords.filter(item => selected.includes((item.building || "").trim()));
     const roomList = groupAreaByRoom(rawFiltered);
 
-    // ตรวจสอบเงื่อนไขตัวกรองสถานะห้อง (ทั้งหมด / ผ่านเกณฑ์ / ต้องปรับปรุง)
     const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
     const filteredRooms = roomList.filter(r => {
       if (evalFilter === 'pass') return r.isPass;
@@ -324,7 +399,6 @@
     return records;
   }
 
-  // รวมสถิติรายอาคารจากข้อมูล Area (พร้อมดึงจาก getBuildingStats เสริมหาก GAS ยังติดลิมิต 200 แถวเดิม)
   function computeBuildingRoomStats(selectedBuildings, areaRoomList) {
     const stats = {};
     selectedBuildings.forEach(b => {
@@ -339,7 +413,7 @@
       }
     });
 
-    // กรณี GAS ฝั่ง Server ยังไม่ได้อัปเดตปลดลิมิต 200 แถว ให้ดึงยอดรวมรายอาคารจาก getBuildingStats มาแสดงให้ครบทุกอาคารทันที
+    // กรณี Fallback ไปใช้ GAS เดิมที่ยังติดลิมิต 200 แถว ให้เสริมยอดรายอาคารจาก serverBuildingStats
     const isLegacy200Cap = areaRecords.length === 200;
     if (isLegacy200Cap && serverBuildingStats && typeof serverBuildingStats === 'object') {
       selectedBuildings.forEach(b => {
@@ -372,7 +446,7 @@
 
     updateSummaryCards(buildingStatsMap, selected);
     updateBuildingTableAndChart(buildingStatsMap, selected);
-    updateRoomTable(filteredRooms, buildingStatsMap, selected);
+    updateRoomTable(filteredRooms);
   }
 
   async function fetchDashboardData(isManualRefresh) {
@@ -389,22 +463,54 @@
     try {
       const ts = Date.now();
       const fetchOpts = { cache: 'no-store' };
+      let loadedFromSheetDirect = false;
 
-      const [statsRes, areaRes, spotRes] = await Promise.all([
-        fetch(`${LIGHT_API_URL}?action=getBuildingStats&_t=${ts}`, fetchOpts),
-        fetch(`${LIGHT_API_URL}?action=getAreaSummary&_t=${ts}`, fetchOpts),
-        fetch(`${LIGHT_API_URL}?action=getSpotSummary&_t=${ts}`, fetchOpts)
-      ]);
+      // 1. ดึงข้อมูลเต็มทั้งตารางโดยตรงจาก Google Sheets TSV (รวดเร็วและไม่ติดลิมิต 200 แถว)
+      try {
+        const areaTsvUrl = `https://docs.google.com/spreadsheets/d/${LIGHT_SHEET_ID}/export?format=tsv&gid=${GID_DATABASE_AREA}&_t=${ts}`;
+        const spotTsvUrl = `https://docs.google.com/spreadsheets/d/${LIGHT_SHEET_ID}/export?format=tsv&gid=${GID_DATABASE_SPOT}&_t=${ts}`;
 
-      const statsJson = await statsRes.json();
-      const areaJson = await areaRes.json();
-      const spotJson = await spotRes.json();
+        const [areaTsvRes, spotTsvRes] = await Promise.all([
+          fetch(areaTsvUrl, fetchOpts),
+          fetch(spotTsvUrl, fetchOpts)
+        ]);
 
-      if (statsJson && !statsJson.error) {
-        serverBuildingStats = statsJson;
+        if (areaTsvRes.ok && spotTsvRes.ok) {
+          const [areaTsvText, spotTsvText] = await Promise.all([
+            areaTsvRes.text(),
+            spotTsvRes.text()
+          ]);
+          const parsedArea = parseAreaTsv(areaTsvText);
+          const parsedSpot = parseSpotTsv(spotTsvText);
+          if (parsedArea.length > 0 || parsedSpot.length > 0) {
+            areaRecords = parsedArea;
+            spotRecords = parsedSpot;
+            serverBuildingStats = {};
+            loadedFromSheetDirect = true;
+          }
+        }
+      } catch (directErr) {
+        console.warn("Direct Sheet TSV fetch fallback to GAS:", directErr);
       }
-      areaRecords = Array.isArray(areaJson) ? areaJson : [];
-      spotRecords = Array.isArray(spotJson) ? spotJson : [];
+
+      // 2. Fallback ดึงผ่าน GAS Web App API กรณีชีตมีการเปลี่ยนสิทธิ์การแชร์ในอนาคต
+      if (!loadedFromSheetDirect) {
+        const [statsRes, areaRes, spotRes] = await Promise.all([
+          fetch(`${LIGHT_API_URL}?action=getBuildingStats&_t=${ts}`, fetchOpts),
+          fetch(`${LIGHT_API_URL}?action=getAreaSummary&_t=${ts}`, fetchOpts),
+          fetch(`${LIGHT_API_URL}?action=getSpotSummary&_t=${ts}`, fetchOpts)
+        ]);
+
+        const statsJson = await statsRes.json();
+        const areaJson = await areaRes.json();
+        const spotJson = await spotRes.json();
+
+        if (statsJson && !statsJson.error) {
+          serverBuildingStats = statsJson;
+        }
+        areaRecords = Array.isArray(areaJson) ? areaJson : [];
+        spotRecords = Array.isArray(spotJson) ? spotJson : [];
+      }
 
       hasLoadedOnce = true;
       lastFetchTime = Date.now();
@@ -414,7 +520,7 @@
     } catch (err) {
       console.error("Fetch data error:", err);
       if (tbody && !hasLoadedOnce) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบสิทธิ์การ Deploy GAS (ต้องเป็น Anyone)</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อหรือกดรีเฟรชข้อมูลอีกครั้ง</td></tr>';
       }
     } finally {
       isFetching = false;
@@ -456,6 +562,84 @@
     if (document.getElementById('homeStatFail')) document.getElementById('homeStatFail').textContent = homeFail;
   }
 
+  function formatShortBuildingLabel(name) {
+    return (name || "")
+      .replace(/^อาคารภูมิทัศน์และสิ่งแวดล้อม$/, "อาคารภูมิทัศน์ฯ")
+      .replace(/^อาคารระบบบำบัดน้ำเสียรวม$/, "บำบัดน้ำเสียรวม")
+      .replace(/^ศูนย์การเรียนรู้มหิดล$/, "ศูนย์การเรียนรู้ฯ");
+  }
+
+  function renderBuildingBarChart(canvas, active, stats) {
+    if (!canvas || typeof Chart === 'undefined') return;
+    const ctx = canvas.getContext('2d');
+    if (buildingChartInstance) {
+      buildingChartInstance.destroy();
+      buildingChartInstance = null;
+    }
+
+    const fullLabels = active.length > 0 ? active : ['ไม่มีข้อมูล'];
+    const shortLabels = fullLabels.map(formatShortBuildingLabel);
+    const passData = active.length > 0 ? active.map(b => stats[b].pass) : [0];
+    const failData = active.length > 0 ? active.map(b => stats[b].fail) : [0];
+
+    buildingChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: shortLabels,
+        datasets: [
+          {
+            label: 'ผ่านเกณฑ์ (ห้อง)',
+            data: passData,
+            backgroundColor: '#16a34a',
+            borderRadius: 4
+          },
+          {
+            label: 'ต้องปรับปรุง (ห้อง)',
+            data: failData,
+            backgroundColor: '#dc2626',
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            stacked: true,
+            grid: { display: false },
+            ticks: {
+              autoSkip: false,
+              maxRotation: 30,
+              minRotation: 20,
+              font: { size: 11, family: 'Plus Jakarta Sans' }
+            }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: { precision: 0, stepSize: 2, font: { size: 11 } },
+            grid: { color: 'rgba(0,0,0,0.04)' }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { boxWidth: 12, font: { size: 11, family: 'Plus Jakarta Sans' } }
+          },
+          tooltip: {
+            callbacks: {
+              title: function (items) {
+                const idx = items && items[0] ? items[0].dataIndex : 0;
+                return fullLabels[idx] || '';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   function updateBuildingTableAndChart(stats, selected) {
     const tbody = document.getElementById('buildingSummaryTbody');
     const canvas = document.getElementById('buildingLightChart');
@@ -483,61 +667,22 @@
       }
     }
 
-    // วาดกราฟเฉพาะเมื่อหน้าตรวจวัดแสงแสดงผลอยู่บนจอ (เพื่อให้ขนาด Canvas คำนวณได้ถูกต้อง)
-    if (canvas && typeof Chart !== 'undefined' && canvas.offsetParent !== null) {
-      const ctx = canvas.getContext('2d');
-      if (buildingChartInstance) {
-        buildingChartInstance.destroy();
+    const isLightPageActive = document.getElementById('page-light')?.classList.contains('active');
+    if (canvas && typeof Chart !== 'undefined' && isLightPageActive) {
+      if (canvas.clientWidth === 0) {
+        requestAnimationFrame(() => renderBuildingBarChart(canvas, active, stats));
+      } else {
+        renderBuildingBarChart(canvas, active, stats);
       }
-
-      const passData = active.map(b => stats[b].pass);
-      const failData = active.map(b => stats[b].fail);
-
-      buildingChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: active.length > 0 ? active : ['ไม่มีข้อมูล'],
-          datasets: [
-            {
-              label: 'ผ่านเกณฑ์ (ห้อง)',
-              data: active.length > 0 ? passData : [0],
-              backgroundColor: '#16a34a',
-              borderRadius: 4
-            },
-            {
-              label: 'ต้องปรับปรุง (ห้อง)',
-              data: active.length > 0 ? failData : [0],
-              backgroundColor: '#dc2626',
-              borderRadius: 4
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11, family: 'Plus Jakarta Sans' } } },
-            y: { stacked: true, beginAtZero: true, ticks: { precision: 0, stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.04)' } }
-          },
-          plugins: {
-            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, family: 'Plus Jakarta Sans' } } }
-          }
-        }
-      });
     }
   }
 
-  function updateRoomTable(filteredRooms, buildingStatsMap, selected) {
+  function updateRoomTable(filteredRooms) {
     const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
 
     if (!filteredRooms || filteredRooms.length === 0) {
-      const hasTruncatedServerRooms = areaRecords.length === 200 && selected.some(b => buildingStatsMap[b] && buildingStatsMap[b].total > 0);
-      if (hasTruncatedServerRooms) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ℹ️ สถิติรายอาคารด้านบนแสดงครบแล้ว (หากต้องการดูรายละเอียดรายห้องย้อนหลังทั้งหมด กรุณาอัปเดตโค้ด GAS เพื่อปลดลิมิต 200 แถว)</td></tr>';
-      } else {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
-      }
+      tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
       return;
     }
 

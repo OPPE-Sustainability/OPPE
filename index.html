@@ -14,9 +14,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/aqi-view.css">
-  <link rel="stylesheet" href="css/light-view.css">
+  <link rel="stylesheet" href="css/base.css?v=20261027_2">
+  <link rel="stylesheet" href="css/aqi-view.css?v=20261027_2">
+  <link rel="stylesheet" href="css/light-view.css?v=20261027_2">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -188,9 +188,11 @@
   </div> -->
 
   <script>
+    const APP_ASSET_VER = '20261027_2';
+
     async function loadComponent(elementId, filePath) {
       try {
-        const res = await fetch(filePath);
+        const res = await fetch(`${filePath}?v=${APP_ASSET_VER}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status} on ${filePath}`);
         const html = await res.text();
         const el = document.getElementById(elementId);
@@ -202,23 +204,6 @@
 
     // 1. State Navigation Controller ป้องกัน Race Condition และดัก Private Gate
     window.navigateTo = function(pageId) {
-      // ดักตรวจสิทธิ์เฉพาะหน้าตรวจวัดแสง (light)
-     /* if (pageId === 'light') {
-        const isAuthorized = (typeof window.checkLightAccess === 'function') 
-          ? window.checkLightAccess() 
-          : (sessionStorage.getItem("light_dash_authorized") === "true");
-
-        if (!isAuthorized) {
-          const modal = document.getElementById("lightDashboardGateModal");
-          if (modal) {
-            modal.style.display = "flex";
-            const passInput = document.getElementById("gatePasscode");
-            if (passInput) passInput.focus();
-          }
-          return; // หยุดการทำงาน ไม่เปิดหน้า Dashboard แสง
-        }
-      } */
-
       // สลับหน้าจอ Active
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
       const targetPage = document.getElementById(`page-${pageId}`);
@@ -231,11 +216,11 @@
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      // เรนเดอร์กราฟตรวจวัดแสงเมื่อได้รับอนุญาตและเปิดเข้าหน้า light
+      // เรนเดอร์กราฟตรวจวัดแสงเมื่อเปิดเข้าหน้า light
       if (pageId === 'light' && typeof window.initLightDashboard === 'function') {
         setTimeout(() => {
           window.initLightDashboard();
-        }, 150);
+        }, 50);
       }
     };
 
@@ -247,18 +232,18 @@
         loadComponent('view-light-page', 'components/light-page.html')
       ]);
 
-// ย้ายการ์ดแจ้งเตือนไปยังแท็บ Notification Center อย่างถูกต้อง (ไม่สร้าง Element ซ้ำ)
+      // ย้ายการ์ดแจ้งเตือนไปยังแท็บ Notification Center อย่างถูกต้อง (ไม่สร้าง Element ซ้ำ)
       const formOriginal = document.getElementById('subscribeCardWrapper');
       const notifMount = document.getElementById('notificationCenterMount');
       if (formOriginal && notifMount) {
         notifMount.appendChild(formOriginal);
       }
 
-      // ขั้นตอนที่ 2: จัดลำดับโหลด Script โดยโหลด light-data.js ก่อนเพื่อให้ระบบสิทธิ์พร้อมทันที
+      // ขั้นตอนที่ 2: จัดลำดับโหลด Script พร้อมเลขเวอร์ชันป้องกัน Browser Cache
       const scripts = [
-        'js/light-data.js',   // ลำดับที่ 1: สิทธิ์ Private Gate และระบบข้อมูลตรวจวัดแสง
-        'js/aqi-chart.js',    // ลำดับที่ 2: ระบบพล็อตกราฟ AQI
-        'js/push-notify.js'   // ลำดับที่ 3: ระบบ Service Worker & Push Notification
+        `js/light-data.js?v=${APP_ASSET_VER}`,
+        `js/aqi-chart.js?v=${APP_ASSET_VER}`,
+        `js/push-notify.js?v=${APP_ASSET_VER}`
       ];
 
       for (const src of scripts) {
@@ -283,10 +268,10 @@
       if (typeof loadAirData === 'function') loadAirData(GAS_AQI_URL);
       if (typeof window.initLightDashboard === 'function') window.initLightDashboard();
 
-      // ลบหรือ Comment บรรทัด fetchAndRelayAirData ออก
-      /* if (typeof fetchAndRelayAirData === 'function') {
-        fetchAndRelayAirData(GAS_AQI_URL);
-      } */
+      // รองรับการเปิดหน้าตรวจวัดแสงโดยตรงผ่าน #light
+      if (window.location.hash === '#light') {
+        window.navigateTo('light');
+      }
     }
 
     window.addEventListener('DOMContentLoaded', initApp);
