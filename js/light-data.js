@@ -17,6 +17,7 @@
   let isFetching = false;
   let hasLoadedOnce = false;
   let lastFetchTime = 0;
+  let currentRenderedRooms = [];
 
   window.initLightDashboard = function () {
     bindFilterEvents();
@@ -196,6 +197,19 @@
     document.addEventListener('click', e => {
       const target = e.target;
       if (!target) return;
+
+      const btnRoom3d = target.closest('.btn-room-3d');
+      if (btnRoom3d) {
+        e.preventDefault();
+        const idx = Number(btnRoom3d.getAttribute('data-room-idx'));
+        const roomObj = currentRenderedRooms[idx];
+        if (roomObj && typeof window.openLightRoom3D === 'function') {
+          window.openLightRoom3D(roomObj);
+        } else {
+          alert('⚠️ ระบบจำลองห้อง 3D กำลังโหลด กรุณาลองอีกครั้ง');
+        }
+        return;
+      }
 
       const btnRefresh = target.closest('#btnRefreshLightData');
       if (btnRefresh) {
@@ -520,7 +534,7 @@
     } catch (err) {
       console.error("Fetch data error:", err);
       if (tbody && !hasLoadedOnce) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อหรือกดรีเฟรชข้อมูลอีกครั้ง</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading-td text-fail">⚠️ โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อหรือกดรีเฟรชข้อมูลอีกครั้ง</td></tr>';
       }
     } finally {
       isFetching = false;
@@ -681,12 +695,14 @@
     const tbody = document.getElementById('lightTableBody');
     if (!tbody) return;
 
-    if (!filteredRooms || filteredRooms.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
+    currentRenderedRooms = Array.isArray(filteredRooms) ? filteredRooms : [];
+
+    if (currentRenderedRooms.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="loading-td">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
       return;
     }
 
-    tbody.innerHTML = filteredRooms.map(r => {
+    tbody.innerHTML = currentRenderedRooms.map((r, idx) => {
       const isPass = r.isPass;
       const ptCodes = r.points.map(p => p.pointCode).filter(c => c && c !== "-");
       const ptList = ptCodes.length > 0 ? `(${ptCodes.join(', ')})` : "";
@@ -711,6 +727,11 @@
           </td>
           <td style="text-align:center;">
             <span class="status-tag ${isPass ? 'pass' : 'fail'}">${isPass ? 'ผ่านเกณฑ์' : 'ต้องปรับปรุง'}</span>
+          </td>
+          <td style="text-align:center;">
+            <button type="button" class="btn-room-3d" data-room-idx="${idx}">
+              🧊 ดูจำลองห้อง 3D
+            </button>
           </td>
         </tr>
       `;
