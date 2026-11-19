@@ -119,6 +119,7 @@
 .sub-text { font-size: 11px; color: var(--text-muted); }
 
 .status-tag.pass { background: #DCFCE7; color: var(--success); }
+.status-tag.warn-min { background: #FEF3C7; color: #B45309; }
 .status-tag.fail { background: #FEE2E2; color: var(--danger); }
 .loading-td { text-align: center; padding: 24px; color: var(--text-muted); }
 
@@ -642,6 +643,11 @@
   color: #15803d;
   border: 1px solid #bbf7d0;
 }
+.room-chip-legend.warn-min {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
 .room-chip-legend.fail {
   background: #fee2e2;
   color: #b91c1c;
@@ -803,6 +809,20 @@
   border-color: #16a34a;
   transform: translateY(-1px);
 }
+.room-chip-btn.warn-min {
+  background: #ffffff;
+  border: 1.5px solid #fbbf24;
+  color: #92400e;
+}
+.room-chip-btn.warn-min:hover {
+  background: #fef3c7;
+  border-color: #d97706;
+  transform: translateY(-1px);
+}
+.room-chip-btn.warn-min .chip-lux {
+  background: #fef3c7;
+  color: #b45309;
+}
 .room-chip-btn.fail {
   background: #ffffff;
   border: 1.5px solid #fca5a5;
@@ -887,6 +907,13 @@
   background: #dcfce7;
   border-color: #86efac;
   color: #15803d;
+  font-weight: 700;
+  cursor: pointer;
+}
+.plan-room-pill.measured-warn-min {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #b45309;
   font-weight: 700;
   cursor: pointer;
 }

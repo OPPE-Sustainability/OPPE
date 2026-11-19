@@ -947,6 +947,30 @@
     }
   }
 
+  // แยกประเภทสีของห้อง: 'pass' (เขียว), 'warn-min' (เหลือง: ค่าเฉลี่ยผ่านแต่มีจุดต่ำกว่าขั้นต่ำ), 'fail-avg' (แดง: ค่าเฉลี่ยทั้งห้องไม่ผ่าน)
+  function getRoomFailTier(roomObj) {
+    if (!roomObj || roomObj.isPass) return 'pass';
+
+    const measured = Number(roomObj.measuredLux) || 0;
+    const stdStr = (roomObj.standardLux || "").toString().trim();
+    let avgPass = true;
+
+    if (stdStr.includes(">")) {
+      const th = parseFloat(stdStr.replace(">", "")) || 2400;
+      if (measured < th) avgPass = false;
+    } else if (stdStr.includes("-") && !stdStr.startsWith("-")) {
+      const parts = stdStr.split("-");
+      const min = parseFloat(parts[0]) || 0;
+      const max = parseFloat(parts[1]) || 99999;
+      if (measured < min || measured > max) avgPass = false;
+    } else {
+      const numStd = parseFloat(stdStr) || 0;
+      if (numStd > 0 && measured < numStd) avgPass = false;
+    }
+
+    return avgPass ? 'warn-min' : 'fail-avg';
+  }
+
   // สร้างการ์ดสรุปว่าแต่ละอาคารมีทั้งหมดกี่ห้อง ตรวจวัดไปแล้วกี่ห้อง และมีห้องไหนบ้าง
   function updateBuildingRoomBreakdown(selected, roomList, stats) {
     const container = document.getElementById('buildingRoomBreakdownList');
@@ -1014,7 +1038,11 @@
         ? `<span class="bld-plan-badge">📐 ${planInfo.planRef}</span>`
         : "";
 
-      const failRooms = bRooms.filter(r => !r.isPass);
+      const failRooms = bRooms.filter(r => !r.isPass).sort((a, b) => {
+        const ta = getRoomFailTier(a) === 'fail-avg' ? 0 : 1;
+        const tb = getRoomFailTier(b) === 'fail-avg' ? 0 : 1;
+        return ta - tb;
+      });
       const passRooms = bRooms.filter(r => r.isPass);
 
       const renderCompactChip = r => {
@@ -1023,10 +1051,14 @@
         const planTitle = (planRoomNameLookup[b] && planRoomNameLookup[b][codeNorm])
           ? ` (${planRoomNameLookup[b][codeNorm]})`
           : "";
-        const cls = r.isPass ? "pass" : "fail";
+        const tier = getRoomFailTier(r);
+        const cls = tier === 'pass' ? 'pass' : (tier === 'warn-min' ? 'warn-min' : 'fail');
+        const tierText = tier === 'pass'
+          ? 'ผ่านเกณฑ์'
+          : (tier === 'warn-min' ? 'ไม่ผ่านเกณฑ์ขั้นต่ำ (ค่าเฉลี่ยผ่าน)' : 'ค่าเฉลี่ยทั้งห้องไม่ผ่าน');
         const luxRounded = Math.round(Number(r.measuredLux) || 0);
         return `
-          <button type="button" class="room-chip-btn compact-chip ${cls}" data-room-key="${rKey}" title="ห้อง ${r.room}${planTitle} • งาน: ${r.task} • เฉลี่ย ${r.measuredLux} Lux (คลิกดู 3D)">
+          <button type="button" class="room-chip-btn compact-chip ${cls}" data-room-key="${rKey}" title="ห้อง ${r.room}${planTitle} • ${tierText} • งาน: ${r.task} • เฉลี่ย ${r.measuredLux} Lux (คลิกดู 3D)">
             <span>${r.room}</span>
             <span class="chip-lux">${luxRounded} Lux</span>
           </button>
@@ -1102,8 +1134,9 @@
             if (matchedRoom) {
               floorMeasuredCount++;
               const rKey = `${matchedRoom.building}___${matchedRoom.room}`;
-              const mCls = matchedRoom.isPass ? "measured-pass" : "measured-fail";
-              const mIcon = matchedRoom.isPass ? "🟢" : "🔴";
+              const mTier = getRoomFailTier(matchedRoom);
+              const mCls = mTier === 'pass' ? 'measured-pass' : (mTier === 'warn-min' ? 'measured-warn-min' : 'measured-fail');
+              const mIcon = mTier === 'pass' ? '🟢' : (mTier === 'warn-min' ? '🟡' : '🔴');
               return `<button type="button" class="plan-room-pill ${mCls}" data-room-key="${rKey}" title="ตรวจวัดแล้ว (${matchedRoom.measuredLux} Lux) คลิกเพื่อดู 3D">${mIcon} ${displayLabel} (${matchedRoom.measuredLux} Lux)</button>`;
             }
             return `<span class="plan-room-pill">⬜ ${displayLabel}</span>`;
@@ -1356,7 +1389,12 @@
             <strong>เฉลี่ย ${r.measuredLux} Lux</strong>
           </td>
           <td style="text-align:center;">
-            <span class="status-tag ${isPass ? 'pass' : 'fail'}">${isPass ? 'ผ่านเกณฑ์' : 'ต้องปรับปรุง'}</span>
+            ${(() => {
+              const t = getRoomFailTier(r);
+              if (t === 'pass') return '<span class="status-tag pass">ผ่านเกณฑ์</span>';
+              if (t === 'warn-min') return '<span class="status-tag warn-min">ต่ำกว่าขั้นต่ำ</span>';
+              return '<span class="status-tag fail">ค่าเฉลี่ยไม่ผ่าน</span>';
+            })()}
           </td>
           <td style="text-align:center;">
             <button type="button" class="btn-room-3d" data-room-idx="${idx}">
