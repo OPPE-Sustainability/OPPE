@@ -80,14 +80,16 @@
 
     <!-- ตารางสรุปผลรายอาคาร -->
     <div class="card-surface table-card">
-      <div class="card-header">
+      <div class="card-header flex-between" style="flex-wrap: wrap; gap: 6px;">
         <h3 class="card-title">📊 สรุปผลการตรวจวัดแยกตามอาคาร</h3>
+        <span class="sub-text">กด ✏️ เพื่อระบุ/แก้ไขจำนวนห้องทั้งหมด</span>
       </div>
       <div class="table-scroll-area" style="max-height: 360px;">
         <table class="data-table">
           <thead>
             <tr>
               <th>ชื่ออาคาร</th>
+              <th style="text-align: center;">ห้องทั้งหมด</th>
               <th style="text-align: center;">ตรวจแล้ว (ห้อง)</th>
               <th style="text-align: center; color: #16a34a;">ผ่านเกณฑ์</th>
               <th style="text-align: center; color: #dc2626;">ต้องปรับปรุง</th>
@@ -95,10 +97,42 @@
             </tr>
           </thead>
           <tbody id="buildingSummaryTbody">
-            <tr><td colspan="5" class="loading-td">กำลังรวบรวมข้อมูล...</td></tr>
+            <tr><td colspan="6" class="loading-td">กำลังรวบรวมข้อมูล...</td></tr>
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- สรุปจำนวนห้องทั้งหมด ความคืบหน้า และรายชื่อห้องที่ตรวจวัดแล้วรายอาคาร -->
+  <div class="card-surface" style="margin-bottom: 24px;">
+    <div class="card-header flex-between" style="flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+      <div>
+        <h3 class="card-title" style="margin: 0;">🏢 สรุปความคืบหน้าและรายชื่อห้องที่ตรวจวัดแล้วรายอาคาร</h3>
+        <p class="sub-text" style="margin: 4px 0 0 0;">แสดงจำนวนห้องทั้งหมดของแต่ละอาคาร จำนวนห้องที่ตรวจวัดแล้ว และรายชื่อห้องทั้งหมด (คลิกที่ชื่อห้องเพื่อเปิดดูจำลองห้อง 3D)</p>
+      </div>
+      <div class="bld-room-legend-row">
+        <span class="room-chip-legend pass">🟢 ผ่านเกณฑ์</span>
+        <span class="room-chip-legend fail">🔴 ต้องปรับปรุง</span>
+        <span class="room-chip-legend pending">⬜ ยังไม่ได้ตรวจวัด (ตามผัง)</span>
+      </div>
+    </div>
+    <div id="buildingRoomBreakdownList" class="bld-breakdown-grid">
+      <div class="loading-td">กำลังรวบรวมรายชื่อห้องรายอาคาร...</div>
+    </div>
+  </div>
+
+  <!-- สรุปผลการตรวจวัดแบบจุดทำงาน (Spot): อาคาร >>> เลขห้อง >>> ผ่าน/ไม่ผ่าน กี่โต๊ะ -->
+  <div class="card-surface" style="margin-bottom: 24px;">
+    <div class="card-header flex-between" style="flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+      <div>
+        <h3 class="card-title" style="margin: 0;">👤 สรุปผลการตรวจวัดแบบจุดทำงาน (Spot) รายอาคาร & รายห้อง</h3>
+        <p class="sub-text" style="margin: 4px 0 0 0;">แยกยอดสรุปเป็น อาคาร › เลขห้อง/พื้นที่ › จำนวนโต๊ะที่ผ่าน / ไม่ผ่านเกณฑ์ (ไม่นับรวมกับจำนวนห้องแบบพื้นที่)</p>
+      </div>
+      <div id="spotKpiSummaryBar" class="bld-stats-pills"></div>
+    </div>
+    <div id="spotBuildingBreakdownList" class="bld-breakdown-grid">
+      <div class="loading-td">กำลังรวบรวมข้อมูลการตรวจวัดแบบจุด (Spot)...</div>
     </div>
   </div>
 

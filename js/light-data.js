@@ -18,6 +18,172 @@
   let hasLoadedOnce = false;
   let lastFetchTime = 0;
   let currentRenderedRooms = [];
+  let currentAllRoomMap = {};
+
+  // ข้อมูลผังห้องจากแบบแปลนจริง (D:\ART\REALTIME_SERVICE\Plan\A1-02 ถึง A1-09)
+  // นับเฉพาะห้องและพื้นที่ภายในอาคาร (ไม่รวมหลังคา ค.ส.ล., ถนน, ลานจอดรถ, ทางเท้า, ถังน้ำ, SUB FLOOR)
+  const BUILDING_FLOOR_PLANS = {
+    "อาคารสิริวิทยา": {
+      planRef: "ผัง A1-02 ถึง A1-09 (ชั้นใต้ดิน – ดาดฟ้า)",
+      floors: [
+        {
+          floor: "ชั้นใต้ดิน (A1-02)",
+          rooms: [
+            ["B01", "ห้องเก็บของ"], ["B02", "ห้องเครื่องไฟฟ้า"], ["B03", "โถงบันได ST-1"], ["B04", "โถงลิฟต์"],
+            ["B05", "ห้อง รปภ"], ["B06", "ห้องพนักงานขับรถ"], ["B07", "ห้องเก็บของ"], ["B08", "ห้องน้ำหญิง"],
+            ["B09", "ห้อง JANITOR"], ["B10", "ห้องน้ำชาย"], ["B11", "ทางเดิน"], ["B12", "ทางเดิน"],
+            ["B13", "ทางเดิน"], ["B15", "โถงบันได ST-2"], ["B18", "ห้องเครื่องปั๊ม"]
+          ]
+        },
+        {
+          floor: "ชั้น 1 (A1-03)",
+          rooms: [
+            ["101", "โถงลิฟต์"], ["102", "ห้องไฟฟ้า"], ["103", "ห้องสื่อสาร"], ["104", "โถงบันได ST-1"],
+            ["105", "โถงลิฟต์"], ["106", "ห้องพยาบาล"], ["107", "ห้องน้ำคนพิการ"], ["108", "ห้องน้ำหญิง"],
+            ["109", "ห้องน้ำชาย"], ["110", "ห้อง JANITOR"], ["111", "ทางเดิน"], ["112", "ห้องละหมาด"],
+            ["114", "โถงบันได ST-2"], ["115", "หน่วยบริการการศึกษา"], ["116", "ห้องพักนักศึกษาบัณฑิตฯ"], ["117", "สนง.สโมสรนักศึกษา"],
+            ["118", "ห้องบริการ COM 32 ที่นั่ง"], ["119", "ทางเดิน"], ["120", "ทางเดิน"], ["121", "ทางเดิน"],
+            ["127", "ห้อง COM 60 ที่นั่ง"], ["128", "ห้องเรียน 120 ที่นั่ง"], ["129", "ห้องเรียน 120 ที่นั่ง"], ["130", "ห้องเรียน 60 ที่นั่ง"],
+            ["131", "ห้องเรียน 120 ที่นั่ง"], ["132", "ห้องเรียน 120 ที่นั่ง"], ["133", "ห้องเรียน 120 ที่นั่ง"], ["134", "ห้องเรียน 60 ที่นั่ง"],
+            ["135", "โถงบันได ST-3"], ["136", "ทางเดิน"], ["137", "ทางเดิน"], ["138", "ทางเดิน"],
+            ["140", "ห้องขยะเปียก"], ["141", "ห้องขยะแห้ง"], ["144", "ทางเดิน"], ["145", "ทางเดิน"],
+            ["146", "ทางเดิน"], ["148", "ห้อง COM 56 ที่นั่ง"]
+          ]
+        },
+        {
+          floor: "ชั้น 2 (A1-04)",
+          rooms: [
+            ["201", "โถงลิฟต์"], ["202", "ห้องไฟฟ้า"], ["203", "ห้องสื่อสาร"], ["204", "โถงบันได ST-1"],
+            ["205", "โถงลิฟต์"], ["206", "ห้องน้ำชาย"], ["207", "ห้องน้ำหญิง"], ["208", "ห้องเตรียมอาหาร"],
+            ["209", "ห้องแม่บ้าน"], ["210", "ห้องน้ำหญิง"], ["211", "ห้องน้ำชาย"], ["212", "ห้องน้ำคนพิการ"],
+            ["213", "ห้อง JANITOR"], ["215", "ทางเดิน"], ["216", "ทางเดิน"], ["217", "ห้องเรียน 386 ที่นั่ง"],
+            ["218", "ห้องเรียน 386 ที่นั่ง"], ["219", "ห้องเรียน 386 ที่นั่ง"], ["220", "โถง PRE FUNCTION"], ["221", "โถงบันได ST-3"],
+            ["222", "ทางเดิน"], ["223", "ห้องสมุด 106 ที่นั่ง"], ["224", "ห้อง SERVER"], ["225", "โถงบันได ST-2"],
+            ["227", "ห้องเครื่องไฟฟ้าหลัก"], ["228", "ห้องเครื่องกำเนิดไฟฟ้าฉุกเฉิน"], ["229", "ห้องควบคุม"], ["230", "ห้อง SECURITY"]
+          ]
+        },
+        {
+          floor: "ชั้น 3 (A1-05)",
+          rooms: [
+            ["301", "โถงลิฟต์"], ["302", "ห้องไฟฟ้า"], ["303", "ห้องสื่อสาร"], ["304", "โถงบันได ST-1"],
+            ["305", "โถงลิฟต์"], ["306", "ห้องน้ำชาย"], ["307", "ห้องน้ำหญิง"], ["308", "ห้องเตรียมอาหาร"],
+            ["309", "ห้องแม่บ้าน"], ["310", "ห้องน้ำหญิง"], ["311", "ห้องน้ำชาย"], ["312", "ห้องน้ำคนพิการ"],
+            ["313", "ห้อง JANITOR"], ["314", "ห้อง COM & SERVER"], ["315", "ห้องเรียน 60 ที่นั่ง"], ["316", "ทางเดิน"],
+            ["317", "ห้องเครื่อง AHU."], ["318", "ระเบียง"], ["319", "ทางเดิน"], ["320", "ห้อง COM 60 ที่นั่ง"],
+            ["321", "ห้อง COM 60 ที่นั่ง"], ["322", "โถงบันได ST-2"], ["324", "ห้องเรียน 60 ที่นั่ง"], ["325", "ห้องสังเกตการณ์"],
+            ["326", "ห้องเรียน 60 ที่นั่ง"], ["327", "ห้องเรียน 60 ที่นั่ง"], ["328", "ห้องเรียน 60 ที่นั่ง"], ["329", "ห้องเรียน 60 ที่นั่ง"],
+            ["330", "ห้องเรียน 60 ที่นั่ง"], ["334", "ห้องควบคุม"], ["335", "ห้องควบคุม"], ["336", "ห้องควบคุม"]
+          ]
+        },
+        {
+          floor: "ชั้น 4 (A1-06)",
+          rooms: [
+            ["401", "โถงลิฟต์"], ["402", "ห้องไฟฟ้า"], ["403", "ห้องสื่อสาร"], ["404", "โถงบันได ST-1"],
+            ["405", "โถงลิฟต์"], ["406", "ห้องน้ำชาย"], ["407", "ห้องน้ำหญิง"], ["408", "ห้องเตรียมอาหาร"],
+            ["409", "ห้องแม่บ้าน"], ["410", "ห้องน้ำหญิง"], ["411", "ห้องน้ำชาย"], ["412", "ห้องน้ำคนพิการ"],
+            ["413", "ห้อง JANITOR"], ["414", "ทางเดิน"], ["415", "ทางเดิน"], ["416", "ห้อง COM 60 ที่นั่ง"],
+            ["417", "ห้อง COM 60 ที่นั่ง"], ["418", "โถงบันได ST-2"], ["419", "ห้องเรียน 60 ที่นั่ง"], ["420", "ห้องสังเกตการณ์"],
+            ["421", "ห้องเรียน 60 ที่นั่ง"], ["422", "ห้องเรียน 60 ที่นั่ง"], ["423", "ห้องเรียน 60 ที่นั่ง"], ["424", "ห้องเรียน 60 ที่นั่ง"]
+          ]
+        },
+        {
+          floor: "ชั้น 5 (A1-07)",
+          rooms: [
+            ["501", "โถงลิฟต์"], ["502", "ห้องไฟฟ้า"], ["503", "ห้องสื่อสาร"], ["504", "โถงบันได ST-1"],
+            ["505", "โถงลิฟต์"], ["506", "ห้องน้ำชาย"], ["508", "ห้องเตรียมอาหาร"], ["509", "ห้องแม่บ้าน"],
+            ["510", "ห้องน้ำหญิง"], ["512", "ห้องน้ำคนพิการ"], ["513", "ห้อง JANITOR"], ["514", "ทางเดิน"],
+            ["515", "ทางเดิน"], ["516", "ศูนย์ศึกษาวรรณคดี"], ["517", "ห้องสำนักงานศูนย์การแปล"], ["518", "ห้องงานโสตทัศนศึกษา"],
+            ["519", "ห้องผลิตเอกสาร"], ["520", "ห้องคลังข้อสอบ"], ["521", "โถงบันได ST-2"], ["522", "LOUNGE"],
+            ["523", "ห้องพักอาจารย์ 27 ที่นั่ง"], ["524", "ห้องพักอาจารย์ 27 ที่นั่ง"]
+          ]
+        },
+        {
+          floor: "ชั้น 6 (A1-08)",
+          rooms: [
+            ["601", "โถงลิฟต์"], ["602", "ห้องไฟฟ้า"], ["603", "ห้องสื่อสาร"], ["604", "โถงบันได ST-1"],
+            ["605", "โถงลิฟต์"], ["606", "ห้องน้ำชาย"], ["608", "ห้องเตรียมอาหาร"], ["609", "ห้องแม่บ้าน"],
+            ["610", "ห้องน้ำหญิง"], ["612", "ห้องน้ำคนพิการ"], ["613", "ห้อง JANITOR"], ["614", "ทางเดิน"],
+            ["615", "ทางเดิน"], ["616", "ห้องพักอาจารย์ 45 ที่นั่ง"], ["617", "ห้องรับประทานอาหาร"], ["618", "ห้องเตรียมอาหาร"],
+            ["619", "โถงบันได ST-2"], ["620", "ห้องหลักสูตรธุระการ"]
+          ]
+        },
+        {
+          floor: "ชั้น 7 (A1-08)",
+          rooms: [
+            ["701", "โถงลิฟต์"], ["702", "ห้องไฟฟ้า"], ["703", "ห้องสื่อสาร"], ["704", "โถงบันได ST-1"],
+            ["705", "โถงลิฟต์"], ["706", "ห้องน้ำชาย"], ["708", "ห้องเตรียมอาหาร"], ["709", "ห้องแม่บ้าน"],
+            ["710", "ห้องน้ำหญิง"], ["712", "ห้องน้ำคนพิการ"], ["713", "ห้อง JANITOR"], ["714", "ทางเดิน"],
+            ["715", "ทางเดิน"], ["716", "สำนักงานคณบดี"], ["717", "ห้องเก็บเอกสาร"], ["718", "ห้องรับประทานอาหาร"],
+            ["719", "ห้องเตรียมอาหาร"], ["720", "โถงบันได ST-2"], ["721", "ทางเดิน"], ["722", "ห้องคณบดี"],
+            ["723", "ห้องน้ำ"], ["724", "ห้องรองคณบดี"], ["725", "ห้องรองคณบดี"], ["726", "ห้องรองคณบดี"],
+            ["727", "ห้องรองคณบดี"], ["728", "ห้องประชุม 16 ที่นั่ง"], ["729", "ห้องประชุม 40 ที่นั่ง"]
+          ]
+        },
+        {
+          floor: "ชั้นดาดฟ้า (A1-09)",
+          rooms: [
+            ["802", "โถงบันได ST-1"], ["803", "โถงลิฟต์"], ["804", "ห้องเครื่องปรับอากาศ"],
+            ["805", "ห้องเครื่องลิฟต์"], ["806", "ทางเดิน"], ["809", "โถงบันได ST-2"]
+          ]
+        }
+      ]
+    }
+  };
+
+  const DEFAULT_BUILDING_TOTAL_ROOMS = {
+    "อาคารสิริวิทยา": 210
+  };
+  const TOTAL_ROOMS_STORAGE_KEY = "oppe_building_total_rooms_v1";
+
+  function getCustomBuildingTotals() {
+    try {
+      const raw = localStorage.getItem(TOTAL_ROOMS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function getBuildingTotalRooms(bldName) {
+    const custom = getCustomBuildingTotals();
+    if (custom[bldName] !== undefined && custom[bldName] !== null && Number(custom[bldName]) > 0) {
+      return Number(custom[bldName]);
+    }
+    if (DEFAULT_BUILDING_TOTAL_ROOMS[bldName]) {
+      return DEFAULT_BUILDING_TOTAL_ROOMS[bldName];
+    }
+    return null;
+  }
+
+  function promptEditBuildingTotalRooms(bldName, currentMeasured) {
+    if (!bldName) return;
+    const currentTotal = getBuildingTotalRooms(bldName);
+    const defaultVal = currentTotal !== null ? String(currentTotal) : String(currentMeasured || "");
+    const input = prompt(
+      `ระบุจำนวนห้องทั้งหมดของ "${bldName}" (ห้อง):\n(ตรวจวัดแล้วปัจจุบัน ${currentMeasured || 0} ห้อง • เว้นว่างหากต้องการคืนค่าเริ่มต้น)`,
+      defaultVal
+    );
+    if (input === null) return;
+
+    const custom = getCustomBuildingTotals();
+    const trimmed = input.trim();
+    if (trimmed === "") {
+      delete custom[bldName];
+    } else {
+      const num = parseInt(trimmed, 10);
+      if (isNaN(num) || num <= 0) {
+        alert("⚠️ กรุณาระบุจำนวนห้องเป็นตัวเลขจำนวนเต็มที่มากกว่า 0");
+        return;
+      }
+      custom[bldName] = num;
+    }
+    try {
+      localStorage.setItem(TOTAL_ROOMS_STORAGE_KEY, JSON.stringify(custom));
+    } catch (e) {
+      console.warn("Could not save total rooms to localStorage:", e);
+    }
+    applyFilters();
+  }
 
   window.initLightDashboard = function () {
     bindFilterEvents();
@@ -207,6 +373,40 @@
           window.openLightRoom3D(roomObj);
         } else {
           alert('⚠️ ระบบจำลองห้อง 3D กำลังโหลด กรุณาลองอีกครั้ง');
+        }
+        return;
+      }
+
+      const btnChipRoom = target.closest('[data-room-key]');
+      if (btnChipRoom) {
+        e.preventDefault();
+        const rKey = btnChipRoom.getAttribute('data-room-key');
+        const roomObj = currentAllRoomMap[rKey];
+        if (roomObj && typeof window.openLightRoom3D === 'function') {
+          window.openLightRoom3D(roomObj);
+        }
+        return;
+      }
+
+      const btnEditTotal = target.closest('.btn-edit-total-rooms');
+      if (btnEditTotal) {
+        e.preventDefault();
+        const bldName = btnEditTotal.getAttribute('data-bld');
+        const measured = Number(btnEditTotal.getAttribute('data-measured')) || 0;
+        promptEditBuildingTotalRooms(bldName, measured);
+        return;
+      }
+
+      const btnTogglePlan = target.closest('.btn-toggle-plan-roster');
+      if (btnTogglePlan) {
+        e.preventDefault();
+        const drawerId = btnTogglePlan.getAttribute('data-target');
+        const drawer = document.getElementById(drawerId);
+        if (drawer) {
+          const isOpen = drawer.classList.toggle('open');
+          btnTogglePlan.textContent = isOpen
+            ? '🔼 ซ่อนผังรายชื่อห้องทั้งหมดในอาคาร'
+            : '📐 ดูผังรายชื่อห้องทั้งหมดในอาคารแยกตามชั้น (210 ห้อง)';
         }
         return;
       }
@@ -460,6 +660,8 @@
 
     updateSummaryCards(buildingStatsMap, selected);
     updateBuildingTableAndChart(buildingStatsMap, selected);
+    updateBuildingRoomBreakdown(selected, roomList, buildingStatsMap);
+    updateSpotBuildingBreakdown(selected);
     updateRoomTable(filteredRooms);
   }
 
@@ -662,16 +864,30 @@
 
     if (tbody) {
       if (active.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading-td">ไม่พบข้อมูลการตรวจวัดแบบพื้นที่ในอาคารที่เลือก</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading-td">ไม่พบข้อมูลการตรวจวัดแบบพื้นที่ในอาคารที่เลือก</td></tr>';
       } else {
         tbody.innerHTML = active.map(b => {
           const s = stats[b];
+          const totalInBld = getBuildingTotalRooms(b);
           const rate = s.total > 0 ? ((s.pass / s.total) * 100).toFixed(1) : "0.0";
           const color = Number(rate) >= 80 ? "#16a34a" : (Number(rate) >= 50 ? "#ca8a04" : "#dc2626");
+
+          const totalCellHtml = totalInBld
+            ? `<div style="display:inline-flex; align-items:center; gap:5px;">
+                 <strong>${totalInBld}</strong>
+                 <button type="button" class="btn-edit-total-rooms" data-bld="${b}" data-measured="${s.total}" title="แก้ไขจำนวนห้องทั้งหมด">✏️</button>
+               </div>`
+            : `<button type="button" class="btn-edit-total-rooms" data-bld="${b}" data-measured="${s.total}" title="คลิกเพื่อระบุจำนวนห้องทั้งหมดของอาคารนี้">✏️ ระบุ</button>`;
+
+          const coverageSub = totalInBld
+            ? `<div class="sub-text">(${((s.total / totalInBld) * 100).toFixed(1)}% ของอาคาร)</div>`
+            : "";
+
           return `
             <tr>
               <td><strong>${b}</strong></td>
-              <td style="text-align:center; font-weight:bold;">${s.total}</td>
+              <td style="text-align:center;">${totalCellHtml}</td>
+              <td style="text-align:center; font-weight:bold;">${s.total}${coverageSub}</td>
               <td style="text-align:center; font-weight:bold; color:#16a34a;">${s.pass}</td>
               <td style="text-align:center; font-weight:bold; color:#dc2626;">${s.fail}</td>
               <td style="text-align:center; font-weight:bold; color:${color};">${rate}%</td>
@@ -689,6 +905,349 @@
         renderBuildingBarChart(canvas, active, stats);
       }
     }
+  }
+
+  // สร้างการ์ดสรุปว่าแต่ละอาคารมีทั้งหมดกี่ห้อง ตรวจวัดไปแล้วกี่ห้อง และมีห้องไหนบ้าง
+  function updateBuildingRoomBreakdown(selected, roomList, stats) {
+    const container = document.getElementById('buildingRoomBreakdownList');
+    if (!container) return;
+
+    currentAllRoomMap = {};
+    const roomsByBuilding = {};
+    (selected || []).forEach(b => { roomsByBuilding[b] = []; });
+
+    (roomList || []).forEach(r => {
+      const rKey = `${r.building}___${r.room}`;
+      currentAllRoomMap[rKey] = r;
+      if (!roomsByBuilding[r.building]) roomsByBuilding[r.building] = [];
+      roomsByBuilding[r.building].push(r);
+    });
+
+    // เรียงอาคารที่มีห้องตรวจวัดแล้วขึ้นก่อน ตามด้วยอาคารที่เลือกไว้
+    const orderedBuildings = (selected || []).slice().sort((a, b) => {
+      const ca = (stats[a] && stats[a].total) || 0;
+      const cb = (stats[b] && stats[b].total) || 0;
+      return cb - ca;
+    });
+
+    if (orderedBuildings.length === 0) {
+      container.innerHTML = '<div class="loading-td">กรุณาเลือกอาคารด้านบนอย่างน้อย 1 อาคาร</div>';
+      return;
+    }
+
+    // สร้างพจนานุกรมชื่อห้องจากผังอาคาร (เช่น "326" -> "ห้องเรียน 60 ที่นั่ง")
+    const planRoomNameLookup = {};
+    Object.keys(BUILDING_FLOOR_PLANS).forEach(bld => {
+      planRoomNameLookup[bld] = {};
+      BUILDING_FLOOR_PLANS[bld].floors.forEach(fl => {
+        fl.rooms.forEach(([code, name]) => {
+          planRoomNameLookup[bld][code.toLowerCase()] = name;
+        });
+      });
+    });
+
+    container.innerHTML = orderedBuildings.map((b, bIdx) => {
+      const s = stats[b] || { total: 0, pass: 0, fail: 0 };
+      const bRooms = (roomsByBuilding[b] || []).slice().sort((x, y) =>
+        String(x.room).localeCompare(String(y.room), 'th', { numeric: true })
+      );
+      const totalRoomsInBld = getBuildingTotalRooms(b);
+      const planInfo = BUILDING_FLOOR_PLANS[b];
+
+      const denom = totalRoomsInBld ? Math.max(totalRoomsInBld, s.total) : Math.max(s.total, 1);
+      const passPct = s.total > 0 ? ((s.pass / denom) * 100).toFixed(1) : 0;
+      const failPct = s.total > 0 ? ((s.fail / denom) * 100).toFixed(1) : 0;
+      const measuredPctText = totalRoomsInBld
+        ? `${((s.total / totalRoomsInBld) * 100).toFixed(1)}%`
+        : "100% ของที่บันทึก";
+      const remainingRooms = totalRoomsInBld ? Math.max(0, totalRoomsInBld - s.total) : null;
+
+      const totalBadgeHtml = totalRoomsInBld
+        ? `<strong>${totalRoomsInBld} ห้อง</strong>`
+        : `<span style="color:#64748b;">ยังไม่ระบุ</span>`;
+
+      const remainingBoxHtml = remainingRooms !== null
+        ? `<div class="bld-stat-box">คงเหลือยังไม่ได้ตรวจ: <strong>${remainingRooms} ห้อง</strong></div>`
+        : "";
+
+      const planBadgeHtml = planInfo
+        ? `<span class="bld-plan-badge">📐 ${planInfo.planRef}</span>`
+        : "";
+
+      let chipsHtml = "";
+      if (bRooms.length === 0) {
+        chipsHtml = `<div class="sub-text" style="padding: 6px 0;">ยังไม่มีบันทึกการตรวจวัดแบบพื้นที่ (Area) ในอาคารนี้</div>`;
+      } else {
+        chipsHtml = `<div class="bld-room-chips-wrap">` + bRooms.map(r => {
+          const rKey = `${r.building}___${r.room}`;
+          const codeNorm = String(r.room).trim().toLowerCase();
+          const planTitle = (planRoomNameLookup[b] && planRoomNameLookup[b][codeNorm])
+            ? ` (${planRoomNameLookup[b][codeNorm]})`
+            : "";
+          const icon = r.isPass ? "🟢" : "🔴";
+          const cls = r.isPass ? "pass" : "fail";
+          const roomLabel = /^(ห้อง|โถง|บันได|ทางเดิน|ทางเข้า|ทางหนีไฟ|ลาน|ป้อม)/.test(String(r.room).trim())
+            ? r.room
+            : `ห้อง ${r.room}`;
+          return `
+            <button type="button" class="room-chip-btn ${cls}" data-room-key="${rKey}" title="คลิกเพื่อดูจำลองห้อง 3D • งาน: ${r.task} • เฉลี่ย ${r.measuredLux} Lux">
+              <span>${icon} ${roomLabel}${planTitle}</span>
+              <span class="chip-lux">${r.measuredLux} Lux</span>
+            </button>
+          `;
+        }).join('') + `</div>`;
+      }
+
+      // หากอาคารมีข้อมูลผังห้องครบทุกชั้น (เช่น อาคารสิริวิทยา) ให้แสดงปุ่มกางดูเช็กลิสต์ทุกชั้น
+      let planDrawerHtml = "";
+      let planToggleBtnHtml = "";
+      if (planInfo) {
+        const drawerId = `planRosterDrawer_${bIdx}`;
+        planToggleBtnHtml = `
+          <button type="button" class="btn-toggle-plan-roster" data-target="${drawerId}">
+            📐 ดูผังรายชื่อห้องทั้งหมดในอาคารแยกตามชั้น (${totalRoomsInBld || 210} ห้อง)
+          </button>
+        `;
+
+        // จับคู่ห้องที่ตรวจวัดแล้วเข้ากับรหัสห้องในแบบแปลน
+        const measuredByCode = {};
+        bRooms.forEach(r => {
+          measuredByCode[String(r.room).trim().toLowerCase()] = r;
+        });
+
+        const floorsHtml = planInfo.floors.map(fl => {
+          let floorMeasuredCount = 0;
+          const pills = fl.rooms.map(([code, name]) => {
+            const norm = code.toLowerCase();
+            let matchedRoom = measuredByCode[norm];
+            // รองรับการจับคู่บันไดหนีไฟ ST-1..ST-3 และโถงทางเดินแต่ละชั้น
+            if (!matchedRoom) {
+              if (name.includes("ST-1") && measuredByCode["บันไดหนีไฟ st-1"]) matchedRoom = measuredByCode["บันไดหนีไฟ st-1"];
+              else if (name.includes("ST-2") && measuredByCode["บันไดหนีไฟ st-2"]) matchedRoom = measuredByCode["บันไดหนีไฟ st-2"];
+              else if (name.includes("ST-3") && measuredByCode["บันไดหนีไฟ st-3"]) matchedRoom = measuredByCode["บันไดหนีไฟ st-3"];
+              else if (name === "ทางเดิน" && fl.floor.includes("ชั้นใต้ดิน") && measuredByCode["โถงทางเดิน ชั้นใต้ดิน"]) matchedRoom = measuredByCode["โถงทางเดิน ชั้นใต้ดิน"];
+              else if (name === "ทางเดิน" && fl.floor.includes("ชั้น 1") && measuredByCode["โถงทางเดินหน้าห้องเรียน ชั้น 1"]) matchedRoom = measuredByCode["โถงทางเดินหน้าห้องเรียน ชั้น 1"];
+              else if (name === "ทางเดิน" && fl.floor.includes("ชั้น 2") && (measuredByCode["โถงทางเดินส่วนกลาง ชั้น 2"] || measuredByCode["โถงทางเดินหลังห้องเรียนใหญ่ ชั้น 2"])) {
+                matchedRoom = measuredByCode["โถงทางเดินส่วนกลาง ชั้น 2"] || measuredByCode["โถงทางเดินหลังห้องเรียนใหญ่ ชั้น 2"];
+              }
+              else if (name === "ทางเดิน" && fl.floor.includes("ชั้น 3") && measuredByCode["โถงทางเดินชั้น 3"]) matchedRoom = measuredByCode["โถงทางเดินชั้น 3"];
+            }
+
+            if (matchedRoom) {
+              floorMeasuredCount++;
+              const rKey = `${matchedRoom.building}___${matchedRoom.room}`;
+              const mCls = matchedRoom.isPass ? "measured-pass" : "measured-fail";
+              const mIcon = matchedRoom.isPass ? "🟢" : "🔴";
+              return `<button type="button" class="plan-room-pill ${mCls}" data-room-key="${rKey}" title="ตรวจวัดแล้ว (${matchedRoom.measuredLux} Lux) คลิกเพื่อดู 3D">${mIcon} ${code} ${name} (${matchedRoom.measuredLux} Lux)</button>`;
+            }
+            return `<span class="plan-room-pill">⬜ ${code} ${name}</span>`;
+          }).join('');
+
+          return `
+            <div class="plan-floor-group">
+              <div class="plan-floor-title">
+                <span>🏢 ${fl.floor}</span>
+                <span class="sub-text">ทั้งหมด ${fl.rooms.length} ห้อง • ตรวจวัดครอบคลุมแล้ว ${floorMeasuredCount} รายการ</span>
+              </div>
+              <div class="bld-room-chips-wrap">${pills}</div>
+            </div>
+          `;
+        }).join('');
+
+        planDrawerHtml = `<div id="${drawerId}" class="plan-roster-drawer">${floorsHtml}</div>`;
+      }
+
+      return `
+        <div class="bld-breakdown-card">
+          <div class="bld-breakdown-top">
+            <div class="bld-breakdown-name">
+              <span>🏢 ${b}</span>
+              ${planBadgeHtml}
+            </div>
+            <div class="bld-stats-pills">
+              <div class="bld-stat-box">
+                ห้องทั้งหมด: ${totalBadgeHtml}
+                <button type="button" class="btn-edit-total-rooms" data-bld="${b}" data-measured="${s.total}">✏️ ตั้งค่า</button>
+              </div>
+              <div class="bld-stat-box">
+                ตรวจวัดแล้ว: <strong style="color:#0284c7;">${s.total} ห้อง</strong>
+                ${totalRoomsInBld ? `<span class="sub-text">(${measuredPctText})</span>` : ""}
+              </div>
+              <div class="bld-stat-box">
+                ผ่านเกณฑ์: <strong style="color:#16a34a;">${s.pass} ห้อง</strong>
+              </div>
+              <div class="bld-stat-box">
+                ต้องปรับปรุง: <strong style="color:#dc2626;">${s.fail} ห้อง</strong>
+              </div>
+              ${remainingBoxHtml}
+            </div>
+          </div>
+
+          <div class="bld-progress-track" title="ผ่านเกณฑ์ ${s.pass} ห้อง • ต้องปรับปรุง ${s.fail} ห้อง">
+            <div class="bld-progress-pass" style="width:${passPct}%;"></div>
+            <div class="bld-progress-fail" style="width:${failPct}%;"></div>
+          </div>
+
+          <div class="bld-rooms-label">
+            <span>📋 รายชื่อห้องที่ตรวจวัดแล้ว (${bRooms.length} ห้อง):</span>
+            ${planToggleBtnHtml}
+          </div>
+          ${chipsHtml}
+          ${planDrawerHtml}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // สร้างการ์ดสรุปการตรวจวัดแบบจุด (Spot): อาคาร >>> เลขห้อง >>> ผ่าน / ไม่ผ่าน กี่โต๊ะ
+  function updateSpotBuildingBreakdown(selected) {
+    const container = document.getElementById('spotBuildingBreakdownList');
+    const kpiBar = document.getElementById('spotKpiSummaryBar');
+    if (!container) return;
+
+    const selectedSet = new Set(selected || []);
+    const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
+
+    // กรองข้อมูล Spot ตามอาคารที่เลือกและตัวกรองสถานะ
+    const filteredSpot = (spotRecords || []).filter(item => {
+      const bld = (item.building || "").trim();
+      if (!selectedSet.has(bld)) return false;
+      const isPass = checkIsPass(item);
+      if (evalFilter === 'pass') return isPass;
+      if (evalFilter === 'fail') return !isPass;
+      return true;
+    });
+
+    let grandTotal = 0, grandPass = 0, grandFail = 0;
+    const bldMap = {};
+
+    filteredSpot.forEach(item => {
+      const bld = (item.building || "").trim();
+      const room = (item.room || "-").trim();
+      const isPass = checkIsPass(item);
+      const lux1 = Number(item.luxArea1) || 0;
+
+      grandTotal++;
+      if (isPass) grandPass++;
+      else grandFail++;
+
+      if (!bldMap[bld]) {
+        bldMap[bld] = { total: 0, pass: 0, fail: 0, rooms: {} };
+      }
+      bldMap[bld].total++;
+      if (isPass) bldMap[bld].pass++;
+      else bldMap[bld].fail++;
+
+      if (!bldMap[bld].rooms[room]) {
+        bldMap[bld].rooms[room] = {
+          room,
+          total: 0,
+          pass: 0,
+          fail: 0,
+          minLux: Infinity,
+          maxLux: -Infinity,
+          standardLux: item.standardLux || "-"
+        };
+      }
+      const rObj = bldMap[bld].rooms[room];
+      rObj.total++;
+      if (isPass) rObj.pass++;
+      else rObj.fail++;
+      if (lux1 > 0) {
+        if (lux1 < rObj.minLux) rObj.minLux = lux1;
+        if (lux1 > rObj.maxLux) rObj.maxLux = lux1;
+      }
+    });
+
+    if (kpiBar) {
+      const grandRate = grandTotal > 0 ? ((grandPass / grandTotal) * 100).toFixed(1) : "0.0";
+      kpiBar.innerHTML = `
+        <div class="bld-stat-box">ตรวจแล้ว: <strong style="color:#0284c7;">${grandTotal} โต๊ะ</strong></div>
+        <div class="bld-stat-box">ผ่านเกณฑ์: <strong style="color:#16a34a;">${grandPass} โต๊ะ</strong></div>
+        <div class="bld-stat-box">ไม่ผ่านเกณฑ์: <strong style="color:#dc2626;">${grandFail} โต๊ะ</strong></div>
+        <div class="bld-stat-box">ปลอดภัย: <strong>${grandRate}%</strong></div>
+      `;
+    }
+
+    const activeBlds = Object.keys(bldMap).sort((a, b) => bldMap[b].total - bldMap[a].total);
+    if (activeBlds.length === 0) {
+      container.innerHTML = '<div class="loading-td">ไม่พบข้อมูลการตรวจวัดแบบจุด (Spot) ในอาคารที่เลือก</div>';
+      return;
+    }
+
+    container.innerHTML = activeBlds.map(b => {
+      const bData = bldMap[b];
+      const passPct = bData.total > 0 ? ((bData.pass / bData.total) * 100).toFixed(1) : "0.0";
+      const failPct = bData.total > 0 ? ((bData.fail / bData.total) * 100).toFixed(1) : "0.0";
+      const roomKeys = Object.keys(bData.rooms).sort((x, y) =>
+        x.localeCompare(y, 'th', { numeric: true })
+      );
+
+      const rowsHtml = roomKeys.map(rk => {
+        const rm = bData.rooms[rk];
+        const roomLabel = /^(ห้อง|งาน|โถง|บันได|ทางเดิน|ลาน|ป้อม)/.test(rm.room)
+          ? rm.room
+          : `ห้อง ${rm.room}`;
+        const luxRange = (rm.minLux !== Infinity && rm.maxLux !== -Infinity)
+          ? (rm.minLux === rm.maxLux ? `${rm.minLux} Lux` : `${rm.minLux} – ${rm.maxLux} Lux`)
+          : "-";
+        const isAllPass = rm.fail === 0;
+        const statusBadge = isAllPass
+          ? `<span class="status-tag pass">ผ่านครบ</span>`
+          : `<span class="status-tag fail">ไม่ผ่าน ${rm.fail} โต๊ะ</span>`;
+
+        return `
+          <tr>
+            <td><strong>${roomLabel}</strong></td>
+            <td style="text-align:center; font-weight:700;">${rm.total} โต๊ะ</td>
+            <td style="text-align:center; font-weight:700; color:#16a34a;">${rm.pass} โต๊ะ</td>
+            <td style="text-align:center; font-weight:700; color:${rm.fail > 0 ? '#dc2626' : '#94a3b8'};">${rm.fail} โต๊ะ</td>
+            <td style="text-align:center; font-family:var(--font-mono); font-size:11.5px;">${luxRange} <span class="sub-text">(เกณฑ์ ${rm.standardLux})</span></td>
+            <td style="text-align:center;">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+
+      return `
+        <div class="bld-breakdown-card">
+          <div class="bld-breakdown-top">
+            <div class="bld-breakdown-name">
+              <span>🏢 ${b}</span>
+              <span class="bld-plan-badge">${roomKeys.length} ห้อง/พื้นที่</span>
+            </div>
+            <div class="bld-stats-pills">
+              <div class="bld-stat-box">ตรวจแล้ว: <strong style="color:#0284c7;">${bData.total} โต๊ะ</strong></div>
+              <div class="bld-stat-box">ผ่านเกณฑ์: <strong style="color:#16a34a;">${bData.pass} โต๊ะ</strong></div>
+              <div class="bld-stat-box">ไม่ผ่านเกณฑ์: <strong style="color:#dc2626;">${bData.fail} โต๊ะ</strong></div>
+              <div class="bld-stat-box">ปลอดภัย: <strong>${passPct}%</strong></div>
+            </div>
+          </div>
+
+          <div class="bld-progress-track">
+            <div class="bld-progress-pass" style="width:${passPct}%;"></div>
+            <div class="bld-progress-fail" style="width:${failPct}%;"></div>
+          </div>
+
+          <div class="spot-room-table-wrap">
+            <table class="spot-room-table">
+              <thead>
+                <tr>
+                  <th style="width:32%;">เลขห้อง / พื้นที่</th>
+                  <th style="text-align:center;">ตรวจทั้งหมด</th>
+                  <th style="text-align:center; color:#16a34a;">ผ่านเกณฑ์</th>
+                  <th style="text-align:center; color:#dc2626;">ไม่ผ่านเกณฑ์</th>
+                  <th style="text-align:center;">ช่วงค่าแสงจุดทำงาน (Lux)</th>
+                  <th style="text-align:center;">สรุปสถานะ</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   function updateRoomTable(filteredRooms) {
