@@ -332,7 +332,10 @@
         e.preventDefault();
         const rKey = btnChipRoom.getAttribute('data-room-key');
         const roomObj = currentAllRoomMap[rKey];
-        if (roomObj && typeof window.openLightRoom3D === 'function') {
+        if (roomObj && roomObj.source === 'spot') {
+          const spotEl = document.getElementById('spotBuildingBreakdownList');
+          if (spotEl) spotEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (roomObj && typeof window.openLightRoom3D === 'function') {
           window.openLightRoom3D(roomObj);
         }
         return;
@@ -699,7 +702,7 @@
 
     updateSummaryCards(buildingStatsMap, selected);
     updateBuildingTableAndChart(buildingStatsMap, selected);
-    updateBuildingRoomBreakdown(selected, roomList, buildingStatsMap);
+    updateBuildingRoomBreakdown(selected, roomList, spotRoomList, buildingStatsMap);
     updateSpotBuildingBreakdown(selected);
     updateRoomTable(filteredRooms);
   }
@@ -971,8 +974,8 @@
     return avgPass ? 'warn-min' : 'fail-avg';
   }
 
-  // สร้างการ์ดสรุปว่าแต่ละอาคารมีทั้งหมดกี่ห้อง ตรวจวัดไปแล้วกี่ห้อง และมีห้องไหนบ้าง
-  function updateBuildingRoomBreakdown(selected, roomList, stats) {
+  // สร้างการ์ดสรุปว่าแต่ละอาคารมีทั้งหมดกี่ห้อง ตรวจวัดไปแล้วกี่ห้อง และมีห้องไหนบ้าง (รวมทั้ง Area และ Spot)
+  function updateBuildingRoomBreakdown(selected, roomList, spotRoomList, stats) {
     const container = document.getElementById('buildingRoomBreakdownList');
     if (!container) return;
 
@@ -985,6 +988,18 @@
       currentAllRoomMap[rKey] = r;
       if (!roomsByBuilding[r.building]) roomsByBuilding[r.building] = [];
       roomsByBuilding[r.building].push(r);
+    });
+
+    // รวมห้องที่ตรวจวัดแบบจุด (Spot) เข้ามาแสดงในการ์ดด้วย โดยไม่ซ้ำกับห้องที่มีแบบพื้นที่แล้ว
+    (spotRoomList || []).forEach(sr => {
+      const rKey = `${sr.building}___${sr.room}`;
+      if (!currentAllRoomMap[rKey]) {
+        currentAllRoomMap[rKey] = sr;
+        if (!roomsByBuilding[sr.building]) roomsByBuilding[sr.building] = [];
+        roomsByBuilding[sr.building].push(sr);
+      } else if (!sr.isPass) {
+        currentAllRoomMap[rKey].isPass = false;
+      }
     });
 
     // เรียงอาคารที่มีห้องตรวจวัดแล้วขึ้นก่อน ตามด้วยอาคารที่เลือกไว้
@@ -1057,6 +1072,18 @@
           ? 'ผ่านเกณฑ์'
           : (tier === 'warn-min' ? 'ไม่ผ่านเกณฑ์ขั้นต่ำ (ค่าเฉลี่ยผ่าน)' : 'ค่าเฉลี่ยทั้งห้องไม่ผ่าน');
         const luxRounded = Math.round(Number(r.measuredLux) || 0);
+        if (r.source === 'spot') {
+          const spotCls = r.isPass ? 'pass' : 'fail';
+          const spotTitle = r.isPass
+            ? `ผ่านครบ ${r.passDesks}/${r.totalDesks} โต๊ะ`
+            : `ไม่ผ่าน ${r.failDesks}/${r.totalDesks} โต๊ะ`;
+          return `
+            <button type="button" class="room-chip-btn compact-chip ${spotCls}" data-room-key="${rKey}" title="แบบจุด (Spot): ห้อง ${r.room}${planTitle} • ${spotTitle} • เฉลี่ยจุดทำงาน ${r.measuredLux} Lux (คลิกเพื่อเลื่อนดูรายละเอียดแบบจุด)">
+              <span>👤 ${r.room}</span>
+              <span class="chip-lux">${r.passDesks}/${r.totalDesks} โต๊ะ</span>
+            </button>
+          `;
+        }
         return `
           <button type="button" class="room-chip-btn compact-chip ${cls}" data-room-key="${rKey}" title="ห้อง ${r.room}${planTitle} • ${tierText} • งาน: ${r.task} • เฉลี่ย ${r.measuredLux} Lux (คลิกดู 3D)">
             <span>${r.room}</span>
