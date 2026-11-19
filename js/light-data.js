@@ -576,17 +576,91 @@
     return records;
   }
 
-  function computeBuildingRoomStats(selectedBuildings, areaRoomList) {
+  // จัดกลุ่มแบบจุดบุคคล (Spot) เป็นรายห้อง โดยหากมีจุด/โต๊ะไม่ผ่านแม้แต่ 1 จุด ให้ถือว่าห้องนั้นไม่ผ่านเลย
+  function groupSpotByRoom(records) {
+    const map = {};
+    const orderedKeys = [];
+
+    (records || []).forEach(item => {
+      const bld = (item.building || "").trim();
+      const room = (item.room || "").trim();
+      if (!bld || !room) return;
+
+      const key = `${bld}___${room}`;
+      if (!map[key]) {
+        map[key] = {
+          building: bld,
+          room: room,
+          date: item.date || "",
+          task: item.task || "-",
+          standardLux: item.standardLux || "-",
+          isPass: true,
+          source: "spot",
+          totalDesks: 0,
+          passDesks: 0,
+          failDesks: 0,
+          luxSum: 0,
+          luxCount: 0
+        };
+        orderedKeys.push(key);
+      }
+
+      const entry = map[key];
+      const ptPass = checkIsPass(item);
+      entry.totalDesks++;
+      if (ptPass) entry.passDesks++;
+      else {
+        entry.failDesks++;
+        entry.isPass = false; // ไม่ผ่านแม้แต่ 1 จุด -> ห้องนี้ไม่ผ่านทันที
+      }
+
+      const lux1 = Number(item.luxArea1) || 0;
+      if (lux1 > 0) {
+        entry.luxSum += lux1;
+        entry.luxCount++;
+      }
+    });
+
+    return orderedKeys.map(k => {
+      const r = map[k];
+      r.measuredLux = r.luxCount > 0 ? Number((r.luxSum / r.luxCount).toFixed(2)) : 0;
+      delete r.luxSum;
+      delete r.luxCount;
+      return r;
+    });
+  }
+
+  function computeBuildingRoomStats(selectedBuildings, areaRoomList, spotRoomList) {
     const stats = {};
     selectedBuildings.forEach(b => {
       stats[b] = { total: 0, pass: 0, fail: 0 };
     });
 
+    // รวมห้องจากทั้งแบบพื้นที่ (Area) และแบบจุด (Spot) โดยไม่นับห้องซ้ำ
+    // และหากห้องเดียวกันมีผลไม่ผ่านแม้แต่ 1 จุด ให้ถือว่าห้องนั้นไม่ผ่านเลย
+    const mergedRooms = {};
     (areaRoomList || []).forEach(r => {
-      if (stats[r.building]) {
-        stats[r.building].total++;
-        if (r.isPass) stats[r.building].pass++;
-        else stats[r.building].fail++;
+      if (!stats[r.building]) return;
+      const key = `${r.building}___${r.room}`;
+      mergedRooms[key] = { building: r.building, isPass: !!r.isPass };
+    });
+
+    (spotRoomList || []).forEach(sr => {
+      if (!stats[sr.building]) return;
+      const key = `${sr.building}___${sr.room}`;
+      if (!mergedRooms[key]) {
+        mergedRooms[key] = { building: sr.building, isPass: !!sr.isPass };
+      } else if (!sr.isPass) {
+        mergedRooms[key].isPass = false;
+      }
+    });
+
+    Object.keys(mergedRooms).forEach(k => {
+      const rm = mergedRooms[k];
+      if (stats[rm.building]) {
+        stats[rm.building].total++;
+        if (rm.isPass) stats[rm.building].pass++;
+        else stats[rm.building].fail++;
       }
     });
 
@@ -611,8 +685,10 @@
   function applyFilters() {
     const selected = getSelectedBuildings();
     const rawAreaFiltered = areaRecords.filter(item => selected.includes((item.building || "").trim()));
+    const rawSpotFiltered = spotRecords.filter(item => selected.includes((item.building || "").trim()));
     const roomList = groupAreaByRoom(rawAreaFiltered);
-    const buildingStatsMap = computeBuildingRoomStats(selected, roomList);
+    const spotRoomList = groupSpotByRoom(rawSpotFiltered);
+    const buildingStatsMap = computeBuildingRoomStats(selected, roomList, spotRoomList);
 
     const evalFilter = document.getElementById('selectEvaluationFilter')?.value || 'all';
     const filteredRooms = roomList.filter(r => {
@@ -725,10 +801,11 @@
     if (document.getElementById('statPass')) document.getElementById('statPass').textContent = pass;
     if (document.getElementById('statFail')) document.getElementById('statFail').textContent = fail;
 
-    // อัปเดตการ์ดหน้าแรก (Home) โดยใช้ผลรวมของทุกอาคารในระบบเสมอ
+    // อัปเดตการ์ดหน้าแรก (Home) โดยใช้ผลรวมของทุกอาคารในระบบเสมอ (รวมทั้ง Area และ Spot)
     const allCheckboxes = Array.from(document.querySelectorAll('.bld-checkbox')).map(cb => cb.value.trim());
     const allRooms = groupAreaByRoom(areaRecords);
-    const allStatsMap = computeBuildingRoomStats(allCheckboxes, allRooms);
+    const allSpotRooms = groupSpotByRoom(spotRecords);
+    const allStatsMap = computeBuildingRoomStats(allCheckboxes, allRooms, allSpotRooms);
     let homeTotal = 0, homeFail = 0;
     allCheckboxes.forEach(b => {
       if (allStatsMap[b]) {
