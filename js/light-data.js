@@ -76,7 +76,12 @@
   };
 
   const DEFAULT_BUILDING_TOTAL_ROOMS = {
-    "อาคารสิริวิทยา": 69
+    "อาคารสิริวิทยา": 69,
+    "อาคารศาลายา": 15,
+    "สถานีไฟฟ้าย่อย": 7,
+    "อาคารระบบบำบัดน้ำเสียรวม": 8,
+    "อาคารภูมิทัศน์และสิ่งแวดล้อม": 2,
+    "อาคารอเนกประสงค์": 2
   };
   const TOTAL_ROOMS_STORAGE_KEY = "oppe_building_total_rooms_v1";
 
@@ -339,6 +344,18 @@
         const bldName = btnEditTotal.getAttribute('data-bld');
         const measured = Number(btnEditTotal.getAttribute('data-measured')) || 0;
         promptEditBuildingTotalRooms(bldName, measured);
+        return;
+      }
+
+      const btnToggleBld = target.closest('.btn-toggle-bld-card');
+      if (btnToggleBld) {
+        e.preventDefault();
+        const bodyId = btnToggleBld.getAttribute('data-target');
+        const bodyEl = document.getElementById(bodyId);
+        if (bodyEl) {
+          const isOpen = bodyEl.classList.toggle('open');
+          btnToggleBld.textContent = isOpen ? '🔼 ย่อเก็บ' : '🔽 กางดูรายชื่อห้อง';
+        }
         return;
       }
 
@@ -920,28 +937,54 @@
         ? `<span class="bld-plan-badge">📐 ${planInfo.planRef}</span>`
         : "";
 
-      let chipsHtml = "";
+      const failRooms = bRooms.filter(r => !r.isPass);
+      const passRooms = bRooms.filter(r => r.isPass);
+
+      const renderCompactChip = r => {
+        const rKey = `${r.building}___${r.room}`;
+        const codeNorm = String(r.room).trim().toLowerCase();
+        const planTitle = (planRoomNameLookup[b] && planRoomNameLookup[b][codeNorm])
+          ? ` (${planRoomNameLookup[b][codeNorm]})`
+          : "";
+        const cls = r.isPass ? "pass" : "fail";
+        const luxRounded = Math.round(Number(r.measuredLux) || 0);
+        return `
+          <button type="button" class="room-chip-btn compact-chip ${cls}" data-room-key="${rKey}" title="ห้อง ${r.room}${planTitle} • งาน: ${r.task} • เฉลี่ย ${r.measuredLux} Lux (คลิกดู 3D)">
+            <span>${r.room}</span>
+            <span class="chip-lux">${luxRounded} Lux</span>
+          </button>
+        `;
+      };
+
+      let splitBodyHtml = "";
       if (bRooms.length === 0) {
-        chipsHtml = `<div class="sub-text" style="padding: 6px 0;">ยังไม่มีบันทึกการตรวจวัดแบบพื้นที่ (Area) ในอาคารนี้</div>`;
+        splitBodyHtml = `<div class="sub-text" style="padding: 6px 0;">ยังไม่มีบันทึกการตรวจวัดแบบพื้นที่ (Area) ในอาคารนี้</div>`;
       } else {
-        chipsHtml = `<div class="bld-room-chips-wrap">` + bRooms.map(r => {
-          const rKey = `${r.building}___${r.room}`;
-          const codeNorm = String(r.room).trim().toLowerCase();
-          const planTitle = (planRoomNameLookup[b] && planRoomNameLookup[b][codeNorm])
-            ? ` (${planRoomNameLookup[b][codeNorm]})`
-            : "";
-          const icon = r.isPass ? "🟢" : "🔴";
-          const cls = r.isPass ? "pass" : "fail";
-          const roomLabel = /^(ห้อง|โถง|บันได|ทางเดิน|ทางเข้า|ทางหนีไฟ|ลาน|ป้อม)/.test(String(r.room).trim())
-            ? r.room
-            : `ห้อง ${r.room}`;
-          return `
-            <button type="button" class="room-chip-btn ${cls}" data-room-key="${rKey}" title="คลิกเพื่อดูจำลองห้อง 3D • งาน: ${r.task} • เฉลี่ย ${r.measuredLux} Lux">
-              <span>${icon} ${roomLabel}${planTitle}</span>
-              <span class="chip-lux">${r.measuredLux} Lux</span>
-            </button>
-          `;
-        }).join('') + `</div>`;
+        const failChipsHtml = failRooms.length > 0
+          ? `<div class="bld-room-chips-wrap">${failRooms.map(renderCompactChip).join('')}</div>`
+          : `<div class="sub-text">ไม่มีห้องที่ต้องปรับปรุง 🎉</div>`;
+        const passChipsHtml = passRooms.length > 0
+          ? `<div class="bld-room-chips-wrap">${passRooms.map(renderCompactChip).join('')}</div>`
+          : `<div class="sub-text">ยังไม่มีห้องที่ผ่านเกณฑ์</div>`;
+
+        splitBodyHtml = `
+          <div class="bld-split-columns">
+            <div class="bld-split-col col-fail">
+              <div class="bld-split-col-title">
+                <span>🔴 ต้องปรับปรุง (${failRooms.length} ห้อง)</span>
+                <span class="sub-text">คลิกห้องเพื่อดู 3D</span>
+              </div>
+              ${failChipsHtml}
+            </div>
+            <div class="bld-split-col col-pass">
+              <div class="bld-split-col-title">
+                <span>🟢 ผ่านเกณฑ์ (${passRooms.length} ห้อง)</span>
+                <span class="sub-text">คลิกห้องเพื่อดู 3D</span>
+              </div>
+              ${passChipsHtml}
+            </div>
+          </div>
+        `;
       }
 
       // หากอาคารมีข้อมูลผังห้องครบทุกชั้น (เช่น อาคารสิริวิทยา) ให้แสดงปุ่มกางดูเช็กลิสต์ทุกชั้น
@@ -1003,6 +1046,9 @@
         planDrawerHtml = `<div id="${drawerId}" class="plan-roster-drawer">${floorsHtml}</div>`;
       }
 
+      const bodyId = `bldCardBody_${bIdx}`;
+      const isDefaultOpen = bIdx === 0;
+
       return `
         <div class="bld-breakdown-card">
           <div class="bld-breakdown-top">
@@ -1020,26 +1066,28 @@
                 ${totalRoomsInBld ? `<span class="sub-text">(${measuredPctText})</span>` : ""}
               </div>
               <div class="bld-stat-box">
-                ผ่านเกณฑ์: <strong style="color:#16a34a;">${s.pass} ห้อง</strong>
+                ผ่าน: <strong style="color:#16a34a;">${s.pass}</strong>
               </div>
               <div class="bld-stat-box">
-                ต้องปรับปรุง: <strong style="color:#dc2626;">${s.fail} ห้อง</strong>
+                ปรับปรุง: <strong style="color:#dc2626;">${s.fail}</strong>
               </div>
               ${remainingBoxHtml}
+              <button type="button" class="btn-toggle-bld-card" data-target="${bodyId}">
+                ${isDefaultOpen ? '🔼 ย่อเก็บ' : '🔽 กางดูรายชื่อห้อง'}
+              </button>
             </div>
           </div>
 
-          <div class="bld-progress-track" title="ผ่านเกณฑ์ ${s.pass} ห้อง • ต้องปรับปรุง ${s.fail} ห้อง">
+          <div class="bld-progress-track" style="margin-bottom:0;" title="ผ่านเกณฑ์ ${s.pass} ห้อง • ต้องปรับปรุง ${s.fail} ห้อง">
             <div class="bld-progress-pass" style="width:${passPct}%;"></div>
             <div class="bld-progress-fail" style="width:${failPct}%;"></div>
           </div>
 
-          <div class="bld-rooms-label">
-            <span>📋 รายชื่อห้องที่ตรวจวัดแล้ว (${bRooms.length} ห้อง):</span>
-            ${planToggleBtnHtml}
+          <div id="${bodyId}" class="bld-collapsible-body ${isDefaultOpen ? 'open' : ''}">
+            ${splitBodyHtml}
+            ${planToggleBtnHtml ? `<div style="margin-top:10px; display:flex; justify-content:flex-end;">${planToggleBtnHtml}</div>` : ''}
+            ${planDrawerHtml}
           </div>
-          ${chipsHtml}
-          ${planDrawerHtml}
         </div>
       `;
     }).join('');

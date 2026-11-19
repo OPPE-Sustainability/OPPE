@@ -929,3 +929,82 @@
   background: #f8fafc;
 }
 
+/* ตัวเลือกที่ 1: แยก 2 ฝั่ง (ต้องปรับปรุง vs ผ่านเกณฑ์) + พับ/กางรายอาคาร */
+.btn-toggle-bld-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-toggle-bld-card:hover {
+  background: #eff6ff;
+  border-color: #60a5fa;
+  color: #1d4ed8;
+}
+
+.bld-collapsible-body {
+  display: none;
+  margin-top: 12px;
+}
+.bld-collapsible-body.open {
+  display: block;
+}
+
+.bld-split-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.bld-split-col {
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+.bld-split-col.col-fail {
+  background: #fff8f8;
+  border-color: #fecaca;
+}
+.bld-split-col.col-pass {
+  background: #f5fdf7;
+  border-color: #bbf7d0;
+}
+
+.bld-split-col-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bld-split-col.col-fail .bld-split-col-title {
+  color: #b91c1c;
+}
+.bld-split-col.col-pass .bld-split-col-title {
+  color: #15803d;
+}
+
+.room-chip-btn.compact-chip {
+  padding: 4px 8px;
+  font-size: 11.5px;
+  gap: 5px;
+}
+
+@media (max-width: 768px) {
+  .bld-split-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+
